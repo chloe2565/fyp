@@ -170,4 +170,12 @@ class AuthService {
       throw Exception('Failed to delete account: $e');
     }
   }
+
+  Future<bool> isEmailVerified() async {
+    User? user = FirebaseAuth.instance.currentUser;
+    if (user == null) return false;
+    
+    await user.reload(); // Refresh user data
+    return user.emailVerified;
+  }
 }

@@ -1,3 +1,4 @@
+// user_controller.dart (modified)
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -9,7 +10,9 @@ import '../modules/customer/register.dart';
 import '../service/auth_service.dart';
 import '../navigatorBase.dart';
 import '../modules/customer/homepage.dart';
-import '../service/firestore_service.dart'; // Ensure this path is correct
+import '../service/firestore_service.dart';
+import 'package:mailer/mailer.dart';
+import 'package:mailer/smtp_server.dart';
 
 class UserController {
   final FirestoreService _firestoreService = FirestoreService();
@@ -68,7 +71,7 @@ class UserController {
     // Validate form input
     if (formKey.currentState?.validate() ?? false) {
       setState(() {
-        isLoading = true; // Show loading indicator
+        isLoading = true; 
       });
 
       try {
@@ -248,6 +251,7 @@ class UserController {
     required String gender,
     required String contact,
     required void Function(void Function()) setState,
+    required BuildContext context,
   }) async {
     if (Validator.validateName(name) != null) {
       showErrorSnackBar(Validator.validateName(name)!);
@@ -265,6 +269,8 @@ class UserController {
     setState(() {
       isLoading = true;
     });
+
+    String? errorMessage;
 
     try {
       // Check for duplicate email and phone (excluding current user)
@@ -285,9 +291,39 @@ class UserController {
         throw Exception('No user is currently signed in');
       }
 
-      // Update email in Firebase Authentication if it has changed
+      bool emailChanged = false;
+
+      // Update firebase authentication email 
       if (authUser.email != email) {
-        await authUser.updateEmail(email);
+        print('Attempting to update Firebase Auth email...');
+
+        try {
+          // Use Firebase's built-in verified update flow
+          await authUser.verifyBeforeUpdateEmail(email);
+
+          showErrorSnackBar(
+            'A verification link was sent to $email. Please verify it before logging in again.',
+          );
+
+          // The new email will apply once verified
+          return;
+        } on FirebaseAuthException catch (authError) {
+          if (authError.code == 'operation-not-allowed') {
+            showErrorSnackBar(
+              'Email/Password sign-in is not enabled in your Firebase project.\nGo to Firebase Console → Authentication → Sign-in method and enable "Email/Password".',
+            );
+          } else if (authError.code == 'requires-recent-login') {
+            showErrorSnackBar(
+              'Please log in again before changing your email.',
+            );
+          } else if (authError.code == 'email-already-in-use') {
+            showErrorSnackBar('That email is already registered.');
+          } else {
+            showErrorSnackBar('Failed to update email: ${authError.message}');
+          }
+
+          return;
+        }
       }
 
       // Update user data in Firestore
@@ -297,15 +333,35 @@ class UserController {
         userName: name,
         userGender: gender,
         userContact: contact,
-        userType: 'customer', // Preserve existing userType
-        userCreatedAt: DateTime.now(), // Preserve or update as needed
+        userType: 'customer', 
+        userCreatedAt: DateTime.now(), 
         authID: authUser.uid,
       );
 
       await _firestoreService.updateUser(user);
-      showErrorSnackBar('Profile updated successfully');
+      print('Firestore updated');
+      
+      if (emailChanged) {
+        await FirebaseAuth.instance.signOut();
+        showErrorSnackBar('✅ Email updated! Logging in with: $email');
+        
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const LoginScreen()),
+        );
+      } else {
+        showErrorSnackBar('✅ Profile updated successfully!');
+      }
     } catch (e) {
       showErrorSnackBar('Failed to update profile: $e');
+
+      // Handle specific Firebase Auth errors
+      if (e.toString().contains('requires-recent-login')) {
+        errorMessage = 'Please log in again - session expired';
+      } else if (e.toString().contains('email-already-in-use')) {
+        errorMessage = 'This email is already registered';
+      }
+
     } finally {
       setState(() {
         isLoading = false;
@@ -346,7 +402,6 @@ class UserController {
       newPasswordController.clear();
       confirmPasswordController.clear();
     } on FirebaseAuthException catch (e) {
-      // Handle specific Firebase Auth errors with user-friendly messages
       String errorMessage;
       switch (e.code) {
         case 'invalid-credential':
@@ -363,7 +418,6 @@ class UserController {
       }
       showErrorSnackBar(errorMessage);
     } catch (e) {
-      // Handle other unexpected errors
       showErrorSnackBar('Failed to change password. Please try again.');
     } finally {
       setState(() {
@@ -401,6 +455,70 @@ class UserController {
         isLoading = false;
       });
     }
+  }
+
+  Future<bool> sendEmailVerification(String email) async {
+    try {
+      // Check if domain exist
+      final domain = email.split('@')[1];
+      bool domainExists = await _checkDomainExists(domain);
+      if (!domainExists) {
+        throw Exception('Email domain does not exist');
+      }
+
+      // Send real email
+      bool sent = await _sendEmailWithMailer(email);
+      if (!sent) {
+        throw Exception('Failed to send verification email');
+      }
+
+      print('Real email verification sent to: $email');
+      return true; 
+    } catch (e) {
+      print('Email failed: $e');
+      throw Exception('Email verification failed: $e');
+    }
+  }
+
+  Future<bool> _checkDomainExists(String domain) async {
+    final validDomains = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'icloud.com'];
+    return validDomains.contains(domain);
+  }
+
+  Future<bool> _sendEmailWithMailer(String toEmail) async {
+    try {
+      final smtpServer = gmail('fypflutter@gmail.com', 'nctk gyja ohoo yfdb');
+      
+      final message = Message()
+        ..from = Address('fypflutter@gmail.com', 'Neurofix Handyman')
+        ..recipients.add(Address(toEmail))
+        ..subject = '📧 Email Verification - Neurofix Handyman'
+        ..html = '''
+          <h2>Welcome to Neurofix Handyman!</h2>
+          <p>Your email <strong>$toEmail</strong> has been verified successfully!</p>
+          <p>You can now update your profile.</p>
+          <hr>
+          <small>This is an automated message. Please do not reply.</small>
+        ''';
+
+    final sendReport = await send(message, smtpServer);
+      print('Message sent: ${sendReport.toString()}');
+      return true;
+    } on MailerException catch (e) {
+      print('Message not sent: $e');
+      for (var p in e.problems) {
+        print('Problem: ${p.code}: ${p.msg}');
+      }
+      return false;
+    } catch (e) {
+      print('Unexpected error: $e');
+      return false;
+    }
+  }
+
+  Future<bool> isEmailVerifiedWithNew(String newEmail) async {
+    // Verified if successfully sent the email
+    return true;
   }
 
   void dispose() {

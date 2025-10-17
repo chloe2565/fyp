@@ -75,11 +75,11 @@ class Formatter {
 
     number = number.replaceAll(RegExp(r'[\s-]'), '');
 
-    if (number.length >= 9) {
+    if (number.length >= 12) {
       String countryCode = number.substring(0, 3);
-      String firstPart = number.substring(3, 7);
-      String middlePart = number.substring(7, 10);
-      String lastPart = number.substring(10);
+      String firstPart = number.substring(3, 5);
+      String middlePart = number.substring(5, 8);
+      String lastPart = number.substring(8);
       return '$countryCode$firstPart-$middlePart $lastPart'.trim();
     }
 
