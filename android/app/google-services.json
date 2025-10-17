@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "403656762919",
+    "project_id": "handymanfyp-51049",
+    "storage_bucket": "handymanfyp-51049.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:403656762919:android:f53944d80cf37ce5e09002",
+        "android_client_info": {
+          "package_name": "com.example.fyp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB_GuUq_168k5ODI7Tdwq3Z0OFwHc1_bv4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
