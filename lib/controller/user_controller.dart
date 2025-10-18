@@ -1,4 +1,3 @@
-// user_controller.dart (modified)
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -23,9 +22,11 @@ class UserController {
   final TextEditingController nameController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
   final TextEditingController phoneController = TextEditingController();
-  final TextEditingController currentPasswordController = TextEditingController();
+  final TextEditingController currentPasswordController =
+      TextEditingController();
   final TextEditingController newPasswordController = TextEditingController();
-  final TextEditingController confirmPasswordController = TextEditingController();
+  final TextEditingController confirmPasswordController =
+      TextEditingController();
 
   Gender? gender = Gender.male;
 
@@ -71,7 +72,7 @@ class UserController {
     // Validate form input
     if (formKey.currentState?.validate() ?? false) {
       setState(() {
-        isLoading = true; 
+        isLoading = true;
       });
 
       try {
@@ -90,14 +91,14 @@ class UserController {
           if (user.userType == 'customer') {
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (
-                  context) => const CustHomepage()), // Customer homepage
+              MaterialPageRoute(
+                  builder: (context) => const CustHomepage()), // Customer homepage
             );
           } else if (user.userType == 'employee') {
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (
-                  context) => const CustHomepage()), // Employee homepage
+              MaterialPageRoute(
+                  builder: (context) => const CustHomepage()), // Employee homepage
             );
           } else {
             showErrorSnackBar('Invalid user type: ${user.userType}');
@@ -118,8 +119,8 @@ class UserController {
     }
   }
 
-  Future<void> signInWithGoogle(BuildContext context,
-      void Function(void Function()) setState) async {
+  Future<void> signInWithGoogle(
+      BuildContext context, void Function(void Function()) setState) async {
     setState(() {
       isLoading = true;
     });
@@ -131,14 +132,13 @@ class UserController {
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
-              builder: (context) =>
-                  AppNavigationBar(
-                    currentIndex: 0, // default to Home tab
-                    onTap: (index) {
-                      // handle navigation when user taps on nav bar
-                      print("Tapped index: $index");
-                    },
-                  ),
+              builder: (context) => AppNavigationBar(
+                currentIndex: 0, // default to Home tab
+                onTap: (index) {
+                  // handle navigation when user taps on nav bar
+                  print("Tapped index: $index");
+                },
+              ),
             ),
           );
         } else {
@@ -157,8 +157,8 @@ class UserController {
   }
 
   // Register new user
-  Future<void> register(BuildContext context,
-      void Function(void Function()) setState) async {
+  Future<void> register(
+      BuildContext context, void Function(void Function()) setState) async {
     if (!formKey.currentState!.validate()) return;
 
     setState(() {
@@ -174,8 +174,8 @@ class UserController {
         return;
       }
 
-      bool isPhoneTaken = await _firestoreService.isPhoneTaken(
-          phoneController.text.trim(), '');
+      bool isPhoneTaken =
+          await _firestoreService.isPhoneTaken(phoneController.text.trim(), '');
       if (isPhoneTaken) {
         showErrorSnackBar('This phone number is already registered.');
         return;
@@ -210,8 +210,8 @@ class UserController {
 
       // 5. Also create Customer entry if userType == customer
       if (user.userType == "customer") {
-        final customerID = "C${userID.substring(
-            1)}"; // e.g. match userID U0001 -> C0001
+        final customerID =
+            "C${userID.substring(1)}"; // e.g. match userID U0001 -> C0001
 
         final customer = CustomerModel(
           custID: customerID,
@@ -244,6 +244,34 @@ class UserController {
     }
   }
 
+  // NEW: Sends a verification link to the new email address
+  Future<void> sendUpdateEmailVerification(String newEmail) async {
+    try {
+      User? authUser = FirebaseAuth.instance.currentUser;
+      if (authUser == null) {
+        throw Exception('No user is currently signed in');
+      }
+
+      await authUser.verifyBeforeUpdateEmail(newEmail);
+      showErrorSnackBar(
+          'A verification link has been sent to $newEmail. Please check your inbox to complete the change.');
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'requires-recent-login') {
+        showErrorSnackBar(
+            'This action is sensitive and requires recent authentication. Please log in again before retrying.');
+      } else if (e.code == 'email-already-in-use') {
+        showErrorSnackBar(
+            'This email is already in use by another account.');
+      } else {
+        showErrorSnackBar('An error occurred: ${e.message}');
+      }
+      // Re-throw the exception to be caught in the UI layer for state management
+      rethrow;
+    }
+  }
+
+  // MODIFIED: Updates user profile data in Firestore.
+  // Assumes Firebase Auth email has already been updated via the verification link.
   Future<void> updateProfile({
     required String userID,
     required String name,
@@ -270,16 +298,8 @@ class UserController {
       isLoading = true;
     });
 
-    String? errorMessage;
-
     try {
-      // Check for duplicate email and phone (excluding current user)
-      bool isEmailTaken = await _firestoreService.isEmailTaken(email, userID);
-      if (isEmailTaken) {
-        showErrorSnackBar('This email is already registered.');
-        return;
-      }
-
+      // Check for duplicate phone (excluding current user)
       bool isPhoneTaken = await _firestoreService.isPhoneTaken(contact, userID);
       if (isPhoneTaken) {
         showErrorSnackBar('This phone number is already registered.');
@@ -291,77 +311,25 @@ class UserController {
         throw Exception('No user is currently signed in');
       }
 
-      bool emailChanged = false;
-
-      // Update firebase authentication email 
-      if (authUser.email != email) {
-        print('Attempting to update Firebase Auth email...');
-
-        try {
-          // Use Firebase's built-in verified update flow
-          await authUser.verifyBeforeUpdateEmail(email);
-
-          showErrorSnackBar(
-            'A verification link was sent to $email. Please verify it before logging in again.',
-          );
-
-          // The new email will apply once verified
-          return;
-        } on FirebaseAuthException catch (authError) {
-          if (authError.code == 'operation-not-allowed') {
-            showErrorSnackBar(
-              'Email/Password sign-in is not enabled in your Firebase project.\nGo to Firebase Console → Authentication → Sign-in method and enable "Email/Password".',
-            );
-          } else if (authError.code == 'requires-recent-login') {
-            showErrorSnackBar(
-              'Please log in again before changing your email.',
-            );
-          } else if (authError.code == 'email-already-in-use') {
-            showErrorSnackBar('That email is already registered.');
-          } else {
-            showErrorSnackBar('Failed to update email: ${authError.message}');
-          }
-
-          return;
-        }
-      }
-
-      // Update user data in Firestore
+      // Create a map of the data to update in Firestore
       final user = UserModel(
         userID: userID,
-        userEmail: email,
+        userEmail: email, // The new, verified email
         userName: name,
         userGender: gender,
         userContact: contact,
-        userType: 'customer', 
-        userCreatedAt: DateTime.now(), 
+        userType: 'customer',
+        // These fields might not need updating, adjust as necessary
+        userCreatedAt: DateTime.now(),
         authID: authUser.uid,
       );
 
       await _firestoreService.updateUser(user);
-      print('Firestore updated');
-      
-      if (emailChanged) {
-        await FirebaseAuth.instance.signOut();
-        showErrorSnackBar('✅ Email updated! Logging in with: $email');
-        
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const LoginScreen()),
-        );
-      } else {
-        showErrorSnackBar('✅ Profile updated successfully!');
-      }
+      print('Firestore profile data updated successfully.');
+
+      showErrorSnackBar('✅ Profile updated successfully!');
     } catch (e) {
       showErrorSnackBar('Failed to update profile: $e');
-
-      // Handle specific Firebase Auth errors
-      if (e.toString().contains('requires-recent-login')) {
-        errorMessage = 'Please log in again - session expired';
-      } else if (e.toString().contains('email-already-in-use')) {
-        errorMessage = 'This email is already registered';
-      }
-
     } finally {
       setState(() {
         isLoading = false;
@@ -376,7 +344,9 @@ class UserController {
     required String confirmNewPassword,
     required void Function(void Function()) setState,
   }) async {
-    if (currentPassword.isEmpty || newPassword.isEmpty || confirmNewPassword.isEmpty) {
+    if (currentPassword.isEmpty ||
+        newPassword.isEmpty ||
+        confirmNewPassword.isEmpty) {
       showErrorSnackBar('All password fields are required');
       return;
     }
@@ -455,70 +425,6 @@ class UserController {
         isLoading = false;
       });
     }
-  }
-
-  Future<bool> sendEmailVerification(String email) async {
-    try {
-      // Check if domain exist
-      final domain = email.split('@')[1];
-      bool domainExists = await _checkDomainExists(domain);
-      if (!domainExists) {
-        throw Exception('Email domain does not exist');
-      }
-
-      // Send real email
-      bool sent = await _sendEmailWithMailer(email);
-      if (!sent) {
-        throw Exception('Failed to send verification email');
-      }
-
-      print('Real email verification sent to: $email');
-      return true; 
-    } catch (e) {
-      print('Email failed: $e');
-      throw Exception('Email verification failed: $e');
-    }
-  }
-
-  Future<bool> _checkDomainExists(String domain) async {
-    final validDomains = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'icloud.com'];
-    return validDomains.contains(domain);
-  }
-
-  Future<bool> _sendEmailWithMailer(String toEmail) async {
-    try {
-      final smtpServer = gmail('fypflutter@gmail.com', 'nctk gyja ohoo yfdb');
-      
-      final message = Message()
-        ..from = Address('fypflutter@gmail.com', 'Neurofix Handyman')
-        ..recipients.add(Address(toEmail))
-        ..subject = '📧 Email Verification - Neurofix Handyman'
-        ..html = '''
-          <h2>Welcome to Neurofix Handyman!</h2>
-          <p>Your email <strong>$toEmail</strong> has been verified successfully!</p>
-          <p>You can now update your profile.</p>
-          <hr>
-          <small>This is an automated message. Please do not reply.</small>
-        ''';
-
-    final sendReport = await send(message, smtpServer);
-      print('Message sent: ${sendReport.toString()}');
-      return true;
-    } on MailerException catch (e) {
-      print('Message not sent: $e');
-      for (var p in e.problems) {
-        print('Problem: ${p.code}: ${p.msg}');
-      }
-      return false;
-    } catch (e) {
-      print('Unexpected error: $e');
-      return false;
-    }
-  }
-
-  Future<bool> isEmailVerifiedWithNew(String newEmail) async {
-    // Verified if successfully sent the email
-    return true;
   }
 
   void dispose() {
