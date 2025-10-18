@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'modules/customer/profile.dart';
+import 'modules/customer/requestHistory.dart';
 import 'style/theme.dart';
 import 'login.dart';
 import 'modules/customer/register.dart';
@@ -31,6 +32,9 @@ class MyApp extends StatelessWidget {
         '/register': (context) => const RegisterScreen(),
         '/home': (context) => const CustHomepage(),
         '/profile': (context) => const ProfileScreen(),
+        '/request': (context) => const RequestHistoryScreen(),
+        // '/favorite': (context) => const FavoriteScreen(),
+        // '/rating': (context) => const RatingScreen(),
       },
     );
   }

@@ -5,8 +5,8 @@ import '../../model/user.dart';
 import '../../navigatorBase.dart';
 import '../../controller/service.dart';
 import '../../model/service.dart';
-import 'all_services.dart';
-import 'service_detail.dart';
+import 'allServices.dart';
+import 'serviceDetail.dart';
 
 class CustHomepage extends StatefulWidget {
   const CustHomepage({super.key});
@@ -62,12 +62,12 @@ class _CustHomepageState extends State<CustHomepage> {
       case 0:
         break;
       case 1:
+        Navigator.pushNamed(context, '/request');
+        break;
+      case 2: //favorite
         Navigator.pushNamed(context, '/home');
         break;
-      case 2:
-        Navigator.pushNamed(context, '/home');
-        break;
-      case 3:
+      case 3: //rating
         Navigator.pushNamed(context, '/home');
         break;
       // More menu (index 4) is handled in the navigation bar itself

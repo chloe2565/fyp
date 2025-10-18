@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../model/service.dart';
 import '../../controller/service.dart';
 import '../../model/servicePicture.dart';
+import 'serviceReqLocation.dart';
 
 class ServiceDetailPage extends StatefulWidget {
   final ServiceModel service;
@@ -553,7 +554,12 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
         ),
         child: ElevatedButton(
           onPressed: () {
-            // TODO: Implement book service action
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const ServiceRequestLocationPage(),
+              ),
+            );
           },
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color(0xFFFF7643),

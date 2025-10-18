@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../controller/service.dart';
 import '../../model/service.dart';
-import 'service_detail.dart';
+import 'serviceDetail.dart';
 import '../../helper.dart';
 
 class AllServicesScreen extends StatefulWidget {

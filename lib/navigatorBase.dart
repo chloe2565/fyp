@@ -77,10 +77,7 @@ class _AppNavigationBarState extends State<AppNavigationBar> {
       selectedFontSize: 12,
       unselectedFontSize: 12,
       items: [
-        const BottomNavigationBarItem(
-          icon: Icon(Icons.home),
-          label: 'Home',
-        ),
+        const BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
         const BottomNavigationBarItem(
           icon: Icon(Icons.description_outlined),
           label: 'Request',
