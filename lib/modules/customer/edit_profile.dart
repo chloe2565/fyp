@@ -27,7 +27,7 @@ class EditProfileScreen extends StatefulWidget {
   State<EditProfileScreen> createState() => _EditProfileScreenState();
 }
 
-class _EditProfileScreenState extends State<EditProfileScreen> {
+class _EditProfileScreenState extends State<EditProfileScreen> with WidgetsBindingObserver {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
@@ -35,7 +35,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   Gender? _genderItem;
   bool _isLoading = false;
 
-  // NEW state variables for email verification
+  // State variables for email verification
   bool _isEmailVerified = true;
   bool _isVerificationEmailSent = false;
   Timer? _verificationTimer;
@@ -51,6 +51,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _userController = UserController(
       showErrorSnackBar: (message) {
         if (mounted) {
@@ -75,7 +76,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   @override
   void dispose() {
-    _verificationTimer?.cancel(); // Important: cancel timer to prevent memory leaks
+    WidgetsBinding.instance.removeObserver(this);
+    _verificationTimer?.cancel();
     _nameController.dispose();
     _emailController.dispose();
     _phoneController.dispose();
@@ -83,7 +85,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     super.dispose();
   }
 
-  // NEW: Method to handle sending the verification email
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && _isVerificationEmailSent) {
+      _checkEmailUpdate();
+    }
+  }
+
   Future<void> _sendVerificationEmail() async {
     if (Validator.validateEmail(_emailController.text.trim()) != null) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
@@ -98,15 +106,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
     try {
       await _userController
-          .sendUpdateEmailVerification(_emailController.text.trim().toLowerCase());
+          .sendUpdateEmailVerification(_emailController.text.trim());
       setState(() {
         _isVerificationEmailSent = true;
         _emailError = 'Verification email sent. Check your new email\'s inbox.';
       });
-      // Start a timer to check for email update in the background
       _startVerificationTimer();
     } catch (e) {
-      // Error message is already shown by the controller
       setState(() {
         _isVerificationEmailSent = false;
       });
@@ -117,36 +123,142 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     }
   }
 
-  // NEW: Timer to periodically check if the user's email has been updated
   void _startVerificationTimer() {
-    _verificationTimer?.cancel(); // Cancel any existing timer
-    _verificationTimer =
-        Timer.periodic(const Duration(seconds: 3), (timer) async {
-      // Reload the current user to get the latest data from Firebase
-      await FirebaseAuth.instance.currentUser?.reload();
-      final user = FirebaseAuth.instance.currentUser;
-
-      // Check if the email in Firebase Auth now matches the new email
-      if (user?.email == _emailController.text.trim().toLowerCase()) {
-        timer.cancel(); // Stop the timer
-        if (mounted) {
-          setState(() {
-            _isEmailVerified = true;
-            _isVerificationEmailSent = false;
-            _originalEmail = user?.email; // Update the original email
-            _emailError = null;
-          });
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('✅ Email successfully verified and updated!'),
-            backgroundColor: Colors.green,
-          ));
-        }
-      }
+    _verificationTimer?.cancel();
+    _verificationTimer = Timer.periodic(const Duration(seconds: 3), (timer) async {
+      await _checkEmailUpdate();
     });
   }
 
+  Future<void> _checkEmailUpdate() async {
+    try {
+      User? user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        await user.getIdToken(true);
+        await user.reload();
+        user = FirebaseAuth.instance.currentUser;
+
+        if (user?.email?.toLowerCase() == _emailController.text.trim().toLowerCase()) {
+          _verificationTimer?.cancel();
+          if (mounted) {
+            setState(() {
+              _isEmailVerified = true;
+              _isVerificationEmailSent = false;
+              _originalEmail = user?.email?.toLowerCase();
+              _emailError = null;
+              _emailController.text = user?.email ?? '';
+            });
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+              content: Text('✅ Email successfully verified and updated!'),
+              backgroundColor: Colors.green,
+            ));
+          }
+        }
+      }
+    } catch (e) {
+      print('Error checking email verification: $e');
+      if (e is FirebaseAuthException) {
+        if (e.code == 'user-token-expired' || e.code == 'invalid-credential' || e.code == 'user-mismatch') {
+          _verificationTimer?.cancel();
+          if (mounted) {
+            _showReauthDialog();
+          }
+        }
+      }
+    }
+  }
+
+  void _showReauthDialog() {
+    final passwordController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Confirm Email Change'),
+        content: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'To complete the email update, please enter your password for the new email.',
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: passwordController,
+                obscureText: true,
+                decoration: const InputDecoration(
+                  labelText: 'Password',
+                  border: OutlineInputBorder(),
+                ),
+                validator: Validator.validatePassword,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              // Optionally reset state or log out
+              setState(() {
+                _isVerificationEmailSent = false;
+                _emailError = 'Verification timed out. Please try again.';
+              });
+            },
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (formKey.currentState?.validate() ?? false) {
+                try {
+                  final user = FirebaseAuth.instance.currentUser;
+                  final newEmail = _emailController.text.trim();
+                  final credential = EmailAuthProvider.credential(
+                    email: newEmail,
+                    password: passwordController.text,
+                  );
+                  await user?.reauthenticateWithCredential(credential);
+                  await user?.getIdToken(true);
+                  await user?.reload();
+                  final updatedUser = FirebaseAuth.instance.currentUser;
+
+                  Navigator.pop(ctx);
+
+                  if (updatedUser?.email?.toLowerCase() == newEmail.toLowerCase()) {
+                    setState(() {
+                      _isEmailVerified = true;
+                      _isVerificationEmailSent = false;
+                      _originalEmail = updatedUser?.email?.toLowerCase();
+                      _emailError = null;
+                      _emailController.text = updatedUser?.email ?? '';
+                    });
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                      content: Text('✅ Email successfully verified and updated!'),
+                      backgroundColor: Colors.green,
+                    ));
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                      content: Text('Email update not detected. Please try again.'),
+                    ));
+                  }
+                } catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                    content: Text('Failed: ${e.toString()}'),
+                  ));
+                }
+              }
+            },
+            child: const Text('Confirm'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _submitProfile() async {
-    // This check is now redundant due to the button's disabled state but is good for safety
     if (_emailController.text.trim().toLowerCase() != _originalEmail &&
         !_isEmailVerified) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
@@ -159,8 +271,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       setState(() => _isLoading = true);
 
       try {
-        // By the time this is called, the FirebaseAuth email is already updated.
-        // We are now updating the rest of the profile data in Firestore.
         await _userController.updateProfile(
           userID: widget.userID,
           name: _nameController.text.trim(),
@@ -221,7 +331,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      // ... (Profile Picture and Name field remain the same)
                       const SizedBox(height: 20),
                       Center(
                         child: Stack(
@@ -272,8 +381,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         validator: Validator.validateName,
                       ),
                       const SizedBox(height: 24),
-
-                      // MODIFIED Email Field
                       TextFormField(
                         controller: _emailController,
                         decoration: InputDecoration(
@@ -285,7 +392,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                   ? const Icon(Icons.check_circle,
                                       color: Colors.green)
                                   : IconButton(
-                                      tooltip: 'Verify this email',
+                                      tooltip: 'Send verification email',
                                       icon: Icon(
                                         _isVerificationEmailSent
                                             ? Icons.hourglass_top
@@ -344,8 +451,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           ),
                         ),
                       const SizedBox(height: 24),
-
-                      // ... (Gender and Phone fields remain the same)
                       Text(
                         'Gender',
                         style: TextStyle(
@@ -431,18 +536,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           ),
                         ),
                       const SizedBox(height: 50),
-
-                      // MODIFIED Buttons
                       Row(
                         children: [
                           Expanded(
                             child: ElevatedButton(
                               onPressed: _isLoading || !canSubmit
-                                  ? null // Button is disabled if loading or email not verified
+                                  ? null
                                   : _submitProfile,
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFFFD722E),
-                                // Dim the button when it's disabled
                                 disabledBackgroundColor: Colors.orange.shade200,
                                 padding: const EdgeInsets.symmetric(vertical: 14),
                                 shape: RoundedRectangleBorder(
