@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../service/user.dart';
+import '../service/customer.dart';
 import '../helper.dart';
 import '../login.dart';
 import '../model/customer.dart';
@@ -9,12 +11,10 @@ import '../modules/customer/register.dart';
 import '../service/auth_service.dart';
 import '../navigatorBase.dart';
 import '../modules/customer/homepage.dart';
-import '../service/firestore_service.dart';
-import 'package:mailer/mailer.dart';
-import 'package:mailer/smtp_server.dart';
 
 class UserController {
-  final FirestoreService _firestoreService = FirestoreService();
+  final UserService _userService = UserService();  
+  final CustomerService _customerService =  CustomerService();
   final AuthService _authService = AuthService();
 
   final GlobalKey<FormState> formKey = GlobalKey<FormState>();
@@ -64,6 +64,20 @@ class UserController {
     final lastId = snapshot.docs.first['userID'] as String;
     final number = int.parse(lastId.substring(1)) + 1;
     return "U${number.toString().padLeft(4, '0')}";
+  }
+
+  Future<UserModel?> getCurrentUser() async {
+    try {
+      final authUser = FirebaseAuth.instance.currentUser;
+      if (authUser == null) {
+        print('No authenticated user found.');
+        return null;
+      }
+      return await _userService.getUserByAuthID(authUser.uid);
+    } catch (e) {
+      showErrorSnackBar('Failed to get user details: $e');
+      return null;
+    }
   }
 
   // Login
@@ -167,7 +181,7 @@ class UserController {
 
     try {
       // Check for duplicate email and phone before registration
-      bool isEmailTaken = await _firestoreService.isEmailTaken(
+      bool isEmailTaken = await _userService.isEmailTaken(
           emailController.text.trim().toLowerCase(), '');
       if (isEmailTaken) {
         showErrorSnackBar('This email is already registered.');
@@ -175,7 +189,7 @@ class UserController {
       }
 
       bool isPhoneTaken =
-          await _firestoreService.isPhoneTaken(phoneController.text.trim(), '');
+          await _userService.isPhoneTaken(phoneController.text.trim(), '');
       if (isPhoneTaken) {
         showErrorSnackBar('This phone number is already registered.');
         return;
@@ -206,7 +220,7 @@ class UserController {
       );
 
       // 4. Save user in Firestore
-      await _firestoreService.addUser(user);
+      await _userService.addUser(user);
 
       // 5. Also create Customer entry if userType == customer
       if (user.userType == "customer") {
@@ -221,7 +235,7 @@ class UserController {
           userID: user.userID,
         );
 
-        await _firestoreService.addCustomer(customer);
+        await _customerService.addCustomer(customer);
       }
 
       if (context.mounted) {
@@ -270,6 +284,24 @@ class UserController {
     }
   }
 
+  Future<bool> isEmailTaken(String email, String excludeUserID) async {
+    try {
+      return _userService.isEmailTaken(email, excludeUserID);
+    } catch (e) {
+      showErrorSnackBar(e.toString());
+      return true; // Assume taken if error
+    }
+  }
+
+  Future<bool> isPhoneTaken(String phone, String excludeUserID) async {
+    try {
+      return _userService.isPhoneTaken(phone, excludeUserID);
+    } catch (e) {
+      showErrorSnackBar(e.toString());
+      return true; // Assume taken if error
+    }
+  }
+
   // MODIFIED: Updates user profile data in Firestore.
   // Assumes Firebase Auth email has already been updated via the verification link.
   Future<void> updateProfile({
@@ -300,7 +332,7 @@ class UserController {
 
     try {
       // Check for duplicate phone (excluding current user)
-      bool isPhoneTaken = await _firestoreService.isPhoneTaken(contact, userID);
+      bool isPhoneTaken = await _userService.isPhoneTaken(contact, userID);
       if (isPhoneTaken) {
         showErrorSnackBar('This phone number is already registered.');
         return;
@@ -324,7 +356,7 @@ class UserController {
         authID: authUser.uid,
       );
 
-      await _firestoreService.updateUser(user);
+      await _userService.updateUser(user);
       print('Firestore profile data updated successfully.');
 
       showErrorSnackBar('✅ Profile updated successfully!');

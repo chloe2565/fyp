@@ -42,17 +42,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     });
 
     try {
-      final authID = FirebaseAuth.instance.currentUser?.uid;
-      if (authID == null) {
-        setState(() {
-          _errorMessage = 'User not logged in';
-          _isLoading = false;
-        });
-        return;
-      }
-
-      final firestoreService = FirestoreService();
-      final user = await firestoreService.getUserByAuthID(authID);
+      final user = await _userController.getCurrentUser();
       setState(() {
         _user = user;
         _isLoading = false;

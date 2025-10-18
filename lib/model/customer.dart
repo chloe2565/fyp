@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class CustomerModel {
   final String custID;
   final String custAddress;
@@ -12,6 +14,16 @@ class CustomerModel {
     required this.custStatus,
     required this.userID,
   });
+
+  factory CustomerModel.fromMap(Map<String, dynamic> data, String custID) {
+    return CustomerModel(
+      custID: custID,
+      custAddress: data['custAddress'] ?? '',
+      custState: data['custState'] ?? '',
+      custStatus: data['custStatus'] ?? '',
+      userID: data['userID'] ?? '',
+    );
+  }
 
   Map<String, dynamic> toMap() {
     return {

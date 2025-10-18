@@ -414,3 +414,57 @@ Widget _buildEmailField({
     ),
   );
 }
+
+class ServiceHelper {
+  // Get an icon based on the service name
+  static IconData getIconForService(String serviceName) {
+    switch (serviceName.toLowerCase()) {
+      case 'a/c':
+        return Icons.air;
+      case 'moving':
+        return Icons.local_shipping;
+      case 'electric':
+        return Icons.electrical_services;
+      case 'plumbing':
+        return Icons.plumbing;
+      case 'toilet':
+        return Icons.wc;
+      case 'laundry':
+        return Icons.local_laundry_service;
+      case 'painting':
+        return Icons.format_paint;
+      case 'cleaning':
+        return Icons.cleaning_services;
+      case 'carpentry':
+        return Icons.carpenter;
+      default:
+        return Icons.more_horiz;
+    }
+  }
+
+  // Get a color based on the service name
+  static Color getColorForService(String serviceName) {
+    switch (serviceName.toLowerCase()) {
+      case 'a/c':
+        return const Color(0xFFFFF9C4); 
+      case 'moving':
+        return const Color(0xFF96D6D5); 
+      case 'electric':
+        return const Color(0xFFFFD2AA); 
+      case 'plumbing':
+        return const Color(0xFFAAE8FF); 
+      case 'toilet':
+        return const Color(0xFFAAD0FF);
+      case 'laundry':
+        return const Color(0xFFF2B5F8);
+      case 'painting':
+        return const Color(0xFFDFD9FF);
+      case 'cleaning':
+        return const Color(0xFFC6E3B4); 
+      case 'carpentry':
+        return const Color(0xFFFFBB29);
+      default:
+        return const Color(0xFFFFA7A7);
+    }
+  }
+}

@@ -1,10 +1,12 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../../controller/user_controller.dart';
+import '../../helper.dart';
 import '../../model/user.dart';
 import '../../navigatorBase.dart';
-import '../../service/firestore_service.dart';
+import '../../controller/service_controller.dart';
+import '../../model/service.dart';
 import 'all_services.dart';
-import 'package:fyp/navigatorBase.dart';
+import 'service_detail.dart';
 
 class CustHomepage extends StatefulWidget {
   const CustHomepage({super.key});
@@ -14,28 +16,41 @@ class CustHomepage extends StatefulWidget {
 }
 
 class _CustHomepageState extends State<CustHomepage> {
-  final FirestoreService _firestoreService = FirestoreService();
+  late UserController _userController;
+  late Future<UserModel?> _userFuture;
+
   bool _isMenuOpen = false;
   int _currentIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _userController = UserController(
+      showErrorSnackBar: (message) {
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(message)));
+        }
+      },
+    );
+    _userFuture = _getCurrentUser();
+  }
 
   void _handleLogout(BuildContext context) async {
     print("Logout selected");
     if (!mounted) return;
 
-    await ScaffoldMessenger.of(context)
-        .showSnackBar(
-      const SnackBar(content: Text('Logging you out...')),
-    )
-        .closed;
+    await ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Logging you out...'))).closed;
 
     if (!mounted) return;
     Navigator.of(context).pop();
   }
 
   Future<UserModel?> _getCurrentUser() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return null;
-    return await _firestoreService.getUserByAuthID(user.uid);
+    return await _userController.getCurrentUser();
   }
 
   void _onNavBarTap(int index) {
@@ -45,7 +60,6 @@ class _CustHomepageState extends State<CustHomepage> {
 
     switch (index) {
       case 0:
-      // Already on homepage
         break;
       case 1:
         Navigator.pushNamed(context, '/home');
@@ -56,7 +70,7 @@ class _CustHomepageState extends State<CustHomepage> {
       case 3:
         Navigator.pushNamed(context, '/home');
         break;
-    // Note: More menu (index 4) is handled in the navigation bar itself
+      // More menu (index 4) is handled in the navigation bar itself
     }
   }
 
@@ -80,10 +94,12 @@ class _CustHomepageState extends State<CustHomepage> {
               children: [
                 Text(
                   'Good Morning,',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey.shade600),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodyMedium?.copyWith(color: Colors.grey.shade600),
                 ),
                 FutureBuilder<UserModel?>(
-                  future: _getCurrentUser(),
+                  future: _userFuture,
                   builder: (context, snapshot) {
                     if (snapshot.hasData && snapshot.data != null) {
                       return Text(
@@ -149,18 +165,10 @@ class _CustHomepageState extends State<CustHomepage> {
             ),
             child: PopupMenuButton<String>(
               onSelected: (value) {
-                if (value == 'logout') {
-                  _handleLogout(context);
-                }
-                setState(() {
-                  _isMenuOpen = false;
-                });
+                if (value == 'logout') _handleLogout(context);
+                setState(() => _isMenuOpen = false);
               },
-              onOpened: () {
-                setState(() {
-                  _isMenuOpen = true;
-                });
-              },
+              onOpened: () => setState(() => _isMenuOpen = true),
               offset: const Offset(0, 50),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -186,156 +194,222 @@ class _CustHomepageState extends State<CustHomepage> {
   }
 }
 
-class _ServiceItem {
-  final IconData icon;
-  final String label;
-  final Color color;
-  final Function(BuildContext) onPressed;
-
-  _ServiceItem({
-    required this.icon,
-    required this.label,
-    required this.color,
-    required this.onPressed,
-  });
-}
-
-class HomepageScreen extends StatelessWidget {
+class HomepageScreen extends StatefulWidget {
   const HomepageScreen({super.key});
 
-  static final List<_ServiceItem> _services = [
-    _ServiceItem(icon: Icons.local_shipping, label: 'Moving', color: const Color(0xFF96D6D5), onPressed: (context) {}),
-    _ServiceItem(icon: Icons.electrical_services, label: 'Electric', color: const Color(0xFFFFD2AA), onPressed: (context) {}),
-    _ServiceItem(icon: Icons.plumbing, label: 'Plumbing', color: const Color(0xFFAAE8FF), onPressed: (context) {}),
-    _ServiceItem(icon: Icons.wc, label: 'Toilet', color: const Color(0xFFAAD0FF), onPressed: (context) {}),
-    _ServiceItem(icon: Icons.local_laundry_service, label: 'Laundry', color: const Color(0xFFF2B5F8), onPressed: (context) {}),
-    _ServiceItem(icon: Icons.format_paint, label: 'Painting', color: const Color(0xFFDFD9FF), onPressed: (context) {}),
-    _ServiceItem(icon: Icons.cleaning_services, label: 'Cleaning', color: const Color(0xFFC6E3B4), onPressed: (context) {}),
-    _ServiceItem(icon: Icons.carpenter, label: 'Carpentry', color: const Color(0xFFFFBB29), onPressed: (context) {}),
-    _ServiceItem(
-      icon: Icons.more_horiz,
-      label: 'More',
-      color: const Color(0xFFFFA7A7),
-      onPressed: (context) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const AllServicesScreen()),
-        );
-      },
-    ),
-  ];
+  @override
+  State<HomepageScreen> createState() => _HomepageScreenState();
+}
+
+class _HomepageScreenState extends State<HomepageScreen> {
+  late Future<List<ServiceModel>> _servicesFuture;
+  List<ServiceModel> _allServices = [];
+  List<ServiceModel> _popularServices = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _servicesFuture = _loadServices();
+  }
+
+  Future<List<ServiceModel>> _loadServices() async {
+    try {
+      final services = await ServiceController().getAllServices();
+      print('Homepage: Loaded ${services.length} services');
+      return services;
+    } catch (e) {
+      print('Homepage Error: $e');
+      return [];
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      children: <Widget>[
-        const SizedBox(height: 10),
-        TextFormField(
-          decoration: InputDecoration(
-            hintText: 'Search here..',
-            hintStyle: const TextStyle(color: Colors.grey),
-            prefixIcon: const Icon(Icons.search, color: Colors.grey),
-            suffixIcon: IconButton(
-              icon: const Icon(Icons.tune, color: Colors.orange),
-              onPressed: () {},
+    return FutureBuilder<List<ServiceModel>>(
+      future: _servicesFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
+          return const Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.error, size: 64, color: Colors.grey),
+                SizedBox(height: 16),
+                Text(
+                  'Failed to load services',
+                  style: TextStyle(fontSize: 18, color: Colors.grey),
+                ),
+              ],
             ),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide.none,
-            ),
-            filled: true,
-            fillColor: Colors.grey.shade200,
+          );
+        }
+
+        _allServices = snapshot.data!;
+        // Get first 8 services for category icons, rest for popular
+        _popularServices = _allServices.length > 8
+            ? _allServices.sublist(8)
+            : [];
+
+        return RefreshIndicator(
+          onRefresh: () => _servicesFuture = _loadServices(),
+          child: ListView(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            children: [
+              const SizedBox(height: 10),
+              _buildServicesSection(_allServices.take(8).toList()),
+              const SizedBox(height: 24),
+              _buildPopularServicesSection(),
+              const SizedBox(height: 24),
+            ],
           ),
-        ),
-        const SizedBox(height: 10),
+        );
+      },
+    );
+  }
+
+  Widget _buildServicesSection(List<ServiceModel> services) {
+    // Determine how many actual service icons to show (max 7)
+    final int serviceIconCount = services.length < 7 ? services.length : 7;
+    // Determine if we need to show the 'More' icon
+    final bool showMoreIcon =
+        services.length >= 7; // Show 'More' if 7 or more services exist
+
+    // Total items in the grid will be the service icons + 'More' icon if needed
+    final int gridItemCount = serviceIconCount + (showMoreIcon ? 1 : 0);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
               'Services',
-              style: Theme.of(context).textTheme.displayMedium?.copyWith(fontSize: 20, color: Colors.black),
+              style: Theme.of(context).textTheme.displayMedium?.copyWith(
+                fontSize: 20,
+                color: Colors.black,
+              ),
             ),
             TextButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const AllServicesScreen()),
-                );
-              },
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const AllServicesScreen(),
+                ),
+              ),
               child: Text(
                 'View all',
-                style: Theme.of(context).textTheme.displayMedium?.copyWith(fontWeight: FontWeight.bold, color: Colors.orange),
+                style: Theme.of(context).textTheme.displayMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.orange,
+                ),
               ),
             ),
           ],
         ),
         GridView.builder(
-          itemCount: _services.length,
+          itemCount: gridItemCount,
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
             maxCrossAxisExtent: 80,
-            mainAxisSpacing: 5,
+            mainAxisSpacing: 10,
             crossAxisSpacing: 20,
-            childAspectRatio: 0.75,
+            childAspectRatio: 0.70,
           ),
           itemBuilder: (context, index) {
-            final service = _services[index];
+            if (showMoreIcon && index == serviceIconCount) {
+              return ServiceIcon(
+                icon: Icons.more_horiz,
+                label: 'More',
+                color: const Color(0xFFFFA7A7),
+                iconColor: Colors.black,
+                onPressed: (context) => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const AllServicesScreen(),
+                  ),
+                ),
+              );
+            }
+
+            final service = services[index];
             return ServiceIcon(
-              icon: service.icon,
-              label: service.label,
-              color: service.color,
+              icon: ServiceHelper.getIconForService(service.serviceName),
+              label: service.serviceName,
+              color: ServiceHelper.getColorForService(service.serviceName),
               iconColor: Colors.black,
-              onPressed: service.onPressed,
+              onPressed: (context) {
+                print('Tapped: ${service.serviceName}'); // ✅ DEBUG
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ServiceDetailPage(service: service),
+                  ),
+                );
+              },
             );
           },
         ),
-        const SizedBox(height: 10),
+      ],
+    );
+  }
+
+  Widget _buildPopularServicesSection() {
+    if (_popularServices.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
               'Most Popular Services',
-              style: Theme.of(context).textTheme.displayMedium?.copyWith(fontSize: 20, color: Colors.black),
+              style: Theme.of(context).textTheme.displayMedium?.copyWith(
+                fontSize: 20,
+                color: Colors.black,
+              ),
             ),
             TextButton(
-              onPressed: () {},
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const AllServicesScreen(),
+                ),
+              ),
               child: Text(
                 'View all',
-                style: Theme.of(context).textTheme.displayMedium?.copyWith(fontWeight: FontWeight.bold, color: Colors.orange),
+                style: Theme.of(context).textTheme.displayMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.orange,
+                ),
               ),
             ),
           ],
         ),
         const SizedBox(height: 5),
-        ServiceCard(
-          title: 'Cleaning',
-          provider: 'Alex Tan',
-          price: 'RM 25 / hour',
-          rating: 4.8,
-          reviews: 80,
-          imageUrl: 'assets/images/profile.jpg',
-        ),
-        const SizedBox(height: 16),
-        ServiceCard(
-          title: 'Electric',
-          provider: 'James Tan',
-          price: 'RM 15 / hour',
-          rating: 4.8,
-          reviews: 80,
-          imageUrl: 'assets/images/profile.jpg',
-        ),
-        const SizedBox(height: 16),
-        ServiceCard(
-          title: 'Air Conditioning',
-          provider: 'Allen Lim',
-          price: 'RM 20 / hour',
-          rating: 4.8,
-          reviews: 80,
-          imageUrl: 'assets/images/profile.jpg',
-        ),
-        const SizedBox(height: 24),
+        ..._popularServices
+            .take(3)
+            .map(
+              (service) => Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: ServiceCard(
+                  title: service.serviceName,
+                  provider: 'Service Team',
+                  price: 'RM ${service.servicePrice.toStringAsFixed(0)} / hour',
+                  rating: 4.8,
+                  reviews: 80,
+                  imageUrl: 'assets/images/profile.jpg',
+                ),
+              ),
+            ),
       ],
     );
   }

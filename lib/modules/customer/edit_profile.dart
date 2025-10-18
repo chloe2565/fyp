@@ -1,6 +1,9 @@
 import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:fyp/service/customer.dart';
+import 'package:fyp/service/user.dart';
 import '../../controller/user_controller.dart';
 import '../../service/firestore_service.dart';
 import '../../helper.dart';
@@ -46,7 +49,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> with WidgetsBindi
   String? _phoneError;
 
   late UserController _userController;
-  final FirestoreService _firestoreService = FirestoreService();
 
   @override
   void initState() {
@@ -421,7 +423,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> with WidgetsBindi
                           });
 
                           if (isChanged && Validator.validateEmail(value) == null) {
-                            bool taken = await _firestoreService.isEmailTaken(
+                            bool taken = await _userController.isEmailTaken(
                                 newEmail, widget.userID);
                             if (mounted && taken) {
                               setState(() {
@@ -507,7 +509,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> with WidgetsBindi
                           if (Validator.validateContact(value) == null) {
                             String contact = value.trim();
                             if (contact != _originalContact) {
-                              bool taken = await _firestoreService.isPhoneTaken(
+                              bool taken = await _userController.isPhoneTaken(
                                   contact, widget.userID);
                               if (taken) {
                                 setState(() {

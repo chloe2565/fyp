@@ -3,9 +3,11 @@ import '../model/user.dart';
 import 'firestore_service.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
+import 'user.dart';
+
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirestoreService _firestoreService = FirestoreService();
+  final UserService _userService = UserService(); 
   final GoogleSignIn _googleSignIn = GoogleSignIn(
     scopes: ['email'],
   );
@@ -19,10 +21,8 @@ class AuthService {
         password: password.trim(),
       );
 
-      UserModel? user = await _firestoreService.getUserByAuthID(userCredential.user!.uid);
-      if (user == null) {
-        throw Exception('User data not found in Firestore.');
-      }
+      UserModel? user = await _userService.getUserByAuthID(userCredential.user!.uid);
+      if (user == null) throw Exception('User data not found in Firestore.');
       return user;
     } on FirebaseAuthException catch (e) {
       throw _getErrorMessage(e.code);
@@ -76,7 +76,7 @@ class AuthService {
       );
 
       // Add user to Firestore
-      await _firestoreService.addUser(newUser);
+      await _userService.addUser(newUser);
 
       return newUser;
     } on FirebaseAuthException catch (e) {
@@ -105,7 +105,7 @@ class AuthService {
       UserCredential userCredential = await _auth.signInWithCredential(credential);
 
       // Fetch or create user in Firestore
-      UserModel? user = await _firestoreService.getUserByAuthID(userCredential.user!.uid);
+      UserModel? user = await _userService.getUserByAuthID(userCredential.user!.uid);
       if (user == null) {
         // Create a new user in Firestore if they don't exist
         user = UserModel(
@@ -118,7 +118,7 @@ class AuthService {
           userCreatedAt: DateTime.now(),
           authID: userCredential.user!.uid,
         );
-        await _firestoreService.addUser(user);
+        await _userService.addUser(user);
       }
 
       return user;
@@ -162,7 +162,7 @@ class AuthService {
       }
 
       // Delete user data from Firestore
-      await _firestoreService.deleteUser(user.uid);
+      await _userService.deleteUser(user.uid);
 
       // Delete Firebase Auth account
       await user.delete();
