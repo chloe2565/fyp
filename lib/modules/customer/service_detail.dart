@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../model/service.dart';
-import '../../controller/service_controller.dart';
+import '../../controller/service.dart';
 import '../../model/servicePicture.dart';
 
 class ServiceDetailPage extends StatefulWidget {

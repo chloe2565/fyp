@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../controller/user_controller.dart';
+import '../../controller/user.dart';
 import '../../helper.dart';
 import '../../login.dart';
 

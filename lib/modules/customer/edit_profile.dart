@@ -4,7 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:fyp/service/customer.dart';
 import 'package:fyp/service/user.dart';
-import '../../controller/user_controller.dart';
+import '../../controller/user.dart';
 import '../../service/firestore_service.dart';
 import '../../helper.dart';
 

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:fyp/modules/customer/edit_profile.dart';
-import '../../controller/user_controller.dart';
+import '../../controller/user.dart';
 import '../../login.dart';
 import '../../model/user.dart';
 import '../../service/firestore_service.dart';

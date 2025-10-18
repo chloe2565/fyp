@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import '../../controller/user_controller.dart';
+import '../../controller/user.dart';
 import '../../helper.dart';
 import '../../model/user.dart';
 import '../../navigatorBase.dart';
-import '../../controller/service_controller.dart';
+import '../../controller/service.dart';
 import '../../model/service.dart';
 import 'all_services.dart';
 import 'service_detail.dart';
