@@ -34,7 +34,7 @@ class MyApp extends StatelessWidget {
         '/profile': (context) => const ProfileScreen(),
         '/request': (context) => const RequestHistoryScreen(),
         // '/favorite': (context) => const FavoriteScreen(),
-        // '/rating': (context) => const RatingScreen(),
+        // '/rating': (context) => const RatingScreen(),0
       },
     );
   }

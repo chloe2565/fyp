@@ -44,6 +44,10 @@ dependencies:
   google_sign_in: ^6.2.1
   email_validator: ^2.1.17
   mailer: ^6.0.1
+  flutter_map: ^7.0.0     # The main OSM map package
+  latlong2: ^0.9.1         # Helper for LatLng objects
+  geolocator: ^12.0.0    # For the "My Location" button
+  http: ^1.2.1             # For calling the free search API (Nominatim)
 
 dev_dependencies:
   flutter_test:

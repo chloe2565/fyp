@@ -36,8 +36,8 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
   }
 
   Future<void> _loadImages() async {
-    List<ServicePictureModel> pictures =
-        await ServiceController().getPicturesForService(widget.service.serviceID);
+    List<ServicePictureModel> pictures = await ServiceController()
+        .getPicturesForService(widget.service.serviceID);
 
     setState(() {
       _mainImagePaths = pictures
@@ -69,13 +69,11 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
         ); // Amber color for full stars
       } else if (i - rating < 1) {
         stars.add(
-          Icon(Icons.star_half,
-              color: const Color(0xFFFFC107), size: starSize),
+          Icon(Icons.star_half, color: const Color(0xFFFFC107), size: starSize),
         ); // Amber color for half stars
       } else {
         stars.add(
-          Icon(Icons.star_border,
-              color: Colors.grey.shade400, size: starSize),
+          Icon(Icons.star_border, color: Colors.grey.shade400, size: starSize),
         ); // Grey border for empty stars
       }
     }
@@ -204,7 +202,12 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
       if (parts.length > 1) {
         servicesIncluded = parts[1]
             .trim()
-            .split(RegExp(r'• ' '|\n- ')) // Split by bullets or newlines
+            .split(
+              RegExp(
+                r'• '
+                '|\n- ',
+              ),
+            ) // Split by bullets or newlines
             .map((s) => s.trim().replaceAll('.', ''))
             .where((s) => s.isNotEmpty)
             .toList();
@@ -213,8 +216,9 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
     // Fallback to original logic if "Services include:" isn't found
     else if (widget.service.serviceDesc.contains('Service provided includes')) {
       servicesTitle = 'Service provided includes';
-      final parts =
-          widget.service.serviceDesc.split('Service provided includes');
+      final parts = widget.service.serviceDesc.split(
+        'Service provided includes',
+      );
       introDesc = parts[0].trim();
       if (parts.length > 1) {
         servicesIncluded = parts[1]
@@ -286,7 +290,9 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
                   Container(
                     margin: const EdgeInsets.fromLTRB(16, 8, 16, 20),
                     padding: const EdgeInsets.symmetric(
-                        vertical: 20.0, horizontal: 16.0),
+                      vertical: 15.0,
+                      horizontal: 15.0,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(16),
@@ -302,51 +308,66 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
-                        // Left Column: Rating
-                        Column(
-                          mainAxisSize: MainAxisSize.min,
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            _buildStarRating(rating, starSize: 28),
-                            const SizedBox(height: 8),
-                            Text(
-                              '$rating',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
+                            // Left Column: Rating
+                            Row(
+                              children: [
+                                _buildStarRating(rating, starSize: 20),
+                                const SizedBox(width: 10),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      '$rating',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                    const Text(
+                                      'Rating',
+                                      style: TextStyle(
+                                        color: Colors.grey,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
                             ),
-                            const Text(
-                              'Rating',
-                              style: TextStyle(
-                                color: Colors.grey,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
-                        ),
-                        // Right Column: Orders
-                        Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.check_circle,
-                              color: Colors.green.shade600,
-                              size: 28,
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              '$ordersCompleted Orders',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                            ),
-                            const Text(
-                              'Completed',
-                              style: TextStyle(
-                                color: Colors.grey,
-                                fontSize: 12,
-                              ),
+                            const SizedBox(width: 15),
+
+                            // Right Column: Orders
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.check_circle,
+                                  color: Colors.green.shade600,
+                                  size: 24,
+                                ),
+                                const SizedBox(width: 10),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      '$ordersCompleted Orders',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                    const Text(
+                                      'Completed',
+                                      style: TextStyle(
+                                        color: Colors.grey,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
                             ),
                           ],
                         ),
@@ -370,23 +391,29 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
                         const SizedBox(height: 10),
                         Row(
                           children: [
-                            if (widget.service.serviceDuration
-                                .contains('to')) ...[
-                              _buildStyledChip(widget
-                                  .service.serviceDuration
-                                  .split('to')[0]
-                                  .trim()),
+                            if (widget.service.serviceDuration.contains(
+                              'to',
+                            )) ...[
+                              _buildStyledChip(
+                                widget.service.serviceDuration
+                                    .split('to')[0]
+                                    .trim(),
+                              ),
                               const Padding(
                                 padding: EdgeInsets.symmetric(horizontal: 8.0),
-                                child: Text('To',
-                                    style: TextStyle(
-                                        fontSize: 15,
-                                        color: Colors.black54)),
+                                child: Text(
+                                  'To',
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    color: Colors.black54,
+                                  ),
+                                ),
                               ),
-                              _buildStyledChip(widget
-                                  .service.serviceDuration
-                                  .split('to')[1]
-                                  .trim()),
+                              _buildStyledChip(
+                                widget.service.serviceDuration
+                                    .split('to')[1]
+                                    .trim(),
+                              ),
                             ] else
                               _buildStyledChip(widget.service.serviceDuration),
                           ],
@@ -417,9 +444,10 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
                         Text(
                           introDesc,
                           style: const TextStyle(
-                              fontSize: 15,
-                              height: 1.5,
-                              color: Colors.black54),
+                            fontSize: 15,
+                            height: 1.5,
+                            color: Colors.black54,
+                          ),
                         ),
                         const SizedBox(height: 16),
 
@@ -436,17 +464,19 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
                           const SizedBox(height: 8),
                           for (var item in servicesIncluded)
                             Padding(
-                              padding:
-                                  const EdgeInsets.symmetric(vertical: 2.0),
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 2.0,
+                              ),
                               child: Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   const Text(
                                     '• ',
                                     style: TextStyle(
-                                        fontSize: 15,
-                                        height: 1.5,
-                                        color: Colors.black54),
+                                      fontSize: 15,
+                                      height: 1.5,
+                                      color: Colors.black54,
+                                    ),
                                   ),
                                   Expanded(
                                     child: Text(
@@ -464,7 +494,6 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
                         ],
 
                         // --- !! REVIEW SECTIONS ADDED BACK !! ---
-
                         const SizedBox(height: 24),
 
                         Row(
@@ -538,7 +567,7 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
                 ],
               ),
             ),
-// --- BOTTOM NAVIGATION BAR ADDED BACK ---
+      // --- BOTTOM NAVIGATION BAR ADDED BACK ---
       bottomNavigationBar: Container(
         padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
         decoration: BoxDecoration(
