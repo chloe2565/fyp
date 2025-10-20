@@ -6,7 +6,7 @@ import '../model/handyman.dart';
 import '../model/user.dart';
 import '../model/serviceRequestInfo.dart';
 
-class ServiceRequestRepository {
+class ServiceRequestController {
   final _db = FirebaseFirestore.instance;
 
   // Fetches requests and combines them with service, handyman, and user data
@@ -39,17 +39,17 @@ class ServiceRequestRepository {
     
     // Get Service
     final serviceDoc =
-        await _db.collection('services').doc(request.serviceID).get();
+        await _db.collection('Service').doc(request.serviceID).get();
     final service = ServiceModel.fromFirestore(serviceDoc);
 
     // Get Handyman
     final handymanDoc =
-        await _db.collection('handymen').doc(request.handymanID).get();
+        await _db.collection('Handyman').doc(request.handymanID).get();
     final handyman = HandymanModel.fromFirestore(handymanDoc);
 
     // Get Handyman's User Info (for the name)
     // !! I AM ASSUMING you look up the name from a 'users' collection using the 'empID' !!
-    final userDoc = await _db.collection('users').doc(handyman.empID).get();
+    final userDoc = await _db.collection('User').doc(handyman.empID).get();
     // final handymanUser = UserModel.fromFirestore(userDoc);
 
     return ServiceRequestInfo(

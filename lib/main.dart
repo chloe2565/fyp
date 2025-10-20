@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'modules/customer/favoriteHandyman.dart';
 import 'modules/customer/profile.dart';
 import 'modules/customer/requestHistory.dart';
 import 'style/theme.dart';
@@ -33,7 +34,7 @@ class MyApp extends StatelessWidget {
         '/home': (context) => const CustHomepage(),
         '/profile': (context) => const ProfileScreen(),
         '/request': (context) => const RequestHistoryScreen(),
-        // '/favorite': (context) => const FavoriteScreen(),
+        '/favorite': (context) => const FavoriteScreen(),
         // '/rating': (context) => const RatingScreen(),0
       },
     );

@@ -12,7 +12,7 @@ class RequestHistoryScreen extends StatefulWidget {
 
 class _RequestHistoryScreenState extends State<RequestHistoryScreen> {
   int _currentIndex = 1; // 'Request' is the 2nd item (index 1)
-  final ServiceRequestRepository _repository = ServiceRequestRepository();
+  final ServiceRequestController _repository = ServiceRequestController();
   late Future<List<ServiceRequestInfo>> _upcomingFuture;
   late Future<List<ServiceRequestInfo>> _historyFuture;
 

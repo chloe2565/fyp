@@ -64,8 +64,8 @@ class _CustHomepageState extends State<CustHomepage> {
       case 1:
         Navigator.pushNamed(context, '/request');
         break;
-      case 2: //favorite
-        Navigator.pushNamed(context, '/home');
+      case 2: 
+        Navigator.pushNamed(context, '/favorite');
         break;
       case 3: //rating
         Navigator.pushNamed(context, '/home');
