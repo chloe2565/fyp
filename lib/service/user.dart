@@ -21,7 +21,7 @@ class UserService {
 
       if (query.docs.isNotEmpty) {
         var doc = query.docs.first;
-        return UserModel.fromMap(doc.data() as Map<String, dynamic>, doc.id);
+        return UserModel.fromMap(doc.data() as Map<String, dynamic>);
       }
       print('No document found for authID: $authID');
       return null;
@@ -36,7 +36,7 @@ class UserService {
     try {
       DocumentSnapshot doc = await usersCollection.doc(userID).get();
       if (doc.exists) {
-        return UserModel.fromMap(doc.data() as Map<String, dynamic>, userID);
+        return UserModel.fromMap(doc.data() as Map<String, dynamic>);
       }
       return null;
     } catch (e) {

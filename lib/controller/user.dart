@@ -14,7 +14,7 @@ import '../modules/customer/homepage.dart';
 
 class UserController {
   final UserService _userService = UserService();  
-  final CustomerService _customerService =  CustomerService();
+  final CustomerDatabase _customerService =  CustomerDatabase();
   final AuthService _authService = AuthService();
 
   final GlobalKey<FormState> formKey = GlobalKey<FormState>();

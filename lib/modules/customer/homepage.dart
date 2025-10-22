@@ -403,7 +403,9 @@ class _HomepageScreenState extends State<HomepageScreen> {
                 child: ServiceCard(
                   title: service.serviceName,
                   provider: 'Service Team',
-                  price: 'RM ${service.servicePrice.toStringAsFixed(0)} / hour',
+                  price: service.servicePrice != null
+                    ? 'RM ${service.servicePrice!.toStringAsFixed(0)} / hour'
+                    : 'Price not available',
                   rating: 4.8,
                   reviews: 80,
                   imageUrl: 'assets/images/profile.jpg',

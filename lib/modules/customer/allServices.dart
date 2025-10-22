@@ -47,8 +47,9 @@ class _AllServicesScreenState extends State<AllServicesScreen> {
     setState(() {
       _displayedServices = _allServices.where((service) {
         final matchesName = service.serviceName.toLowerCase().contains(query);
-        final matchesPrice = service.servicePrice >= _minPrice &&
-            service.servicePrice <= _maxPrice;
+        final matchesPrice = service.servicePrice != null &&
+            service.servicePrice! >= _minPrice &&
+            service.servicePrice! <= _maxPrice;
         return matchesName && matchesPrice;
       }).toList();
     });
@@ -166,7 +167,9 @@ class _AllServicesScreenState extends State<AllServicesScreen> {
                             },
                             child: ServiceListItemCard(
                               title: service.serviceName,
-                              price: 'RM ${service.servicePrice.toStringAsFixed(0)} / hour',
+                              price: service.servicePrice != null
+                                ? 'RM ${service.servicePrice!.toStringAsFixed(0)} / hour'
+                                : 'Price not available',
                               icon: ServiceHelper.getIconForService(
                                   service.serviceName),
                               color: ServiceHelper.getColorForService(

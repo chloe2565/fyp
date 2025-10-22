@@ -11,15 +11,19 @@ class HandymanSkillModel {
     required this.skillAssignCreatedAt,
   });
 
-  factory HandymanSkillModel.fromFirestore(Map<String, dynamic> data) {
+  // Convert Firestore data to Dart
+  factory HandymanSkillModel.fromMap(Map<String, dynamic> data) {
     return HandymanSkillModel(
       skillID: data['skillID'],
       handymanID: data['handymanID'],
-      skillAssignCreatedAt: (data['skillAssignCreatedAt'] as Timestamp).toDate(),
+      skillAssignCreatedAt: (data['skillAssignCreatedAt'] is Timestamp
+          ? (data['skillAssignCreatedAt'] as Timestamp).toDate() 
+          : DateTime.now()),
     );
   }
 
-  Map<String, dynamic> toFirestore() {
+  // Convert Dart to Firestore data
+  Map<String, dynamic> toMap() {
     return {
       'skillID': skillID,
       'handymanID': handymanID,

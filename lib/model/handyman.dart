@@ -19,10 +19,10 @@ class HandymanModel {
     required this.empID,
   });
 
-  factory HandymanModel.fromFirestore(DocumentSnapshot doc) {
-    Map data = doc.data() as Map<String, dynamic>;
+  // Convert Firestore data to Dart
+  factory HandymanModel.fromMap(Map<String, dynamic> data) {
     return HandymanModel(
-      handymanID: doc.id,
+      handymanID: data['handymanID'] ?? '',
       handymanName: data['handymanName'] ?? '',
       handymanRating: (data['handymanRating'] ?? 0).toDouble(),
       handymanBio: data['handymanBio'] ?? '',
@@ -32,7 +32,8 @@ class HandymanModel {
     );
   }
 
-  Map<String, dynamic> toFirestore() {
+  // Convert Dart to Firestore data
+  Map<String, dynamic> toMap() {
     return {
       'handymanID': handymanID,
       'handymanName': handymanName,

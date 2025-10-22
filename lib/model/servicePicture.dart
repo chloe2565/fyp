@@ -3,7 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class ServicePictureModel {
   final String picID;
   final String serviceID;
-  final String picName; // This is the image URL or path
+  final String picName;
   final bool isPrimary;
 
   ServicePictureModel({
@@ -11,15 +11,26 @@ class ServicePictureModel {
     required this.serviceID,
     required this.picName,
     required this.isPrimary,
-  });
-
-  factory ServicePictureModel.fromFirestore(DocumentSnapshot doc) {
-    Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+  });  
+  
+  // Convert Firestore data to Dart
+  factory ServicePictureModel.fromMap(Map<String, dynamic> data) {
     return ServicePictureModel(
       picID: data['picID'] ?? '',
       serviceID: data['serviceID'] ?? '',
       picName: data['picName'] ?? '',
-      isPrimary: data['isPrimary'] ?? false,
+      isPrimary: data['isPrimary'] ?? '',
     );
   }
+
+  // Convert Dart to Firestore data
+  Map<String, dynamic> toMap() {
+    return {
+      'picID': picID,
+      'serviceID': serviceID,
+      'picName': picName,
+      'isPrimary': isPrimary,
+    };
+  }
+
 }

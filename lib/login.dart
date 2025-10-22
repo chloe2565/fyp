@@ -1,11 +1,7 @@
 import 'package:flutter/material.dart';
 import 'helper.dart';
-import 'navigatorBase.dart';
 import 'forget_password.dart';
 import 'modules/customer/register.dart';
-import 'modules/customer/homepage.dart';
-import 'model/user.dart'; // Ensure this path is correct
-import 'service/auth_service.dart'; // Ensure this path is correct
 import 'controller/user.dart';
 
 class LoginScreen extends StatelessWidget {

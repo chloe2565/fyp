@@ -6,15 +6,17 @@ class SkillModel {
     required this.skillID,
     required this.skillDesc,
   });
-
-  factory SkillModel.fromFirestore(Map<String, dynamic> data) {
+  
+  // Convert Firestore data to Dart
+  factory SkillModel.fromMap(Map<String, dynamic> data) {
     return SkillModel(
       skillID: data['skillID'],
-      skillDesc: data['skillDesc'],
+      skillDesc: data['skillDesc'] ?? '',
     );
   }
 
-  Map<String, dynamic> toFirestore() {
+  // Convert Dart to Firestore data
+  Map<String, dynamic> toMap() {
     return {
       'skillID': skillID,
       'skillDesc': skillDesc,

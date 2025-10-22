@@ -1,7 +1,10 @@
+// view/serviceDetail.dart
+
 import 'package:flutter/material.dart';
 import '../../model/service.dart';
 import '../../controller/service.dart';
 import '../../model/servicePicture.dart';
+import '../../helper.dart';
 import 'serviceReqLocation.dart';
 
 class ServiceDetailPage extends StatefulWidget {
@@ -15,14 +18,20 @@ class ServiceDetailPage extends StatefulWidget {
 
 class _ServiceDetailPageState extends State<ServiceDetailPage> {
   final PageController _pageController = PageController();
+  final ServiceController _controller = ServiceController();
+
   int _currentPage = 0;
+  bool _isLoading = true;
+
   List<String> _mainImagePaths = [];
-  bool _isLoadingImages = true;
+  List<String> _reviewGalleryImages = []; // Holds *all* gallery images
+  double _averageRating = 0.0;
+  int _ordersCompleted = 0;
 
   @override
   void initState() {
     super.initState();
-    _loadImages();
+    _loadServiceData();
     _pageController.addListener(() {
       if (_pageController.page != null) {
         int nextP = _pageController.page!.round();
@@ -35,22 +44,40 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
     });
   }
 
-  Future<void> _loadImages() async {
-    List<ServicePictureModel> pictures = await ServiceController()
-        .getPicturesForService(widget.service.serviceID);
+  Future<void> _loadServiceData() async {
+    final picturesFuture = _controller.getPicturesForService(
+      widget.service.serviceID,
+    );
+    final reviewsFuture = _controller.getReviewsForService(
+      widget.service.serviceID,
+    );
 
-    setState(() {
-      _mainImagePaths = pictures
-          .where((picture) => picture.picName.isNotEmpty)
-          .map((picture) {
-            final path = 'assets/services/${picture.picName.toLowerCase()}';
-            print('Loaded image path: $path'); 
-            return path;
-          })
-          .toList();
+    try {
+      final pictures = await picturesFuture;
+      final reviews = await reviewsFuture; 
 
-      _isLoadingImages = false;
-    });
+      // --- NEW: Populate review gallery list ---
+      List<String> allGalleryImages = [];
+      for (var reviewVM in reviews) {
+        allGalleryImages.addAll(reviewVM.reviewGalleryImages);
+      }
+      // --- End New ---
+
+      setState(() {
+        _mainImagePaths = pictures
+            .where((picture) => picture.picName.isNotEmpty)
+            .map((picture) => 'assets/services/${picture.picName}')
+            .toList();
+
+        _reviewGalleryImages = allGalleryImages; // Store the gallery paths
+        _isLoading = false;
+      });
+    } catch (e) {
+      print("Error loading service data: $e");
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
   @override
@@ -59,143 +86,15 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
     super.dispose();
   }
 
-  // Helper to build star ratings dynamically based on a double rating
-  Widget _buildStarRating(double rating, {double starSize = 16}) {
-    List<Widget> stars = [];
-    for (int i = 1; i <= 5; i++) {
-      if (i <= rating) {
-        stars.add(
-          Icon(Icons.star, color: const Color(0xFFFFC107), size: starSize),
-        ); // Amber color for full stars
-      } else if (i - rating < 1) {
-        stars.add(
-          Icon(Icons.star_half, color: const Color(0xFFFFC107), size: starSize),
-        ); // Amber color for half stars
-      } else {
-        stars.add(
-          Icon(Icons.star_border, color: Colors.grey.shade400, size: starSize),
-        ); // Grey border for empty stars
-      }
-    }
-    // Removed MainAxisAlignment.center to allow for left-alignment in review tiles
-    return Row(children: stars);
-  }
-
-  // Helper method to build the dot indicator row
-  Widget _buildDotIndicator() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: List.generate(
-        _mainImagePaths.length,
-        (index) => AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          margin: const EdgeInsets.symmetric(horizontal: 4.0),
-          height: 8.0,
-          width: _currentPage == index ? 24.0 : 8.0,
-          decoration: BoxDecoration(
-            color: _currentPage == index
-                ? const Color(0xFFFF7643) // Orange color from image
-                : Colors.grey.shade300,
-            borderRadius: BorderRadius.circular(5),
-          ),
-        ),
-      ),
-    );
-  }
-
-  // Helper widget for consistent chip styling
-  Widget _buildStyledChip(String text) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF6F6F6),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: Text(
-        text,
-        style: const TextStyle(fontSize: 15, color: Colors.black87),
-      ),
-    );
-  }
-
-  // Helper widget to build individual review tiles
-  Widget _buildReviewTile(Review review) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12.0),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          CircleAvatar(
-            radius: 24,
-            backgroundImage: AssetImage(review.avatarPath),
-            backgroundColor: Colors.grey.shade200,
-            child: review.avatarPath.isEmpty
-                ? const Icon(Icons.person, color: Colors.white)
-                : null,
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      review.authorName,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
-                    Text(
-                      review.date,
-                      style: const TextStyle(color: Colors.grey, fontSize: 13),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                _buildStarRating(review.rating, starSize: 18),
-                const SizedBox(height: 8),
-                Text(
-                  review.comment,
-                  style: const TextStyle(fontSize: 14, height: 1.5),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  // All build helper methods are correctly in helper.dart
 
   @override
   Widget build(BuildContext context) {
-    // Hardcoded values from the UI image
-    final rating = 4.8; // Updated to match review data
-    final ordersCompleted = 80; // Updated to match review data
-    final reviews = [
-      // Hardcoded as not in model
-      Review(
-        authorName: 'John Doe',
-        date: '1 week ago',
-        rating: 5.0,
-        comment: 'Great service!',
-        avatarPath: 'assets/images/profile.jpg',
-      ),
-      // Add more if needed
-    ];
-    final galleryImagePaths = _mainImagePaths.isNotEmpty
-        ? _mainImagePaths.sublist(1)
-        : []; // Assume first is main, rest gallery
-
-    // Logic to split description from services list
+    // ... (description splitting logic remains the same) ...
     String introDesc = widget.service.serviceDesc;
     List<String> servicesIncluded = [];
-    String servicesTitle = 'Services include:'; // Default title from image
+    String servicesTitle = 'Services include:';
 
-    // Try to split by the title in the image first
     if (widget.service.serviceDesc.contains(servicesTitle)) {
       final parts = widget.service.serviceDesc.split(servicesTitle);
       introDesc = parts[0].trim();
@@ -207,14 +106,14 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
                 r'• '
                 '|\n- ',
               ),
-            ) // Split by bullets or newlines
+            )
             .map((s) => s.trim().replaceAll('.', ''))
             .where((s) => s.isNotEmpty)
             .toList();
       }
-    }
-    // Fallback to original logic if "Services include:" isn't found
-    else if (widget.service.serviceDesc.contains('Service provided includes')) {
+    } else if (widget.service.serviceDesc.contains(
+      'Service provided includes',
+    )) {
       servicesTitle = 'Service provided includes';
       final parts = widget.service.serviceDesc.split(
         'Service provided includes',
@@ -231,9 +130,10 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
     }
 
     return Scaffold(
-      backgroundColor: Colors.grey[50], // Light grey background
+      backgroundColor: Colors.grey[50],
+      // ... (AppBar remains the same) ...
       appBar: AppBar(
-        backgroundColor: Colors.white, // Solid white app bar
+        backgroundColor: Colors.white,
         elevation: 0,
         leading: const BackButton(color: Colors.black),
         title: Text(
@@ -246,7 +146,7 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
         ),
         centerTitle: true,
       ),
-      body: _isLoadingImages
+      body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
               child: Column(
@@ -283,11 +183,15 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
                   if (_mainImagePaths.length > 1)
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 12.0),
-                      child: _buildDotIndicator(),
+                      child: buildDotIndicator(
+                        itemCount: _mainImagePaths.length,
+                        currentPage: _currentPage,
+                      ),
                     ),
 
                   // --- 3. White Info Card ---
                   Container(
+                    // ... (styling remains the same) ...
                     margin: const EdgeInsets.fromLTRB(16, 8, 16, 20),
                     padding: const EdgeInsets.symmetric(
                       vertical: 15.0,
@@ -314,13 +218,13 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
                             // Left Column: Rating
                             Row(
                               children: [
-                                _buildStarRating(rating, starSize: 20),
+                                buildStarRating(_averageRating, starSize: 20),
                                 const SizedBox(width: 10),
                                 Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      '$rating',
+                                      _averageRating.toStringAsFixed(1),
                                       style: const TextStyle(
                                         fontWeight: FontWeight.bold,
                                         fontSize: 16,
@@ -352,7 +256,7 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      '$ordersCompleted Orders',
+                                      '$_ordersCompleted Orders',
                                       style: const TextStyle(
                                         fontWeight: FontWeight.bold,
                                         fontSize: 16,
@@ -381,6 +285,7 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // ... (Duration, Price, Description, Services Include sections remain the same) ...
                         const Text(
                           'Duration',
                           style: TextStyle(
@@ -394,7 +299,7 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
                             if (widget.service.serviceDuration.contains(
                               'to',
                             )) ...[
-                              _buildStyledChip(
+                              buildStyledChip(
                                 widget.service.serviceDuration
                                     .split('to')[0]
                                     .trim(),
@@ -409,13 +314,13 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
                                   ),
                                 ),
                               ),
-                              _buildStyledChip(
+                              buildStyledChip(
                                 widget.service.serviceDuration
                                     .split('to')[1]
                                     .trim(),
                               ),
                             ] else
-                              _buildStyledChip(widget.service.serviceDuration),
+                              buildStyledChip(widget.service.serviceDuration),
                           ],
                         ),
                         const SizedBox(height: 24),
@@ -428,8 +333,10 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
                           ),
                         ),
                         const SizedBox(height: 10),
-                        _buildStyledChip(
-                          'RM ${widget.service.servicePrice.toStringAsFixed(0)} / hour',
+                        buildStyledChip(
+                          widget.service.servicePrice != null
+                              ? 'RM ${widget.service.servicePrice!.toStringAsFixed(0)} / hour'
+                              : 'Price not available',
                         ),
                         const SizedBox(height: 24),
 
@@ -451,10 +358,9 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
                         ),
                         const SizedBox(height: 16),
 
-                        // --- Services Include List ---
                         if (servicesIncluded.isNotEmpty) ...[
                           Text(
-                            servicesTitle, // 'Services include:'
+                            servicesTitle,
                             style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
@@ -493,9 +399,8 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
                             ),
                         ],
 
-                        // --- !! REVIEW SECTIONS ADDED BACK !! ---
+                        // --- !! REVIEW GALLERY FIXED !! ---
                         const SizedBox(height: 24),
-
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
@@ -507,9 +412,7 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
                               ),
                             ),
                             TextButton(
-                              onPressed: () {
-                                // TODO: Implement 'View all' action for review gallery
-                              },
+                              onPressed: () {},
                               child: const Text(
                                 'View all',
                                 style: TextStyle(
@@ -524,31 +427,42 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
                         const SizedBox(height: 10),
                         SizedBox(
                           height: 100,
-                          child: ListView.separated(
-                            scrollDirection: Axis.horizontal,
-                            itemCount: galleryImagePaths.length,
-                            itemBuilder: (context, index) {
-                              return ClipRRect(
-                                borderRadius: BorderRadius.circular(10),
-                                child: Image.asset(
-                                  'assets/reviews/review${index + 1}.jpg', // Assuming placeholder naming
-                                  width: 100,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (context, error, stackTrace) {
-                                    return Image.asset(
-                                      'assets/images/placeholder.jpg',
-                                      fit: BoxFit.cover,
+                          child:
+                              _reviewGalleryImages
+                                  .isEmpty // Use new list
+                              ? const Center(
+                                  child: Text('No review images found.'),
+                                )
+                              : ListView.separated(
+                                  scrollDirection: Axis.horizontal,
+                                  // Use new list
+                                  itemCount: _reviewGalleryImages.length,
+                                  itemBuilder: (context, index) {
+                                    return ClipRRect(
+                                      borderRadius: BorderRadius.circular(10),
+                                      child: Image.asset(
+                                        // Use path from new list
+                                        _reviewGalleryImages[index],
+                                        width: 100,
+                                        fit: BoxFit.cover,
+                                        errorBuilder:
+                                            (context, error, stackTrace) {
+                                              return Image.asset(
+                                                'assets/images/placeholder.jpg',
+                                                width: 100,
+                                                fit: BoxFit.cover,
+                                              );
+                                            },
+                                      ),
                                     );
                                   },
+                                  separatorBuilder: (context, index) =>
+                                      const SizedBox(width: 8),
                                 ),
-                              );
-                            },
-                            separatorBuilder: (context, index) =>
-                                const SizedBox(width: 8),
-                          ),
                         ),
                         const SizedBox(height: 24),
 
+                        // --- !! REVIEW LIST FIXED !! ---
                         const Text(
                           'Review',
                           style: TextStyle(
@@ -557,17 +471,13 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
                           ),
                         ),
                         const SizedBox(height: 10),
-                        for (var review in reviews) _buildReviewTile(review),
-
-                        // Add padding at the bottom for scrolling
-                        const SizedBox(height: 40),
                       ],
                     ),
                   ),
                 ],
               ),
             ),
-      // --- BOTTOM NAVIGATION BAR ADDED BACK ---
+      // ... (BottomNavigationBar remains the same) ...
       bottomNavigationBar: Container(
         padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
         decoration: BoxDecoration(
@@ -609,21 +519,4 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
       ),
     );
   }
-}
-
-// Temporary Review class since not in model
-class Review {
-  final String authorName;
-  final String date;
-  final double rating;
-  final String comment;
-  final String avatarPath;
-
-  Review({
-    required this.authorName,
-    required this.date,
-    required this.rating,
-    required this.comment,
-    required this.avatarPath,
-  });
 }

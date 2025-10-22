@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../controller/serviceRequest.dart'; 
-import '../../model/serviceRequestInfo.dart'; 
 import '../../navigatorBase.dart'; 
 
 class RequestHistoryScreen extends StatefulWidget {
@@ -13,23 +12,6 @@ class RequestHistoryScreen extends StatefulWidget {
 class _RequestHistoryScreenState extends State<RequestHistoryScreen> {
   int _currentIndex = 1; // 'Request' is the 2nd item (index 1)
   final ServiceRequestController _repository = ServiceRequestController();
-  late Future<List<ServiceRequestInfo>> _upcomingFuture;
-  late Future<List<ServiceRequestInfo>> _historyFuture;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadData();
-  }
-
-  void _loadData() {
-    setState(() {
-      _upcomingFuture =
-          _repository.fetchRequestsByStatus(['pending', 'confirmed']);
-      _historyFuture =
-          _repository.fetchRequestsByStatus(['completed', 'cancelled']);
-    });
-  }
 
   // Your navigation logic
   void _onNavBarTap(int index) {
@@ -133,178 +115,12 @@ class _RequestHistoryScreenState extends State<RequestHistoryScreen> {
                 ],
               ),
             ),
-
-            // --- Tab Bar View ---
-            Expanded(
-              child: TabBarView(
-                children: [
-                  // --- Upcoming Tab ---
-                  _buildServiceList(_upcomingFuture),
-                  // --- History Tab ---
-                  _buildServiceList(_historyFuture),
-                ],
-              ),
-            ),
           ],
         ),
         bottomNavigationBar: AppNavigationBar(
           currentIndex: _currentIndex,
           onTap: _onNavBarTap,
         ),
-      ),
-    );
-  }
-
-  // Builds a list view based on a Future
-  Widget _buildServiceList(Future<List<ServiceRequestInfo>> future) {
-    return FutureBuilder<List<ServiceRequestInfo>>(
-      future: future,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        if (snapshot.hasError) {
-          return Center(child: Text('Error: ${snapshot.error}'));
-        }
-        if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return const Center(
-            child: Text(
-              'No service requests found.',
-              style: TextStyle(color: Colors.grey),
-            ),
-          );
-        }
-
-        final list = snapshot.data!;
-        return ListView.builder(
-          padding: const EdgeInsets.all(16.0),
-          itemCount: list.length,
-          itemBuilder: (context, index) {
-            final info = list[index];
-            return _buildServiceRequestCard(info);
-          },
-        );
-      },
-    );
-  }
-
-  // Builds the individual service card from our combined model
-  Widget _buildServiceRequestCard(ServiceRequestInfo info) {
-    // Format date: August 23, 2025
-    final month = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
-    ][info.request.scheduledDateTime.month - 1];
-    final bookingDate =
-        '${info.request.scheduledDateTime.day} $month ${info.request.scheduledDateTime.year}';
-
-    // Format time: 09:00 AM
-    final hour = info.request.scheduledDateTime.hour;
-    final minute = info.request.scheduledDateTime.minute;
-    final ampm = hour < 12 ? 'AM' : 'PM';
-    final displayHour = (hour % 12 == 0 ? 12 : hour % 12)
-        .toString()
-        .padLeft(2, '0');
-    final startTime = '${displayHour}:${minute.toString().padLeft(2, '0')} $ampm';
-
-    return Container(
-      padding: const EdgeInsets.all(16.0),
-      margin: const EdgeInsets.only(bottom: 16.0),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            spreadRadius: 2,
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          // --- Card Header ---
-          Row(
-            children: [
-              // Image.asset(
-              //   info.service.iconPath, // From ServiceModel
-              //   width: 32,
-              //   height: 32,
-              //   errorBuilder: (context, error, stackTrace) {
-              //     return const Icon(Icons.build_circle,
-              //         color: Color(0xFFFF7643), size: 32);
-              //   },
-              // ),
-              const SizedBox(width: 12),
-              Text(
-                info.service.serviceName, // From ServiceModel
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-          const Divider(height: 24),
-          // --- Card Details ---
-          _buildDetailRow('Location', info.request.reqAddress),
-          _buildDetailRow('Booking date', bookingDate),
-          _buildDetailRow('Start time', startTime),
-          // _buildDetailRow(
-          //     'Handyman name', info.handymanUser.name), // From UserModel
-          const SizedBox(height: 16),
-          // --- Card Buttons ---
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: () {
-                    // TODO: Implement Reschedule logic
-                  },
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFFFF7643),
-                    side: const BorderSide(color: Color(0xFFFF7643)),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: const Text(
-                    'Reschedule',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: () {
-                    // TODO: Implement Cancel logic
-                  },
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFFFF7643),
-                    side: const BorderSide(color: Color(0xFFFF7643)),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: const Text(
-                    'Cancel',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
       ),
     );
   }

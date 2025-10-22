@@ -33,12 +33,14 @@ class ServiceRequestModel {
     this.cancelID,
   });
 
-  factory ServiceRequestModel.fromFirestore(DocumentSnapshot doc) {
-    Map data = doc.data() as Map<String, dynamic>;
+  // Convert Firestore data to Dart
+  factory ServiceRequestModel.fromMap(Map<String, dynamic> data) {
     return ServiceRequestModel(
-      reqID: doc.id,
+      reqID: data['reqID'] ?? '',
       reqDateTime: (data['reqDateTime'] as Timestamp).toDate(),
-      scheduledDateTime: (data['scheduledDateTime'] as Timestamp).toDate(),
+      scheduledDateTime: (data['scheduledDateTime'] is Timestamp
+          ? (data['scheduledDateTime'] as Timestamp).toDate() 
+          : DateTime.now()),  
       reqAddress: data['reqAddress'] ?? '',
       reqState: data['reqState'] ?? '',
       reqDesc: data['reqDesc'],
@@ -49,5 +51,22 @@ class ServiceRequestModel {
       handymanID: data['handymanID'] ?? '',
       cancelID: data['cancelID'],
     );
+  }
+
+  // Convert Dart to Firestore data
+  Map<String, dynamic> toMap() {
+    return {
+      'reqID': reqID,
+      'reqDateTime': Timestamp.fromDate(reqDateTime),
+      'scheduledDateTime': Timestamp.fromDate(scheduledDateTime),
+      'reqAddress': reqAddress,
+      'reqState': reqState,
+      'reqDesc': reqDesc,
+      'reqRemark': reqRemark,
+      'custID': custID,
+      'serviceID': serviceID,
+      'handymanID': handymanID,
+      'cancelID': cancelID,
+    };
   }
 }

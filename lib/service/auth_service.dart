@@ -1,6 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import '../model/user.dart';
-import 'firestore_service.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 import 'user.dart';

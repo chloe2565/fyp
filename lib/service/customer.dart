@@ -1,11 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../model/customer.dart';
 
-class CustomerService {
+class CustomerDatabase {
     final CollectionReference customerCollection;
 
   // Default to use FirebaseFirestore.instance if none is provided
-  CustomerService([FirebaseFirestore? db])
+  CustomerDatabase([FirebaseFirestore? db])
       : customerCollection = (db ?? FirebaseFirestore.instance).collection('Customer');
 
   // Add or update customer
@@ -24,7 +24,7 @@ class CustomerService {
     try {
       DocumentSnapshot doc = await customerCollection.doc(custID).get();
       if (doc.exists) {
-        return CustomerModel.fromMap(doc.data() as Map<String, dynamic>, custID);
+        return CustomerModel.fromMap(doc.data() as Map<String, dynamic>);
       }
       return null;
     } catch (e) {

@@ -4,33 +4,47 @@ class ServiceModel {
   final String serviceID;
   final String serviceName;
   final String serviceDesc;
-  final double servicePrice;
+  final double? servicePrice;
   final String serviceDuration;
   final String serviceStatus;
-  final Timestamp serviceCreatedAt;
+  final DateTime serviceCreatedAt;
 
   ServiceModel({
     required this.serviceID,
     required this.serviceName,
     required this.serviceDesc,
-    required this.servicePrice,
+    this.servicePrice,
     required this.serviceDuration,
     required this.serviceStatus,
     required this.serviceCreatedAt,
   });
 
-  // Factory constructor to create a ServiceModel from a Firestore document
-  factory ServiceModel.fromFirestore(DocumentSnapshot doc) {
-    Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+  // Convert Firestore data to Dart
+  factory ServiceModel.fromMap(Map<String, dynamic> data) {
     return ServiceModel(
       serviceID: data['serviceID'] ?? '',
       serviceName: data['serviceName'] ?? '',
       serviceDesc: data['serviceDesc'] ?? '',
-      // Handle both int and double for price
-      servicePrice: (data['servicePrice'] ?? 0).toDouble(),
+      servicePrice: data['servicePrice'] ?? '',
       serviceDuration: data['serviceDuration'] ?? '',
       serviceStatus: data['serviceStatus'] ?? '',
-      serviceCreatedAt: data['serviceCreatedAt'] ?? Timestamp.now(),
+      serviceCreatedAt: (data['serviceCreatedAt'] is Timestamp
+          ? (data['serviceCreatedAt'] as Timestamp).toDate() 
+          : DateTime.now()),
     );
   }
+
+  // Convert Dart to Firestore data
+  Map<String, dynamic> toMap() {
+    return {
+      'serviceID': serviceID,
+      'serviceName': serviceName,
+      'serviceDesc': serviceDesc,
+      'servicePrice': servicePrice,
+      'serviceDuration': serviceDuration,
+      'serviceStatus': serviceStatus,
+      'serviceCreatedAt': Timestamp.fromDate(serviceCreatedAt),
+    };
+  }
+
 }

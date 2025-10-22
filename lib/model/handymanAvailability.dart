@@ -15,17 +15,25 @@ class HandymanAvailabilityModel {
     required this.handymanID,
   });
 
-  factory HandymanAvailabilityModel.fromFirestore(Map<String, dynamic> data) {
+  // Convert Firestore data to Dart
+  factory HandymanAvailabilityModel.fromMap(Map<String, dynamic> data) {
     return HandymanAvailabilityModel(
       availabilityID: data['availabilityID'],
-      availabilityStartDateTime: (data['availabilityStartDateTime'] as Timestamp).toDate(),
-      availabilityEndDateTime: (data['availabilityEndDateTime'] as Timestamp).toDate(),
-      availabilityCreatedAt: (data['availabilityCreatedAt'] as Timestamp).toDate(),
+      availabilityStartDateTime: (data['availabilityStartDateTime'] is Timestamp
+          ? (data['availabilityStartDateTime'] as Timestamp).toDate() 
+          : DateTime.now()),  
+      availabilityEndDateTime: (data['availabilityEndDateTime'] is Timestamp
+          ? (data['availabilityEndDateTime'] as Timestamp).toDate() 
+          : DateTime.now()),  
+      availabilityCreatedAt: (data['availabilityCreatedAt'] is Timestamp
+          ? (data['availabilityCreatedAt'] as Timestamp).toDate() 
+          : DateTime.now()),  
       handymanID: data['handymanID'],
     );
   }
 
-  Map<String, dynamic> toFirestore() {
+  // Convert Dart to Firestore data
+  Map<String, dynamic> toMap() {
     return {
       'availabilityID': availabilityID,
       'availabilityStartDateTime': Timestamp.fromDate(availabilityStartDateTime),
