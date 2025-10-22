@@ -44,7 +44,7 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
           .where((picture) => picture.picName.isNotEmpty)
           .map((picture) {
             final path = 'assets/services/${picture.picName.toLowerCase()}';
-            print('Loaded image path: $path'); // Debug output
+            print('Loaded image path: $path'); 
             return path;
           })
           .toList();
