@@ -59,7 +59,7 @@ class _ServiceRequestLocationPageState
     try {
       final response = await http.get(
         url,
-        headers: {'User-Agent': 'com.example.neurofix'},
+        headers: {'User-Agent': 'com.example.fyp'},
       );
 
       if (response.statusCode == 200) {
@@ -159,7 +159,7 @@ class _ServiceRequestLocationPageState
     try {
       final response = await http.get(
         url,
-        headers: {'User-Agent': 'com.example.neurofix'},
+        headers: {'User-Agent': 'com.example.fyp'},
       );
 
       if (response.statusCode == 200) {
@@ -184,7 +184,7 @@ class _ServiceRequestLocationPageState
     try {
       final response = await http.get(
         url,
-        headers: {'User-Agent': 'com.example.neurofix'},
+        headers: {'User-Agent': 'com.example.fyp'},
       );
 
       if (response.statusCode == 200) {
@@ -351,7 +351,7 @@ class _ServiceRequestLocationPageState
                       TileLayer(
                         urlTemplate:
                             'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                        userAgentPackageName: 'com.example.neurofix',
+                        userAgentPackageName: 'com.example.fyp',
                       ),
                       MarkerLayer(markers: _buildMarkers()),
                     ],

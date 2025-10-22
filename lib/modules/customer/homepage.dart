@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import '../../controller/user.dart';
 import '../../helper.dart';
+import '../../model/service.dart';
 import '../../model/user.dart';
 import '../../navigatorBase.dart';
 import '../../controller/service.dart';
-import '../../model/service.dart';
 import 'allServices.dart';
 import 'serviceDetail.dart';
 
@@ -185,7 +185,7 @@ class _CustHomepageState extends State<CustHomepage> {
           const SizedBox(width: 12),
         ],
       ),
-      body: const HomepageScreen(),
+      body: HomepageScreen(controller: ServiceController()),
       bottomNavigationBar: AppNavigationBar(
         currentIndex: _currentIndex,
         onTap: _onNavBarTap,
@@ -195,44 +195,49 @@ class _CustHomepageState extends State<CustHomepage> {
 }
 
 class HomepageScreen extends StatefulWidget {
-  const HomepageScreen({super.key});
+  final ServiceController controller;
+  const HomepageScreen({required this.controller, super.key});
 
   @override
   State<HomepageScreen> createState() => _HomepageScreenState();
 }
 
 class _HomepageScreenState extends State<HomepageScreen> {
-  late Future<List<ServiceModel>> _servicesFuture;
-  List<ServiceModel> _allServices = [];
-  List<ServiceModel> _popularServices = [];
+  late Future<void> _servicesLoadFuture;
+  late final ServiceController _serviceController;
 
   @override
   void initState() {
     super.initState();
-    _servicesFuture = _loadServices();
+    _serviceController = widget.controller; 
+    _servicesLoadFuture = _loadServices();
   }
 
-  Future<List<ServiceModel>> _loadServices() async {
+  Future<void> _loadServices({bool refresh = false}) async {
     try {
-      final services = await ServiceController().getAllServices();
-      print('Homepage: Loaded ${services.length} services');
-      return services;
+      // Call the controller to load and cache the data
+      await _serviceController.loadServices(refresh: refresh);
+      print('Homepage: Controller loaded services');
     } catch (e) {
       print('Homepage Error: $e');
-      return [];
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load services: ${e.toString()}')),
+        );
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<List<ServiceModel>>(
-      future: _servicesFuture,
+    return FutureBuilder<void>(
+      future: _servicesLoadFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
 
-        if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
+        if (snapshot.hasError) {
           return const Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -248,19 +253,36 @@ class _HomepageScreenState extends State<HomepageScreen> {
           );
         }
 
-        _allServices = snapshot.data!;
-        // Get first 8 services for category icons, rest for popular
-        _popularServices = _allServices.length > 8
-            ? _allServices.sublist(8)
-            : [];
+        // Check if the load was successful but returned no data
+        if (_serviceController.allServices.isEmpty) {
+          return const Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.inbox_outlined, size: 64, color: Colors.grey),
+                SizedBox(height: 16),
+                Text(
+                  'No services available right now',
+                  style: TextStyle(fontSize: 18, color: Colors.grey),
+                ),
+              ],
+            ),
+          );
+        }
 
         return RefreshIndicator(
-          onRefresh: () => _servicesFuture = _loadServices(),
+          onRefresh: () async {
+            final newFuture = _loadServices(refresh: true);
+            setState(() {
+              _servicesLoadFuture = newFuture;
+            });
+            await newFuture; 
+          },
           child: ListView(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             children: [
               const SizedBox(height: 10),
-              _buildServicesSection(_allServices.take(8).toList()),
+              _buildServicesSection(),
               const SizedBox(height: 24),
               _buildPopularServicesSection(),
               const SizedBox(height: 24),
@@ -271,16 +293,12 @@ class _HomepageScreenState extends State<HomepageScreen> {
     );
   }
 
-  Widget _buildServicesSection(List<ServiceModel> services) {
-    // Determine how many actual service icons to show (max 7)
-    final int serviceIconCount = services.length < 7 ? services.length : 7;
-    // Determine if we need to show the 'More' icon
-    final bool showMoreIcon =
-        services.length >= 7; // Show 'More' if 7 or more services exist
-
-    // Total items in the grid will be the service icons + 'More' icon if needed
-    final int gridItemCount = serviceIconCount + (showMoreIcon ? 1 : 0);
-
+  Widget _buildServicesSection() {
+    final int serviceIconCount = _serviceController.serviceIconCountInGrid;
+    final bool showMoreIcon = _serviceController.showMoreIconInGrid;
+    final int gridItemCount = _serviceController.gridItemCount;
+    final List<ServiceModel> services = _serviceController.servicesForGrid;
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -344,7 +362,7 @@ class _HomepageScreenState extends State<HomepageScreen> {
               color: ServiceHelper.getColorForService(service.serviceName),
               iconColor: Colors.black,
               onPressed: (context) {
-                print('Tapped: ${service.serviceName}'); // ✅ DEBUG
+                print('Tapped: ${service.serviceName}');
                 Navigator.push(
                   context,
                   MaterialPageRoute(
@@ -360,9 +378,11 @@ class _HomepageScreenState extends State<HomepageScreen> {
   }
 
   Widget _buildPopularServicesSection() {
-    if (_popularServices.isEmpty) {
+    if (!_serviceController.hasPopularServices) {
       return const SizedBox.shrink();
     }
+
+    final popularServices = _serviceController.popularServicesForList;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -395,9 +415,7 @@ class _HomepageScreenState extends State<HomepageScreen> {
           ],
         ),
         const SizedBox(height: 5),
-        ..._popularServices
-            .take(3)
-            .map(
+        ...popularServices.map(
               (service) => Padding(
                 padding: const EdgeInsets.only(bottom: 16),
                 child: ServiceCard(

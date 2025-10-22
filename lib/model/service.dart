@@ -25,7 +25,7 @@ class ServiceModel {
       serviceID: data['serviceID'] ?? '',
       serviceName: data['serviceName'] ?? '',
       serviceDesc: data['serviceDesc'] ?? '',
-      servicePrice: data['servicePrice'] ?? '',
+      servicePrice: (data['servicePrice'] as num?)?.toDouble(),
       serviceDuration: data['serviceDuration'] ?? '',
       serviceStatus: data['serviceStatus'] ?? '',
       serviceCreatedAt: (data['serviceCreatedAt'] is Timestamp

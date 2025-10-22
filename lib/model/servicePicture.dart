@@ -19,7 +19,7 @@ class ServicePictureModel {
       picID: data['picID'] ?? '',
       serviceID: data['serviceID'] ?? '',
       picName: data['picName'] ?? '',
-      isPrimary: data['isPrimary'] ?? '',
+      isPrimary: data['isPrimary'] ?? false,
     );
   }
 

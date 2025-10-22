@@ -24,9 +24,11 @@ class RatingReviewModel {
       ratingCreatedAt: (data['ratingCreatedAt'] is Timestamp
           ? (data['ratingCreatedAt'] as Timestamp).toDate() 
           : DateTime.now()),  
-      ratingNum: data['ratingNum'] ?? '',
+      ratingNum: (data['ratingNum'] as num?)?.toDouble() ?? 0.0,
       ratingText: data['ratingText'] ?? '',
-      ratingPicName: data['ratingPicName'] ?? '',
+      ratingPicName: (data['ratingPicName'] as List<dynamic>?)
+          ?.map((e) => e.toString())
+          .toList(),
       reqID: data['reqID'] ?? '',
     );
   }
@@ -35,7 +37,7 @@ class RatingReviewModel {
   Map<String, dynamic> toMap() {
     return {
       'rateID': rateID,
-      'ratingCreatedAt': ratingCreatedAt,
+      'ratingCreatedAt': Timestamp.fromDate(ratingCreatedAt),
       'ratingNum': ratingNum,
       'ratingText': ratingText,
       'ratingPicName': ratingPicName,
