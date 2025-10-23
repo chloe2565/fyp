@@ -565,10 +565,9 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
                               itemCount: _reviewImagePaths.length,
                               itemBuilder: (context, index) {
                                 // 2. Get the specific picture name
-                                final picName = _reviewImagePaths[index];
+                                final picName = _reviewImagePaths[index].trim();
                                 // 3. Build the asset path
-                                final assetPath =
-                                    'assets/reviews/${picName.toLowerCase()}';
+                                final assetPath ='assets/reviews/${picName.toLowerCase()}';
                                 
                                 return ClipRRect(
                                   borderRadius: BorderRadius.circular(10),
