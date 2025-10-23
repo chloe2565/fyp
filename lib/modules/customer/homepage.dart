@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../controller/user.dart';
-import '../../helper.dart';
+import '../../shared/helper.dart';
 import '../../model/service.dart';
 import '../../model/user.dart';
-import '../../navigatorBase.dart';
+import '../../shared/navigatorBase.dart';
 import '../../controller/service.dart';
 import 'allServices.dart';
 import 'serviceDetail.dart';
@@ -53,24 +53,36 @@ class _CustHomepageState extends State<CustHomepage> {
     return await _userController.getCurrentUser();
   }
 
-  void _onNavBarTap(int index) {
-    setState(() {
-      _currentIndex = index;
-    });
+  void _onNavBarTap(int index) async {
+    if (index == _currentIndex) {
+      return;
+    }
+
+    String? routeToPush;
 
     switch (index) {
       case 0:
         break;
       case 1:
-        Navigator.pushNamed(context, '/request');
+        routeToPush = '/request';
         break;
-      case 2: 
-        Navigator.pushNamed(context, '/favorite');
+      case 2:
+        routeToPush = '/favorite';
         break;
       case 3: //rating
-        Navigator.pushNamed(context, '/home');
+        routeToPush = '/home';
         break;
       // More menu (index 4) is handled in the navigation bar itself
+    }
+
+    if (routeToPush != null) {
+      await Navigator.pushNamed(context, routeToPush);
+
+      if (mounted) {
+        setState(() {
+          _currentIndex = 0;
+        });
+      }
     }
   }
 
@@ -209,7 +221,7 @@ class _HomepageScreenState extends State<HomepageScreen> {
   @override
   void initState() {
     super.initState();
-    _serviceController = widget.controller; 
+    _serviceController = widget.controller;
     _servicesLoadFuture = _loadServices();
   }
 
@@ -276,7 +288,7 @@ class _HomepageScreenState extends State<HomepageScreen> {
             setState(() {
               _servicesLoadFuture = newFuture;
             });
-            await newFuture; 
+            await newFuture;
           },
           child: ListView(
             padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -298,7 +310,7 @@ class _HomepageScreenState extends State<HomepageScreen> {
     final bool showMoreIcon = _serviceController.showMoreIconInGrid;
     final int gridItemCount = _serviceController.gridItemCount;
     final List<ServiceModel> services = _serviceController.servicesForGrid;
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -416,20 +428,20 @@ class _HomepageScreenState extends State<HomepageScreen> {
         ),
         const SizedBox(height: 5),
         ...popularServices.map(
-              (service) => Padding(
-                padding: const EdgeInsets.only(bottom: 16),
-                child: ServiceCard(
-                  title: service.serviceName,
-                  provider: 'Service Team',
-                  price: service.servicePrice != null
-                    ? 'RM ${service.servicePrice!.toStringAsFixed(0)} / hour'
-                    : 'Price not available',
-                  rating: 4.8,
-                  reviews: 80,
-                  imageUrl: 'assets/images/profile.jpg',
-                ),
-              ),
+          (service) => Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: ServiceCard(
+              title: service.serviceName,
+              provider: 'Service Team',
+              price: service.servicePrice != null
+                  ? 'RM ${service.servicePrice!.toStringAsFixed(0)} / hour'
+                  : 'Price not available',
+              rating: 4.8,
+              reviews: 80,
+              imageUrl: 'assets/images/profile.jpg',
             ),
+          ),
+        ),
       ],
     );
   }

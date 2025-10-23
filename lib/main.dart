@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'modules/customer/favoriteHandyman.dart';
 import 'modules/customer/profile.dart';
 import 'modules/customer/requestHistory.dart';
-import 'style/theme.dart';
+import 'shared/theme.dart';
 import 'login.dart';
 import 'modules/customer/register.dart';
 import 'package:firebase_core/firebase_core.dart';

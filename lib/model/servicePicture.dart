@@ -1,5 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-
 class ServicePictureModel {
   final String picID;
   final String serviceID;

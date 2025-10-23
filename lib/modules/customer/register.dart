@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../controller/user.dart';
-import '../../helper.dart';
+import '../../shared/helper.dart';
 import '../../login.dart';
 
 class RegisterScreen extends StatelessWidget {
@@ -11,9 +11,7 @@ class RegisterScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-        iconTheme: const IconThemeData(
-          color: Colors.black,
-        ),
+        iconTheme: const IconThemeData(color: Colors.black),
       ),
       body: const RegisterList(),
     );
@@ -46,21 +44,20 @@ class _RegisterListState extends State<RegisterList> {
   Widget build(BuildContext context) {
     return Stack(
       children: [
-       SingleChildScrollView(
-          child: Form (
+        SingleChildScrollView(
+          child: Form(
             key: _controller.formKey,
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 5),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // "Getting Started" title
                   Text(
                     'Getting Started',
                     style: Theme.of(context).textTheme.headlineMedium,
                   ),
                   const SizedBox(height: 8),
-                  // Subtitle
+
                   Text(
                     "Let's set up your account.",
                     style: Theme.of(context).textTheme.headlineSmall,
@@ -72,9 +69,7 @@ class _RegisterListState extends State<RegisterList> {
                     controller: _controller.nameController,
                     decoration: InputDecoration(
                       labelText: "Enter your name",
-                      prefixIcon: Icon(
-                        Icons.person_outlined,
-                      ),
+                      prefixIcon: Icon(Icons.person_outlined),
                       errorMaxLines: 3,
                     ),
                     style: Theme.of(context).textTheme.bodySmall,
@@ -88,9 +83,7 @@ class _RegisterListState extends State<RegisterList> {
                     controller: _controller.emailController,
                     decoration: InputDecoration(
                       labelText: "Enter your email",
-                      prefixIcon: Icon(
-                        Icons.email_outlined,
-                      ),
+                      prefixIcon: Icon(Icons.email_outlined),
                       errorMaxLines: 3,
                     ),
                     style: Theme.of(context).textTheme.bodySmall,
@@ -130,9 +123,7 @@ class _RegisterListState extends State<RegisterList> {
                     controller: _controller.phoneController,
                     decoration: InputDecoration(
                       labelText: "Enter your phone",
-                      prefixIcon: Icon(
-                        Icons.phone_outlined,
-                      ),
+                      prefixIcon: Icon(Icons.phone_outlined),
                       errorMaxLines: 3,
                     ),
                     style: Theme.of(context).textTheme.bodySmall,
@@ -191,7 +182,10 @@ class _RegisterListState extends State<RegisterList> {
                     ),
                     style: Theme.of(context).textTheme.bodySmall,
                     autovalidateMode: AutovalidateMode.onUserInteraction,
-                    validator: (val) => Validator.validateConfirmPassword(val, _controller.confirmPasswordController.text),
+                    validator: (val) => Validator.validateConfirmPassword(
+                      val,
+                      _controller.confirmPasswordController.text,
+                    ),
                   ),
                   const SizedBox(height: 16),
 
@@ -215,19 +209,26 @@ class _RegisterListState extends State<RegisterList> {
                           },
                           child: RichText(
                             text: TextSpan(
-                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: Theme.of(context).colorScheme.onSurface,
-                              ),
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurface,
+                                  ),
                               children: [
                                 const TextSpan(
-                                  text: 'By creating an account, you agree to our ',
+                                  text:
+                                      'By creating an account, you agree to our ',
                                 ),
                                 TextSpan(
                                   text: 'Terms and Conditions',
-                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: Theme.of(context).colorScheme.primary,
-                                    fontWeight: FontWeight.w600,
-                                  ),
+                                  style: Theme.of(context).textTheme.bodySmall
+                                      ?.copyWith(
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.primary,
+                                        fontWeight: FontWeight.w600,
+                                      ),
                                 ),
                               ],
                             ),
@@ -245,7 +246,11 @@ class _RegisterListState extends State<RegisterList> {
                       onPressed: () {
                         if (!acceptTerms) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text("You must accept Terms & Conditions")),
+                            const SnackBar(
+                              content: Text(
+                                "You must accept Terms & Conditions",
+                              ),
+                            ),
                           );
                           return;
                         }
@@ -267,17 +272,23 @@ class _RegisterListState extends State<RegisterList> {
                       TextButton(
                         onPressed: () {
                           Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (context) => const LoginScreen()));
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const LoginScreen(),
+                            ),
+                          );
                         },
                         child: Text(
                           'Login',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Theme.of(context).colorScheme.primary,
-                            fontWeight: FontWeight.w600,
-                            decoration: TextDecoration.underline,
-                            decorationColor: Theme.of(context).colorScheme.primary,
-                          ),
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
+                                color: Theme.of(context).colorScheme.primary,
+                                fontWeight: FontWeight.w600,
+                                decoration: TextDecoration.underline,
+                                decorationColor: Theme.of(
+                                  context,
+                                ).colorScheme.primary,
+                              ),
                         ),
                       ),
                     ],
@@ -285,7 +296,7 @@ class _RegisterListState extends State<RegisterList> {
                 ],
               ),
             ),
-          )
+          ),
         ),
 
         // Fullscreen loading overlay
@@ -293,12 +304,10 @@ class _RegisterListState extends State<RegisterList> {
           Positioned.fill(
             child: Container(
               color: Colors.black54,
-              child: const Center(
-                child: CircularProgressIndicator(),
-              ),
+              child: const Center(child: CircularProgressIndicator()),
             ),
           ),
-      ]
+      ],
     );
   }
 }

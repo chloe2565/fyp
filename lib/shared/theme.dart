@@ -3,7 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 final ThemeData customAppTheme = ThemeData(
   brightness: Brightness.light,
-  scaffoldBackgroundColor: const Color(0xFFF9F9F9),
+  scaffoldBackgroundColor: const Color(0xFFEFEFEF),
   colorScheme: const ColorScheme.light(
     primary: Color(0xFFFD722E), // Orange
     onPrimary: Colors.white,

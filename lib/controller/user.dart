@@ -3,13 +3,13 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../service/user.dart';
 import '../service/customer.dart';
-import '../helper.dart';
+import '../shared/helper.dart';
 import '../login.dart';
 import '../model/customer.dart';
 import '../model/user.dart';
 import '../modules/customer/register.dart';
 import '../service/auth_service.dart';
-import '../navigatorBase.dart';
+import '../shared/navigatorBase.dart';
 import '../modules/customer/homepage.dart';
 
 class UserController {

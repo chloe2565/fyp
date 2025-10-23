@@ -3,7 +3,7 @@ import 'package:fyp/modules/customer/editProfile.dart';
 import '../../controller/user.dart';
 import '../../login.dart';
 import '../../model/user.dart';
-import '../../helper.dart';
+import '../../shared/helper.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -14,8 +14,8 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   UserModel? _user;
-  bool _isLoading = true;
-  String? _errorMessage;
+  bool isLoading = true;
+  String? errorMessage;
 
   late UserController _userController;
 
@@ -35,20 +35,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _fetchUserData() async {
     setState(() {
-      _isLoading = true;
-      _errorMessage = null;
+      isLoading = true;
+      errorMessage = null;
     });
 
     try {
       final user = await _userController.getCurrentUser();
       setState(() {
         _user = user;
-        _isLoading = false;
+        isLoading = false;
       });
     } catch (e) {
       setState(() {
-        _errorMessage = 'Failed to load profile: $e';
-        _isLoading = false;
+        errorMessage = 'Failed to load profile: $e';
+        isLoading = false;
       });
     }
   }
@@ -76,10 +76,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
         elevation: 0,
       ),
       backgroundColor: Colors.white,
-      body: _isLoading
+      body: isLoading
           ? const Center(child: CircularProgressIndicator())
-          : _errorMessage != null
-          ? Center(child: Text(_errorMessage!))
+          : errorMessage != null
+          ? Center(child: Text(errorMessage!))
           : _user == null
           ? const Center(child: Text('No user data found'))
           : SingleChildScrollView(

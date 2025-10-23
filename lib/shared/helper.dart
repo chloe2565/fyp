@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-
-import 'model/ratingReview.dart';
+import 'package:intl/intl.dart';
+import '../controller/service.dart';
 
 class Validator {
   static String? validateName(String? value) {
@@ -17,7 +17,9 @@ class Validator {
 
   static String? validateEmail(String? value) {
     final email = value?.trim() ?? '';
-    final emailRegex = RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
+    final emailRegex = RegExp(
+      r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
+    );
 
     if (email.isEmpty) {
       return 'Email is required';
@@ -52,7 +54,11 @@ class Validator {
     bool hasNumber = RegExp(r'[0-9]').hasMatch(password);
     bool hasSpecialChar = RegExp(r'[!@#$%^&*(),.?":{}|<>]').hasMatch(password);
 
-    if (!hasMinLength || !hasUppercase || !hasLowercase || !hasNumber || !hasSpecialChar) {
+    if (!hasMinLength ||
+        !hasUppercase ||
+        !hasLowercase ||
+        !hasNumber ||
+        !hasSpecialChar) {
       return 'Password must contain at least 8 characters with uppercase, lowercase, number, special characters';
     }
     return null;
@@ -96,7 +102,7 @@ void showChangePasswordDialog({
   required TextEditingController confirmNewPasswordController,
   required VoidCallback onSubmit,
 }) {
-  final formKey = GlobalKey<FormState>(); 
+  final formKey = GlobalKey<FormState>();
   bool isCurrentPasswordVisible = false;
   bool isNewPasswordVisible = false;
   bool isConfirmNewPasswordVisible = false;
@@ -122,9 +128,9 @@ void showChangePasswordDialog({
               ),
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(20.0),
-                child: Form( 
+                child: Form(
                   key: formKey,
-                  autovalidateMode: AutovalidateMode.onUserInteraction, 
+                  autovalidateMode: AutovalidateMode.onUserInteraction,
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: <Widget>[
@@ -145,7 +151,8 @@ void showChangePasswordDialog({
                             right: -10,
                             child: IconButton(
                               icon: const Icon(Icons.close),
-                              onPressed: () => Navigator.of(dialogContext).pop(),
+                              onPressed: () =>
+                                  Navigator.of(dialogContext).pop(),
                               padding: EdgeInsets.zero,
                               constraints: const BoxConstraints(),
                             ),
@@ -160,10 +167,13 @@ void showChangePasswordDialog({
                         controller: currentPasswordController,
                         isVisible: isCurrentPasswordVisible,
                         obscureText: true,
-                        validator: (value) => value!.isEmpty ? 'Current Password is required' : null,
+                        validator: (value) => value!.isEmpty
+                            ? 'Current Password is required'
+                            : null,
                         onVisibilityChanged: () {
                           setDialogState(() {
-                            isCurrentPasswordVisible = !isCurrentPasswordVisible;
+                            isCurrentPasswordVisible =
+                                !isCurrentPasswordVisible;
                           });
                         },
                       ),
@@ -191,10 +201,13 @@ void showChangePasswordDialog({
                         isVisible: isConfirmNewPasswordVisible,
                         obscureText: true,
                         validator: (value) => Validator.validateConfirmPassword(
-                          value, newPasswordController.text),
+                          value,
+                          newPasswordController.text,
+                        ),
                         onVisibilityChanged: () {
                           setDialogState(() {
-                            isConfirmNewPasswordVisible = !isConfirmNewPasswordVisible;
+                            isConfirmNewPasswordVisible =
+                                !isConfirmNewPasswordVisible;
                           });
                         },
                       ),
@@ -202,7 +215,9 @@ void showChangePasswordDialog({
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
-                          onPressed: (formKey.currentState?.validate() ?? false) ? onSubmit : null,
+                          onPressed: (formKey.currentState?.validate() ?? false)
+                              ? onSubmit
+                              : null,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFFFD722E),
                             padding: const EdgeInsets.symmetric(vertical: 14),
@@ -234,7 +249,7 @@ void showDeleteAccountDialog({
   required TextEditingController emailController,
   required VoidCallback onDelete,
 }) {
-  final formKey = GlobalKey<FormState>(); 
+  final formKey = GlobalKey<FormState>();
   emailController.clear();
 
   showDialog(
@@ -254,9 +269,9 @@ void showDeleteAccountDialog({
               ),
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(20.0),
-                child: Form( 
-                  key: formKey, 
-                  autovalidateMode: AutovalidateMode.onUserInteraction, 
+                child: Form(
+                  key: formKey,
+                  autovalidateMode: AutovalidateMode.onUserInteraction,
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: <Widget>[
@@ -281,13 +296,15 @@ void showDeleteAccountDialog({
                         label: 'Email',
                         hint: 'Enter registered email address',
                         controller: emailController,
-                        validator: Validator.validateEmail, 
+                        validator: Validator.validateEmail,
                       ),
                       const SizedBox(height: 30),
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
-                          onPressed: (formKey.currentState?.validate() ?? false) ? onDelete : null,
+                          onPressed: (formKey.currentState?.validate() ?? false)
+                              ? onDelete
+                              : null,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFFFF3D3D),
                             padding: const EdgeInsets.symmetric(vertical: 14),
@@ -297,10 +314,7 @@ void showDeleteAccountDialog({
                           ),
                           child: const Text(
                             'Delete Account',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                            ),
+                            style: TextStyle(color: Colors.white, fontSize: 16),
                           ),
                         ),
                       ),
@@ -324,27 +338,21 @@ Widget _buildPasswordField({
   required TextEditingController controller,
   required bool isVisible,
   required bool obscureText,
-  required String? Function(String?)? validator, 
+  required String? Function(String?)? validator,
   required VoidCallback onVisibilityChanged,
 }) {
-  return TextFormField( 
+  return TextFormField(
     controller: controller,
     obscureText: obscureText && !isVisible,
-    validator: validator, 
-    autovalidateMode: AutovalidateMode.onUserInteraction, 
-    style: Theme.of(context).textTheme.bodySmall, 
+    validator: validator,
+    autovalidateMode: AutovalidateMode.onUserInteraction,
+    style: Theme.of(context).textTheme.bodySmall,
     decoration: InputDecoration(
       labelText: label,
       hintText: hint,
       hintStyle: TextStyle(color: Colors.grey.shade400),
-      prefixIcon: const Icon(
-        Icons.lock_outline,
-        color: Colors.grey,
-      ),
-      prefixIconConstraints: const BoxConstraints(
-        minWidth: 35, 
-        minHeight: 0,
-      ),
+      prefixIcon: const Icon(Icons.lock_outline, color: Colors.grey),
+      prefixIconConstraints: const BoxConstraints(minWidth: 35, minHeight: 0),
       suffixIcon: IconButton(
         icon: Icon(
           isVisible ? Icons.visibility_outlined : Icons.visibility_off_outlined,
@@ -354,10 +362,10 @@ Widget _buildPasswordField({
       ),
       labelStyle: const TextStyle(
         fontSize: 12,
-        color: Colors.grey, 
+        color: Colors.grey,
         fontWeight: FontWeight.w400,
       ),
-      errorMaxLines: 3, 
+      errorMaxLines: 3,
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
         borderSide: BorderSide(color: Colors.grey.shade300),
@@ -382,24 +390,21 @@ Widget _buildEmailField({
   required TextEditingController controller,
   String? Function(String?)? validator,
 }) {
-  return TextFormField( 
+  return TextFormField(
     controller: controller,
     validator: validator,
-    autovalidateMode: AutovalidateMode.onUserInteraction, 
+    autovalidateMode: AutovalidateMode.onUserInteraction,
     decoration: InputDecoration(
       labelText: label,
       hintText: hint,
       hintStyle: TextStyle(color: Colors.grey.shade400),
-      prefixIcon: const Icon(
-        Icons.email_outlined,
-        color: Colors.grey,
-      ),
+      prefixIcon: const Icon(Icons.email_outlined, color: Colors.grey),
       labelStyle: const TextStyle(
         fontSize: 12,
-        color: Colors.grey, 
+        color: Colors.grey,
         fontWeight: FontWeight.w400,
       ),
-      errorMaxLines: 3, 
+      errorMaxLines: 3,
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
         borderSide: BorderSide(color: Colors.grey.shade300),
@@ -448,13 +453,13 @@ class ServiceHelper {
   static Color getColorForService(String serviceName) {
     switch (serviceName.toLowerCase()) {
       case 'a/c':
-        return const Color(0xFFFFF9C4); 
+        return const Color(0xFFFFF9C4);
       case 'moving':
-        return const Color(0xFF96D6D5); 
+        return const Color(0xFF96D6D5);
       case 'electric':
-        return const Color(0xFFFFD2AA); 
+        return const Color(0xFFFFD2AA);
       case 'plumbing':
-        return const Color(0xFFAAE8FF); 
+        return const Color(0xFFAAE8FF);
       case 'toilet':
         return const Color(0xFFAAD0FF);
       case 'laundry':
@@ -462,7 +467,7 @@ class ServiceHelper {
       case 'painting':
         return const Color(0xFFDFD9FF);
       case 'cleaning':
-        return const Color(0xFFC6E3B4); 
+        return const Color(0xFFC6E3B4);
       case 'carpentry':
         return const Color(0xFFFFBB29);
       default:
@@ -471,7 +476,6 @@ class ServiceHelper {
   }
 }
 
-// Star rating row
 Widget buildStarRating(double rating, {double starSize = 16}) {
   List<Widget> stars = [];
   for (int i = 1; i <= 5; i++) {
@@ -492,37 +496,13 @@ Widget buildStarRating(double rating, {double starSize = 16}) {
   return Row(children: stars);
 }
 
-Widget buildDotIndicator({
-  required int itemCount,
-  required int currentPage,
-}) {
-  return Row(
-    mainAxisAlignment: MainAxisAlignment.center,
-    children: List.generate(
-      itemCount,
-      (index) => AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        margin: const EdgeInsets.symmetric(horizontal: 4.0),
-        height: 8.0,
-        width: currentPage == index ? 24.0 : 8.0,
-        decoration: BoxDecoration(
-          color: currentPage == index
-              ? const Color(0xFFFF7643)
-              : Colors.grey.shade300,
-          borderRadius: BorderRadius.circular(5),
-        ),
-      ),
-    ),
-  );
-}
-
 Widget buildStyledChip(String text) {
   return Container(
     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
     decoration: BoxDecoration(
-      color: const Color(0xFFF6F6F6),
+      color: const Color.fromARGB(255, 255, 255, 255),
       borderRadius: BorderRadius.circular(8),
-      border: Border.all(color: Colors.grey.shade200),
+      border: Border.all(color: const Color.fromARGB(255, 229, 228, 228)),
     ),
     child: Text(
       text,
@@ -531,54 +511,71 @@ Widget buildStyledChip(String text) {
   );
 }
 
-// Individual review tile 
-// Widget buildReviewTile(ServiceReviewViewModel reviewVM) {
-//   return Padding(
-//     padding: const EdgeInsets.symmetric(vertical: 12.0),
-//     child: Row(
-//       crossAxisAlignment: CrossAxisAlignment.start,
-//       children: [
-//         CircleAvatar(
-//           radius: 24,
-//           backgroundImage: AssetImage(reviewVM.avatarPath), 
-//           backgroundColor: Colors.grey.shade200,
-//           child: reviewVM.avatarPath.isEmpty
-//               ? const Icon(Icons.person, color: Colors.white)
-//               : null,
-//         ),
-//         const SizedBox(width: 16),
-//         Expanded(
-//           child: Column(
-//             crossAxisAlignment: CrossAxisAlignment.start,
-//             children: [
-//               Row(
-//                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
-//                 children: [
-//                   Text(
-//                     reviewVM.authorName, // Use authorName
-//                     style: const TextStyle(
-//                       fontWeight: FontWeight.bold,
-//                       fontSize: 16,
-//                     ),
-//                   ),
-//                   Text(
-//                     reviewVM.date, // Use formatted date
-//                     style: const TextStyle(color: Colors.grey, fontSize: 13),
-//                   ),
-//                 ],
-//               ),
-//               const SizedBox(height: 4),
-//               // Use the other helper!
-//               buildStarRating(reviewVM.review.ratingNum, starSize: 18), // Use ratingNum
-//               const SizedBox(height: 8),
-//               Text(
-//                 reviewVM.review.ratingText, // Use ratingText
-//                 style: const TextStyle(fontSize: 14, height: 1.5),
-//               ),
-//             ],
-//           ),
-//         ),
-//       ],
-//     ),
-//   );
-// }
+Widget buildReviewTile(ReviewDisplayData reviewData) {
+  final review = reviewData.review;
+  final authorName = reviewData.authorName;
+  final String avatarAssetPath = reviewData.avatarPath.isNotEmpty
+      ? 'assets/images/${reviewData.avatarPath}'
+      : 'assets/images/profile.jpg';
+
+  final String formattedDate = DateFormat(
+    'dd MMM yyyy',
+  ).format(review.ratingCreatedAt);
+
+  return Padding(
+    padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        CircleAvatar(
+          radius: 24,
+          backgroundImage: AssetImage(avatarAssetPath),
+          backgroundColor: Colors.grey.shade200,
+          onBackgroundImageError: (exception, stackTrace) {
+            print('Error loading avatar: $avatarAssetPath');
+          },
+          child: reviewData.avatarPath.isEmpty
+              ? const Icon(Icons.person, color: Colors.white)
+              : null,
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    authorName,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                  Text(
+                    formattedDate,
+                    style: const TextStyle(color: Colors.grey, fontSize: 13),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              buildStarRating(review.ratingNum, starSize: 18),
+              const SizedBox(height: 8),
+              Text(
+                review.ratingText,
+                style: const TextStyle(fontSize: 14, height: 1.5),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+
+
+
+
+

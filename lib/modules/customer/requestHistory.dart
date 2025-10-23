@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../controller/serviceRequest.dart'; 
-import '../../navigatorBase.dart'; 
+import '../../controller/serviceRequest.dart';
+import '../../shared/navigatorBase.dart';
 
 class RequestHistoryScreen extends StatefulWidget {
   const RequestHistoryScreen({super.key});
@@ -10,36 +10,45 @@ class RequestHistoryScreen extends StatefulWidget {
 }
 
 class _RequestHistoryScreenState extends State<RequestHistoryScreen> {
-  int _currentIndex = 1; // 'Request' is the 2nd item (index 1)
-  final ServiceRequestController _repository = ServiceRequestController();
+  int _currentIndex = 1;
 
-  // Your navigation logic
-  void _onNavBarTap(int index) {
-    setState(() {
-      _currentIndex = index;
-    });
+  void _onNavBarTap(int index) async {
+    if (index == _currentIndex) {
+      return;
+    }
+
+    String? routeToPush;
 
     switch (index) {
       case 0:
-        Navigator.pushNamed(context, '/home');
-        break;
+        Navigator.pop(context);
+        return;
       case 1:
-        // We are already here
         break;
       case 2:
-        Navigator.pushNamed(context, '/favorite'); // Example
+        routeToPush = '/favorite';
         break;
-      case 3:
-        Navigator.pushNamed(context, '/rating'); // Example
+      case 3: //rating
+        routeToPush = '/home';
         break;
       // More menu (index 4) is handled in the navigation bar itself
+    }
+
+    if (routeToPush != null) {
+      await Navigator.pushNamed(context, routeToPush);
+
+      if (mounted) {
+        setState(() {
+          _currentIndex = 1;
+        });
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 2, // Two tabs: Upcoming and History
+      length: 2,
       child: Scaffold(
         appBar: AppBar(
           backgroundColor: Colors.white,
@@ -65,8 +74,7 @@ class _RequestHistoryScreenState extends State<RequestHistoryScreen> {
                   hintText: 'Search here...',
                   prefixIcon: const Icon(Icons.search, color: Colors.grey),
                   suffixIcon: IconButton(
-                    icon:
-                        const Icon(Icons.tune, color: Color(0xFFFF7643)),
+                    icon: const Icon(Icons.tune, color: Color(0xFFFF7643)),
                     onPressed: () {
                       // TODO: Implement filter action
                     },
@@ -107,7 +115,7 @@ class _RequestHistoryScreenState extends State<RequestHistoryScreen> {
                     ),
                   ],
                 ),
-                labelColor: const Color(0xFFFF7643), // Orange color
+                labelColor: const Color(0xFFFF7643),
                 unselectedLabelColor: Colors.grey,
                 tabs: const [
                   Tab(text: 'Upcoming'),
@@ -125,7 +133,6 @@ class _RequestHistoryScreenState extends State<RequestHistoryScreen> {
     );
   }
 
-  // Helper widget for a single detail row in the card
   Widget _buildDetailRow(String title, String value) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8.0),
@@ -133,13 +140,7 @@ class _RequestHistoryScreenState extends State<RequestHistoryScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 14,
-              color: Colors.grey,
-            ),
-          ),
+          Text(title, style: const TextStyle(fontSize: 14, color: Colors.grey)),
           const SizedBox(width: 16),
           Expanded(
             child: Text(

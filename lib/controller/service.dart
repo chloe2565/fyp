@@ -11,7 +11,7 @@ import '../service/servicePicture.dart';
 class ReviewDisplayData {
   final RatingReviewModel review;
   final String authorName;
-  final String avatarPath; // e.g., "profile_pic.png"
+  final String avatarPath; 
 
   ReviewDisplayData({
     required this.review,
@@ -20,17 +20,20 @@ class ReviewDisplayData {
   });
 }
 
+class ServiceAggregates {
+  final double averageRating;
+  final int completedOrders;
+  ServiceAggregates({this.averageRating = 0.0, this.completedOrders = 0});
+}
+
 class ServiceController {
   final ServiceService _serviceService = ServiceService();
   final ServicePictureService _pictureService = ServicePictureService();
   final RatingReviewService _ratingReviewService = RatingReviewService();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-
-  // --- State ---
   List<ServiceModel> _allServices = [];
   bool _servicesLoaded = false;
 
-  // --- Data Loading ---
   Future<void> loadServices({bool refresh = false}) async {
     if (_servicesLoaded && !refresh) return;
 
@@ -84,6 +87,58 @@ class ServiceController {
     String serviceID,
   ) async {
     return await _pictureService.getPicturesForService(serviceID);
+  }
+
+  Future<ServiceAggregates> getServiceAggregates(String serviceID) async {
+    try {
+      // 1. Get COMPLETED service requests
+      final requestSnap = await _firestore
+          .collection('ServiceRequest')
+          .where('serviceID', isEqualTo: serviceID)
+          .where('reqStatus', isEqualTo: 'completed')
+          .get();
+
+      int completedOrders = requestSnap.docs.length;
+
+      if (completedOrders == 0) {
+        return ServiceAggregates(averageRating: 0.0, completedOrders: 0);
+      }
+
+      // 2. Get reqIDs from those completed requests
+      final List<String> reqIDs = requestSnap.docs
+          .map((doc) => doc.data()['reqID'] as String?)
+          .where((id) => id != null)
+          .cast<String>()
+          .toList();
+
+      if (reqIDs.isEmpty) {
+        // Completed orders exist, but none have reviews yet.
+        return ServiceAggregates(
+            averageRating: 0.0, completedOrders: completedOrders);
+      }
+
+      // 3. Get reviews for THESE reqIDs
+      final List<RatingReviewModel> reviews =
+          await _ratingReviewService.getReviewsForServiceRequests(reqIDs);
+
+      if (reviews.isEmpty) {
+        // Completed orders exist, but none are reviewed.
+        return ServiceAggregates(
+            averageRating: 0.0, completedOrders: completedOrders);
+      }
+
+      // 4. Calculate average rating
+      double sum = reviews.fold(0.0, (prev, e) => prev + e.ratingNum);
+      double averageRating = sum / reviews.length;
+
+      return ServiceAggregates(
+        averageRating: averageRating,
+        completedOrders: completedOrders,
+      );
+    } catch (e) {
+      print('Error in getServiceAggregates: $e');
+      return ServiceAggregates(); // Return default values on error
+    }
   }
 
   Future<List<ReviewDisplayData>> getReviewsForService(String serviceID) async {

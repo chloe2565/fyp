@@ -2,7 +2,7 @@ import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../../controller/user.dart';
-import '../../helper.dart';
+import '../../shared/helper.dart';
 
 enum Gender { male, female }
 
@@ -26,23 +26,22 @@ class EditProfileScreen extends StatefulWidget {
   State<EditProfileScreen> createState() => _EditProfileScreenState();
 }
 
-class _EditProfileScreenState extends State<EditProfileScreen> with WidgetsBindingObserver {
+class _EditProfileScreenState extends State<EditProfileScreen>
+    with WidgetsBindingObserver {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
-  Gender? _genderItem;
-  bool _isLoading = false;
 
-  // State variables for email verification
-  bool _isEmailVerified = true;
-  bool _isVerificationEmailSent = false;
-  Timer? _verificationTimer;
-
-  String? _originalEmail;
-  String? _originalContact;
-  String? _emailError;
-  String? _phoneError;
+  Gender? genderItem;
+  bool isLoading = false;
+  bool isEmailVerified = true;
+  bool isVerificationEmailSent = false;
+  Timer? verificationTimer;
+  String? originalEmail;
+  String? originalContact;
+  String? emailError;
+  String? phoneError;
 
   late UserController _userController;
 
@@ -53,29 +52,31 @@ class _EditProfileScreenState extends State<EditProfileScreen> with WidgetsBindi
     _userController = UserController(
       showErrorSnackBar: (message) {
         if (mounted) {
-          ScaffoldMessenger.of(context)
-              .showSnackBar(SnackBar(content: Text(message)));
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(message)));
         }
       },
     );
 
     String initialPhone = widget.initialPhoneNumber;
-    String localNumber =
-        initialPhone.startsWith('+60') ? '0${initialPhone.substring(3)}' : initialPhone;
+    String localNumber = initialPhone.startsWith('+60')
+        ? '0${initialPhone.substring(3)}'
+        : initialPhone;
 
     _nameController.text = widget.initialName;
     _emailController.text = widget.initialEmail;
     _phoneController.text = localNumber;
-    _genderItem = widget.initialGender;
-    _originalEmail = widget.initialEmail.toLowerCase();
-    _originalContact = widget.initialPhoneNumber;
-    _isEmailVerified = true;
+    genderItem = widget.initialGender;
+    originalEmail = widget.initialEmail.toLowerCase();
+    originalContact = widget.initialPhoneNumber;
+    isEmailVerified = true;
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _verificationTimer?.cancel();
+    verificationTimer?.cancel();
     _nameController.dispose();
     _emailController.dispose();
     _phoneController.dispose();
@@ -85,45 +86,48 @@ class _EditProfileScreenState extends State<EditProfileScreen> with WidgetsBindi
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed && _isVerificationEmailSent) {
+    if (state == AppLifecycleState.resumed && isVerificationEmailSent) {
       _checkEmailUpdate();
     }
   }
 
   Future<void> _sendVerificationEmail() async {
     if (Validator.validateEmail(_emailController.text.trim()) != null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Please enter a valid email address.'),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a valid email address.')),
+      );
       return;
     }
 
     setState(() {
-      _isLoading = true;
+      isLoading = true;
     });
 
     try {
-      await _userController
-          .sendUpdateEmailVerification(_emailController.text.trim());
+      await _userController.sendUpdateEmailVerification(
+        _emailController.text.trim(),
+      );
       setState(() {
-        _isVerificationEmailSent = true;
-        _emailError = 'Verification email sent. Check your new email\'s inbox.';
+        isVerificationEmailSent = true;
+        emailError = 'Verification email sent. Check your new email\'s inbox.';
       });
       _startVerificationTimer();
     } catch (e) {
       setState(() {
-        _isVerificationEmailSent = false;
+        isVerificationEmailSent = false;
       });
     } finally {
       setState(() {
-        _isLoading = false;
+        isLoading = false;
       });
     }
   }
 
   void _startVerificationTimer() {
-    _verificationTimer?.cancel();
-    _verificationTimer = Timer.periodic(const Duration(seconds: 3), (timer) async {
+    verificationTimer?.cancel();
+    verificationTimer = Timer.periodic(const Duration(seconds: 3), (
+      timer,
+    ) async {
       await _checkEmailUpdate();
     });
   }
@@ -136,28 +140,33 @@ class _EditProfileScreenState extends State<EditProfileScreen> with WidgetsBindi
         await user.reload();
         user = FirebaseAuth.instance.currentUser;
 
-        if (user?.email?.toLowerCase() == _emailController.text.trim().toLowerCase()) {
-          _verificationTimer?.cancel();
+        if (user?.email?.toLowerCase() ==
+            _emailController.text.trim().toLowerCase()) {
+          verificationTimer?.cancel();
           if (mounted) {
             setState(() {
-              _isEmailVerified = true;
-              _isVerificationEmailSent = false;
-              _originalEmail = user?.email?.toLowerCase();
-              _emailError = null;
+              isEmailVerified = true;
+              isVerificationEmailSent = false;
+              originalEmail = user?.email?.toLowerCase();
+              emailError = null;
               _emailController.text = user?.email ?? '';
             });
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-              content: Text('✅ Email successfully verified and updated!'),
-              backgroundColor: Colors.green,
-            ));
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('✅ Email successfully verified and updated!'),
+                backgroundColor: Colors.green,
+              ),
+            );
           }
         }
       }
     } catch (e) {
       print('Error checking email verification: $e');
       if (e is FirebaseAuthException) {
-        if (e.code == 'user-token-expired' || e.code == 'invalid-credential' || e.code == 'user-mismatch') {
-          _verificationTimer?.cancel();
+        if (e.code == 'user-token-expired' ||
+            e.code == 'invalid-credential' ||
+            e.code == 'user-mismatch') {
+          verificationTimer?.cancel();
           if (mounted) {
             _showReauthDialog();
           }
@@ -202,8 +211,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> with WidgetsBindi
               Navigator.pop(ctx);
               // Optionally reset state or log out
               setState(() {
-                _isVerificationEmailSent = false;
-                _emailError = 'Verification timed out. Please try again.';
+                isVerificationEmailSent = false;
+                emailError = 'Verification timed out. Please try again.';
               });
             },
             child: const Text('Cancel'),
@@ -225,27 +234,36 @@ class _EditProfileScreenState extends State<EditProfileScreen> with WidgetsBindi
 
                   Navigator.pop(ctx);
 
-                  if (updatedUser?.email?.toLowerCase() == newEmail.toLowerCase()) {
+                  if (updatedUser?.email?.toLowerCase() ==
+                      newEmail.toLowerCase()) {
                     setState(() {
-                      _isEmailVerified = true;
-                      _isVerificationEmailSent = false;
-                      _originalEmail = updatedUser?.email?.toLowerCase();
-                      _emailError = null;
+                      isEmailVerified = true;
+                      isVerificationEmailSent = false;
+                      originalEmail = updatedUser?.email?.toLowerCase();
+                      emailError = null;
                       _emailController.text = updatedUser?.email ?? '';
                     });
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                      content: Text('✅ Email successfully verified and updated!'),
-                      backgroundColor: Colors.green,
-                    ));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          '✅ Email successfully verified and updated!',
+                        ),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
                   } else {
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                      content: Text('Email update not detected. Please try again.'),
-                    ));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Email update not detected. Please try again.',
+                        ),
+                      ),
+                    );
                   }
                 } catch (e) {
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                    content: Text('Failed: ${e.toString()}'),
-                  ));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Failed: ${e.toString()}')),
+                  );
                 }
               }
             },
@@ -257,23 +275,27 @@ class _EditProfileScreenState extends State<EditProfileScreen> with WidgetsBindi
   }
 
   Future<void> _submitProfile() async {
-    if (_emailController.text.trim().toLowerCase() != _originalEmail &&
-        !_isEmailVerified) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Please verify your new email address before submitting.'),
-      ));
+    if (_emailController.text.trim().toLowerCase() != originalEmail &&
+        !isEmailVerified) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Please verify your new email address before submitting.',
+          ),
+        ),
+      );
       return;
     }
 
     if (_formKey.currentState!.validate()) {
-      setState(() => _isLoading = true);
+      setState(() => isLoading = true);
 
       try {
         await _userController.updateProfile(
           userID: widget.userID,
           name: _nameController.text.trim(),
           email: _emailController.text.trim().toLowerCase(),
-          gender: _genderItem == Gender.male ? 'M' : 'F',
+          gender: genderItem == Gender.male ? 'M' : 'F',
           contact: _phoneController.text.trim(),
           setState: setState,
           context: context,
@@ -289,7 +311,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> with WidgetsBindi
           );
         }
       } finally {
-        if (mounted) setState(() => _isLoading = false);
+        if (mounted) setState(() => isLoading = false);
       }
     }
   }
@@ -297,8 +319,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> with WidgetsBindi
   @override
   Widget build(BuildContext context) {
     bool isEmailChanged =
-        _emailController.text.trim().toLowerCase() != _originalEmail;
-    bool canSubmit = !isEmailChanged || (isEmailChanged && _isEmailVerified);
+        _emailController.text.trim().toLowerCase() != originalEmail;
+    bool canSubmit = !isEmailChanged || (isEmailChanged && isEmailVerified);
 
     return Scaffold(
       appBar: AppBar(
@@ -315,7 +337,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> with WidgetsBindi
         elevation: 0,
       ),
       backgroundColor: Colors.white,
-      body: _isLoading
+      body: isLoading
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
               child: Padding(
@@ -358,8 +380,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> with WidgetsBindi
                                     color: Color(0xFFFD722E),
                                     shape: BoxShape.circle,
                                   ),
-                                  child: const Icon(Icons.edit,
-                                      color: Colors.white, size: 20),
+                                  child: const Icon(
+                                    Icons.edit,
+                                    color: Colors.white,
+                                    size: 20,
+                                  ),
                                 ),
                               ),
                             ),
@@ -371,8 +396,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> with WidgetsBindi
                         controller: _nameController,
                         decoration: const InputDecoration(
                           labelText: 'Name',
-                          prefixIcon:
-                              Icon(Icons.person_outline, color: Colors.grey),
+                          prefixIcon: Icon(
+                            Icons.person_outline,
+                            color: Colors.grey,
+                          ),
                           errorMaxLines: 3,
                         ),
                         style: Theme.of(context).textTheme.bodySmall,
@@ -383,51 +410,60 @@ class _EditProfileScreenState extends State<EditProfileScreen> with WidgetsBindi
                         controller: _emailController,
                         decoration: InputDecoration(
                           labelText: 'Email Address',
-                          prefixIcon: const Icon(Icons.email_outlined,
-                              color: Colors.grey),
+                          prefixIcon: const Icon(
+                            Icons.email_outlined,
+                            color: Colors.grey,
+                          ),
                           suffixIcon: isEmailChanged
-                              ? _isEmailVerified
-                                  ? const Icon(Icons.check_circle,
-                                      color: Colors.green)
-                                  : IconButton(
-                                      tooltip: 'Send verification email',
-                                      icon: Icon(
-                                        _isVerificationEmailSent
-                                            ? Icons.hourglass_top
-                                            : Icons.error_outline,
-                                        color: Colors.orange,
-                                      ),
-                                      onPressed: _isLoading
-                                          ? null
-                                          : _sendVerificationEmail,
-                                    )
-                              : const Icon(Icons.check_circle,
-                                  color: Colors.green),
+                              ? isEmailVerified
+                                    ? const Icon(
+                                        Icons.check_circle,
+                                        color: Colors.green,
+                                      )
+                                    : IconButton(
+                                        tooltip: 'Send verification email',
+                                        icon: Icon(
+                                          isVerificationEmailSent
+                                              ? Icons.hourglass_top
+                                              : Icons.error_outline,
+                                          color: Colors.orange,
+                                        ),
+                                        onPressed: isLoading
+                                            ? null
+                                            : _sendVerificationEmail,
+                                      )
+                              : const Icon(
+                                  Icons.check_circle,
+                                  color: Colors.green,
+                                ),
                           errorMaxLines: 3,
                         ),
                         keyboardType: TextInputType.emailAddress,
                         style: Theme.of(context).textTheme.bodySmall,
                         onChanged: (value) async {
                           final newEmail = value.trim().toLowerCase();
-                          final isChanged = newEmail != _originalEmail;
+                          final isChanged = newEmail != originalEmail;
 
                           setState(() {
-                            _emailError = null;
-                            _isEmailVerified = !isChanged;
-                            _isVerificationEmailSent = false;
-                            _verificationTimer?.cancel();
+                            emailError = null;
+                            isEmailVerified = !isChanged;
+                            isVerificationEmailSent = false;
+                            verificationTimer?.cancel();
                           });
 
-                          if (isChanged && Validator.validateEmail(value) == null) {
+                          if (isChanged &&
+                              Validator.validateEmail(value) == null) {
                             bool taken = await _userController.isEmailTaken(
-                                newEmail, widget.userID);
+                              newEmail,
+                              widget.userID,
+                            );
                             if (mounted && taken) {
                               setState(() {
-                                _emailError = 'This email is already registered';
+                                emailError = 'This email is already registered';
                               });
                             } else if (mounted) {
                               setState(() {
-                                _emailError =
+                                emailError =
                                     'Click the icon to verify new email';
                               });
                             }
@@ -435,13 +471,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> with WidgetsBindi
                         },
                         validator: Validator.validateEmail,
                       ),
-                      if (_emailError != null)
+                      if (emailError != null)
                         Padding(
                           padding: const EdgeInsets.only(top: 8.0),
                           child: Text(
-                            _emailError!,
+                            emailError!,
                             style: TextStyle(
-                              color: _emailError!.contains('verify') || _emailError!.contains('sent')
+                              color:
+                                  emailError!.contains('verify') ||
+                                      emailError!.contains('sent')
                                   ? Colors.orange
                                   : Colors.red,
                               fontSize: 12,
@@ -465,9 +503,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> with WidgetsBindi
                               children: [
                                 Radio<Gender>(
                                   value: Gender.male,
-                                  groupValue: _genderItem,
+                                  groupValue: genderItem,
                                   onChanged: (value) =>
-                                      setState(() => _genderItem = value),
+                                      setState(() => genderItem = value),
                                 ),
                                 const Text('Male'),
                               ],
@@ -478,9 +516,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> with WidgetsBindi
                               children: [
                                 Radio<Gender>(
                                   value: Gender.female,
-                                  groupValue: _genderItem,
+                                  groupValue: genderItem,
                                   onChanged: (value) =>
-                                      setState(() => _genderItem = value),
+                                      setState(() => genderItem = value),
                                 ),
                                 const Text('Female'),
                               ],
@@ -493,23 +531,29 @@ class _EditProfileScreenState extends State<EditProfileScreen> with WidgetsBindi
                         controller: _phoneController,
                         decoration: const InputDecoration(
                           labelText: 'Contact Number',
-                          prefixIcon: Icon(Icons.phone_outlined, color: Colors.grey),
+                          prefixIcon: Icon(
+                            Icons.phone_outlined,
+                            color: Colors.grey,
+                          ),
                           errorMaxLines: 3,
                         ),
                         keyboardType: TextInputType.phone,
                         style: Theme.of(context).textTheme.bodySmall,
                         onChanged: (value) async {
                           setState(() {
-                            _phoneError = null;
+                            phoneError = null;
                           });
                           if (Validator.validateContact(value) == null) {
                             String contact = value.trim();
-                            if (contact != _originalContact) {
+                            if (contact != originalContact) {
                               bool taken = await _userController.isPhoneTaken(
-                                  contact, widget.userID);
+                                contact,
+                                widget.userID,
+                              );
                               if (taken) {
                                 setState(() {
-                                  _phoneError = 'This phone number is already registered';
+                                  phoneError =
+                                      'This phone number is already registered';
                                 });
                               }
                             }
@@ -518,15 +562,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> with WidgetsBindi
                         validator: (value) {
                           final error = Validator.validateContact(value);
                           if (error != null) return error;
-                          if (_phoneError != null) return _phoneError;
+                          if (phoneError != null) return phoneError;
                           return null;
                         },
                       ),
-                      if (_phoneError != null)
+                      if (phoneError != null)
                         Padding(
                           padding: const EdgeInsets.only(top: 8.0),
                           child: Text(
-                            _phoneError!,
+                            phoneError!,
                             style: const TextStyle(
                               color: Colors.red,
                               fontSize: 12,
@@ -538,13 +582,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> with WidgetsBindi
                         children: [
                           Expanded(
                             child: ElevatedButton(
-                              onPressed: _isLoading || !canSubmit
+                              onPressed: isLoading || !canSubmit
                                   ? null
                                   : _submitProfile,
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFFFD722E),
                                 disabledBackgroundColor: Colors.orange.shade200,
-                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 14,
+                                ),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),
@@ -564,8 +610,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> with WidgetsBindi
                               onPressed: () => Navigator.of(context).pop(),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.grey.shade400,
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 14),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 14,
+                                ),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),

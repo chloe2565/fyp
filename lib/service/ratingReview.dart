@@ -7,12 +7,12 @@ class RatingReviewService {
   Future<List<RatingReviewModel>> getReviewsForServiceRequests(
       List<String> reqIDs) async {
     if (reqIDs.isEmpty) {
-      return []; // Return empty list if no request IDs are provided
+      return []; 
     }
 
     try {
       QuerySnapshot querySnapshot = await _ratingReviewCollection
-          .where('reqID', whereIn: reqIDs) // Use 'whereIn' for efficiency
+          .where('reqID', whereIn: reqIDs) 
           .get();
 
       // Convert docs → model using fromMap()

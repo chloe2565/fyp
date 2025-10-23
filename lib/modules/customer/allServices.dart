@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../controller/service.dart';
 import '../../model/service.dart';
 import 'serviceDetail.dart';
-import '../../helper.dart';
+import '../../shared/helper.dart';
 
 class AllServicesScreen extends StatefulWidget {
   const AllServicesScreen({super.key});
@@ -12,44 +12,43 @@ class AllServicesScreen extends StatefulWidget {
 }
 
 class _AllServicesScreenState extends State<AllServicesScreen> {
-  late Future<List<ServiceModel>> _servicesFuture;
-  List<ServiceModel> _allServices = [];
-  List<ServiceModel> _displayedServices = [];
   final TextEditingController _searchController = TextEditingController();
-  bool _isLoading = true;
+  late Future<List<ServiceModel>> servicesFuture;
+  List<ServiceModel> allServices = [];
+  List<ServiceModel> displayedServices = [];
+  bool isLoading = true;
 
-  // For filter (example: price range)
-  double _minPrice = 0;
-  double _maxPrice = 100; // Assume max price for filter
+  double minPrice = 0;
+  double maxPrice = 100; 
 
   @override
   void initState() {
     super.initState();
-    _servicesFuture = ServiceController().getAllServices();
+    servicesFuture = ServiceController().getAllServices();
     _loadServices();
     _searchController.addListener(_filterServices);
   }
 
   Future<void> _loadServices() async {
     try {
-      _allServices = await _servicesFuture;
-      _displayedServices = _allServices;
+      allServices = await servicesFuture;
+      displayedServices = allServices;
     } catch (e) {
       // Handle error (e.g., show snackbar)
     }
     setState(() {
-      _isLoading = false;
+      isLoading = false;
     });
   }
 
   void _filterServices() {
     final query = _searchController.text.toLowerCase();
     setState(() {
-      _displayedServices = _allServices.where((service) {
+      displayedServices = allServices.where((service) {
         final matchesName = service.serviceName.toLowerCase().contains(query);
         final matchesPrice = service.servicePrice != null &&
-            service.servicePrice! >= _minPrice &&
-            service.servicePrice! <= _maxPrice;
+            service.servicePrice! >= minPrice &&
+            service.servicePrice! <= maxPrice;
         return matchesName && matchesPrice;
       }).toList();
     });
@@ -65,24 +64,24 @@ class _AllServicesScreenState extends State<AllServicesScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Slider(
-                value: _minPrice,
+                value: minPrice,
                 min: 0,
                 max: 100,
-                label: 'Min: $_minPrice',
+                label: 'Min: $minPrice',
                 onChanged: (value) {
                   setState(() {
-                    _minPrice = value;
+                    minPrice = value;
                   });
                 },
               ),
               Slider(
-                value: _maxPrice,
+                value: maxPrice,
                 min: 0,
                 max: 100,
-                label: 'Max: $_maxPrice',
+                label: 'Max: $maxPrice',
                 onChanged: (value) {
                   setState(() {
-                    _maxPrice = value;
+                    maxPrice = value;
                   });
                 },
               ),
@@ -119,7 +118,7 @@ class _AllServicesScreenState extends State<AllServicesScreen> {
         title: const Text('Services',
             style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
         centerTitle: true,
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
       ),
       body: Padding(
@@ -147,12 +146,12 @@ class _AllServicesScreenState extends State<AllServicesScreen> {
             ),
             const SizedBox(height: 24),
             Expanded(
-              child: _isLoading
+              child: isLoading
                   ? const Center(child: CircularProgressIndicator())
                   : ListView.builder(
-                      itemCount: _displayedServices.length,
+                      itemCount: displayedServices.length,
                       itemBuilder: (context, index) {
-                        final service = _displayedServices[index];
+                        final service = displayedServices[index];
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 16.0),
                           child: GestureDetector(
@@ -187,7 +186,6 @@ class _AllServicesScreenState extends State<AllServicesScreen> {
   }
 }
 
-// The ServiceListItemCard widget remains exactly the same.
 class ServiceListItemCard extends StatelessWidget {
   final String title;
   final String price;

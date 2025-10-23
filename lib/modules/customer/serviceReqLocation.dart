@@ -35,7 +35,7 @@ class _ServiceRequestLocationPageState
     super.dispose();
   }
 
-  /// Handles map tap events
+  // Handles map tap events
   void _onMapTapped(TapPosition tapPosition, l.LatLng location) async {
     setState(() {
       _selectedLocation = location;
@@ -71,11 +71,10 @@ class _ServiceRequestLocationPageState
     } catch (e) {
       print("Error getting address: $e");
     }
-    // Fallback if API fails
     return '${location.latitude.toStringAsFixed(5)}, ${location.longitude.toStringAsFixed(5)}';
   }
 
-  /// Gets user's current location and moves the map
+  // Gets user's current location and moves the map
   Future<void> _getCurrentLocation() async {
     bool serviceEnabled;
     LocationPermission permission;
@@ -148,7 +147,7 @@ class _ServiceRequestLocationPageState
     });
   }
 
-  /// Searches for a location using Nominatim API
+  // Search for a location using Nominatim API
   Future<void> _searchLocation(String query) async {
     if (query.isEmpty) return;
 
@@ -173,7 +172,7 @@ class _ServiceRequestLocationPageState
     }
   }
 
-/// Searches and selects the top result, moving the map
+  // Search and select the top result then move the map
   Future<void> _searchAndSelectTopResult(String query) async {
     if (query.isEmpty) return;
 
@@ -216,7 +215,7 @@ class _ServiceRequestLocationPageState
     }
   }
 
-  /// Builds the list of markers to display on the map
+  // Builds the list of markers to display on the map
   List<Marker> _buildMarkers() {
     if (_selectedLocation == null) {
       return []; 
@@ -235,7 +234,7 @@ class _ServiceRequestLocationPageState
     ];
   }
 
-  /// Navigates to the details page
+  // Navigates to the details page
   void _navigateToNext() {
     if (_selectedLocation == null) return;
 
@@ -311,7 +310,7 @@ class _ServiceRequestLocationPageState
                             ),
                           ),
                           filled: true,
-                          fillColor: Colors.grey.shade100,
+                          fillColor: Colors.white,
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
                             borderSide: BorderSide.none,
@@ -362,7 +361,7 @@ class _ServiceRequestLocationPageState
               Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: SizedBox(
-                  width: double.infinity,
+                  width: MediaQuery.of(context).size.width * 0.8,
                   child: ElevatedButton(
                     onPressed: _selectedLocation == null
                         ? null

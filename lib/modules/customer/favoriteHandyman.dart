@@ -1,14 +1,9 @@
-// ui/favorite_page.dart
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-
-// Import your models
 import '../../model/handyman.dart';
 import '../../model/skill.dart';
-
-// Import your service and other UI components
-import '../../controller/favoriteHandyman.dart'; // <-- IMPORT THE CONTROLLER
-import '../../navigatorBase.dart';
+import '../../controller/favoriteHandyman.dart';
+import '../../shared/navigatorBase.dart';
 
 class FavoriteScreen extends StatefulWidget {
   const FavoriteScreen({super.key});
@@ -18,7 +13,7 @@ class FavoriteScreen extends StatefulWidget {
 }
 
 class _FavoriteScreenState extends State<FavoriteScreen> {
-  // The View is responsible for creating and disposing the Controller
+  int _currentIndex = 2;
   late FavoriteController _controller;
 
   @override
@@ -29,27 +24,40 @@ class _FavoriteScreenState extends State<FavoriteScreen> {
 
   @override
   void dispose() {
-    _controller.dispose(); // Always dispose of controllers!
+    _controller.dispose();
     super.dispose();
   }
 
-  void _onItemTapped(int index) {
-    // Use pushReplacementNamed to avoid building a stack of pages
+  void _onNavBarTap(int index) async {
+    if (index == _currentIndex) {
+      return;
+    }
+
+    String? routeToPush;
+
     switch (index) {
       case 0:
-        Navigator.pushReplacementNamed(context, '/home');
-        break;
+        Navigator.pop(context);
+        return;
       case 1:
-        Navigator.pushReplacementNamed(context, '/request');
+        routeToPush = '/request';
         break;
       case 2:
-        // Already on Favorite page, do nothing.
         break;
-      case 3:
-        // Navigator.pushReplacementNamed(context, '/rating'); 
+      case 3: //rating
+        routeToPush = '/home';
         break;
-      case 4:
-        break;
+      // More menu (index 4) is handled in the navigation bar itself
+    }
+
+    if (routeToPush != null) {
+      await Navigator.pushNamed(context, routeToPush);
+
+      if (mounted) {
+        setState(() {
+          _currentIndex = 2;
+        });
+      }
     }
   }
 
@@ -84,15 +92,13 @@ class _FavoriteScreenState extends State<FavoriteScreen> {
           ),
           body: Column(
             children: [
-              _buildDatePickers(context), 
-              Expanded(
-                child: _buildFavoritesList(),
-              ),
+              _buildDatePickers(context),
+              Expanded(child: _buildFavoritesList()),
             ],
           ),
           bottomNavigationBar: AppNavigationBar(
-            currentIndex: 2,
-            onTap: _onItemTapped,
+            currentIndex: _currentIndex,
+            onTap: _onNavBarTap,
           ),
         );
       },
@@ -100,8 +106,12 @@ class _FavoriteScreenState extends State<FavoriteScreen> {
   }
 
   Widget _buildDatePickers(BuildContext context) {
-    String formattedStartDate = DateFormat('dd MMM yyyy').format(_controller.startDate);
-    String formattedEndDate = DateFormat('dd MMM yyyy').format(_controller.endDate);
+    String formattedStartDate = DateFormat(
+      'dd MMM yyyy',
+    ).format(_controller.startDate);
+    String formattedEndDate = DateFormat(
+      'dd MMM yyyy',
+    ).format(_controller.endDate);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
@@ -120,7 +130,11 @@ class _FavoriteScreenState extends State<FavoriteScreen> {
     );
   }
 
-  Widget _buildDatePickerInput(BuildContext context, String text, bool isStart) {
+  Widget _buildDatePickerInput(
+    BuildContext context,
+    String text,
+    bool isStart,
+  ) {
     return Expanded(
       child: InkWell(
         onTap: () => _controller.selectDate(context, isStart),
@@ -136,7 +150,10 @@ class _FavoriteScreenState extends State<FavoriteScreen> {
               const SizedBox(width: 8),
               Text(
                 text,
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ],
           ),
@@ -152,11 +169,11 @@ class _FavoriteScreenState extends State<FavoriteScreen> {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
-        
+
         if (snapshot.hasError) {
           return Center(child: Text('Error: ${snapshot.error}'));
         }
-        
+
         if (!snapshot.hasData || snapshot.data!.isEmpty) {
           return const Center(
             child: Text(
@@ -179,9 +196,6 @@ class _FavoriteScreenState extends State<FavoriteScreen> {
   }
 }
 
-// -------------------------------------------------------------------
-// The Card Widget (View)
-// -------------------------------------------------------------------
 class _FavoriteItemCard extends StatelessWidget {
   final Map<String, dynamic> detailsMap;
 
@@ -203,12 +217,8 @@ class _FavoriteItemCard extends StatelessWidget {
             // Avatar
             CircleAvatar(
               radius: 30,
-              backgroundColor: Colors.pink[50], 
-              child: Icon(
-                Icons.person,
-                size: 30,
-                color: Colors.blueGrey[300],
-              ),
+              backgroundColor: Colors.pink[50],
+              child: Icon(Icons.person, size: 30, color: Colors.blueGrey[300]),
             ),
             const SizedBox(width: 16),
             // Details
@@ -234,10 +244,7 @@ class _FavoriteItemCard extends StatelessWidget {
                   // Row 2: Handyman Name
                   Text(
                     handyman.handymanName,
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.grey[700],
-                    ),
+                    style: TextStyle(fontSize: 16, color: Colors.grey[700]),
                   ),
                   const SizedBox(height: 8),
                   // Row 3: Rating + Reviews
@@ -255,10 +262,7 @@ class _FavoriteItemCard extends StatelessWidget {
                       const SizedBox(width: 8),
                       Text(
                         '| ${handyman.handymanRating} reviews',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey[600],
-                        ),
+                        style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                       ),
                     ],
                   ),
