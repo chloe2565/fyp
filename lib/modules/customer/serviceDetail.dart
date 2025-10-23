@@ -16,20 +16,20 @@ class ServiceDetailPage extends StatefulWidget {
 
 class _ServiceDetailPageState extends State<ServiceDetailPage> {
   final PageController _pageController = PageController();
-  final ServiceController _serviceController = ServiceController(); // Instantiate once
+  final ServiceController _serviceController = ServiceController(); 
   int _currentPage = 0;
   List<String> _mainImagePaths = [];
   bool _isLoadingImages = true;
 
-  // --- State for Reviews ---
   bool _isLoadingReviews = true;
-  List<ReviewDisplayData> _reviews = []; // Use the helper class from controller
+  List<ReviewDisplayData> _reviews = []; 
+  List<String> _reviewImagePaths = [];
 
   @override
   void initState() {
     super.initState();
     _loadImages();
-    _loadReviews(); // Load reviews on init
+    _loadReviews();
     _pageController.addListener(() {
       if (_pageController.page != null) {
         int nextP = _pageController.page!.round();
@@ -43,9 +43,7 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
   }
 
   Future<void> _loadImages() async {
-    // Use the state controller
-    List<ServicePictureModel> pictures =
-        await _serviceController.getPicturesForService(widget.service.serviceID);
+    List<ServicePictureModel> pictures = await _serviceController.getPicturesForService(widget.service.serviceID);
 
     if (!mounted) return;
     setState(() {
@@ -53,7 +51,6 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
           .where((picture) => picture.picName.isNotEmpty)
           .map((picture) {
             final path = 'assets/services/${picture.picName.toLowerCase()}';
-            print('Loaded image path: $path'); // Debug output
             return path;
           })
           .toList();
@@ -62,19 +59,26 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
     });
   }
 
-  // --- New method to load reviews ---
+  
   Future<void> _loadReviews() async {
     if (!mounted) return;
     setState(() {
       _isLoadingReviews = true;
     });
     try {
-      // Use the state controller
-      final reviewsData =
-          await _serviceController.getReviewsForService(widget.service.serviceID);
+      final reviewsData = await _serviceController.getReviewsForService(widget.service.serviceID);
+      
+      final List<String> galleryImages = [];
+      for (final reviewData in reviewsData) {
+        if (reviewData.review.ratingPicName != null) {
+          galleryImages.addAll(reviewData.review.ratingPicName!);
+        }
+      }
+
       if (mounted) {
         setState(() {
           _reviews = reviewsData;
+          _reviewImagePaths = galleryImages;
           _isLoadingReviews = false;
         });
       }
@@ -157,17 +161,13 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
     );
   }
 
-  // --- MODIFIED: Helper widget builds from ReviewDisplayData ---
   Widget _buildReviewTile(ReviewDisplayData reviewData) {
-    final review = reviewData.review; // This is the RatingReviewModel
+    final review = reviewData.review;
     final authorName = reviewData.authorName;
-    // Assuming avatarPath is just the filename, e.g., "profile.jpg"
-    // And all user profile images are in 'assets/users/'
     final String avatarAssetPath = reviewData.avatarPath.isNotEmpty
-        ? 'assets/users/${reviewData.avatarPath}'
-        : 'assets/images/profile.jpg'; // Fallback
-
-    // Format the date
+        ? 'assets/images/${reviewData.avatarPath}'
+        : 'assets/images/profile.jpg';
+    
     final String formattedDate = DateFormat('dd MMM yyyy').format(review.ratingCreatedAt);
 
     return Padding(
@@ -180,7 +180,6 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
             backgroundImage: AssetImage(avatarAssetPath),
             backgroundColor: Colors.grey.shade200,
             onBackgroundImageError: (exception, stackTrace) {
-              // Optionally handle asset not found error
               print('Error loading avatar: $avatarAssetPath');
             },
             child: reviewData.avatarPath.isEmpty
@@ -196,23 +195,23 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      authorName, // Use dynamic name
+                      authorName, 
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
                       ),
                     ),
                     Text(
-                      formattedDate, // Use dynamic date
+                      formattedDate, 
                       style: const TextStyle(color: Colors.grey, fontSize: 13),
                     ),
                   ],
                 ),
                 const SizedBox(height: 4),
-                _buildStarRating(review.ratingNum, starSize: 18), // Use dynamic rating
+                _buildStarRating(review.ratingNum, starSize: 18),
                 const SizedBox(height: 8),
                 Text(
-                  review.ratingText, // Use dynamic comment
+                  review.ratingText, 
                   style: const TextStyle(fontSize: 14, height: 1.5),
                 ),
               ],
@@ -229,14 +228,9 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
     final rating = 4.8; // TODO: This should be dynamic from aggregate
     final ordersCompleted = 80; // TODO: This should be dynamic from aggregate
 
-    final galleryImagePaths = _mainImagePaths.isNotEmpty
-        ? _mainImagePaths.sublist(1)
-        : []; // Assume first is main, rest gallery
-
-    // Logic to split description from services list
     String introDesc = widget.service.serviceDesc;
     List<String> servicesIncluded = [];
-    String servicesTitle = 'Services include:'; // Default title from image
+    String servicesTitle = 'Services include:'; 
 
     if (widget.service.serviceDesc.contains(servicesTitle)) {
       final parts = widget.service.serviceDesc.split(servicesTitle);
@@ -249,13 +243,12 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
                 r'• '
                 '|\n- ',
               ),
-            ) // Split by bullets or newlines
+            ) 
             .map((s) => s.trim().replaceAll('.', ''))
             .where((s) => s.isNotEmpty)
             .toList();
       }
-    }
-    // Fallback to original logic if "Services include:" isn't found
+    } 
     else if (widget.service.serviceDesc.contains('Service provided includes')) {
       servicesTitle = 'Service provided includes';
       final parts = widget.service.serviceDesc.split(
@@ -493,10 +486,9 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
                         ),
                         const SizedBox(height: 16),
 
-                        // --- Services Include List ---
                         if (servicesIncluded.isNotEmpty) ...[
                           Text(
-                            servicesTitle, // 'Services include:'
+                            servicesTitle, 
                             style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
@@ -535,61 +527,73 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
                             ),
                         ],
 
-                        // --- REVIEW SECTIONS  ---
+                        // Review gallery section
                         const SizedBox(height: 24),
-
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Text(
-                              'Review Gallery',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            TextButton(
-                              onPressed: () {
-                                // TODO: Implement 'View all' action for review gallery
-                              },
-                              child: const Text(
-                                'View all',
+                        if (_reviewImagePaths
+                            .isNotEmpty) ...[
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                'Review Gallery',
                                 style: TextStyle(
-                                  color: Color(0xFFFF7643),
-                                  fontSize: 16,
-                                  decoration: TextDecoration.none,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
                                 ),
                               ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 10),
-                        SizedBox(
-                          height: 100,
-                          child: ListView.separated(
-                            scrollDirection: Axis.horizontal,
-                            itemCount: galleryImagePaths.length,
-                            itemBuilder: (context, index) {
-                              return ClipRRect(
-                                borderRadius: BorderRadius.circular(10),
-                                child: Image.asset(
-                                  'assets/reviews/review${index + 1}.jpg', // Assuming placeholder naming
-                                  width: 100,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (context, error, stackTrace) {
-                                    return Image.asset(
-                                      'assets/images/placeholder.jpg',
-                                      fit: BoxFit.cover,
-                                    );
-                                  },
+                              TextButton(
+                                onPressed: () {
+                                  // TODO: Implement 'View all' action for review gallery
+                                },
+                                child: const Text(
+                                  'View all',
+                                  style: TextStyle(
+                                    color: Color(0xFFFF7643),
+                                    fontSize: 16,
+                                    decoration: TextDecoration.none,
+                                  ),
                                 ),
-                              );
-                            },
-                            separatorBuilder: (context, index) =>
-                                const SizedBox(width: 8),
+                              ),
+                            ],
                           ),
-                        ),
-                        const SizedBox(height: 24),
+                          const SizedBox(height: 10),
+                          SizedBox(
+                            height: 100,
+                            child: ListView.separated(
+                              scrollDirection: Axis.horizontal,
+                              // 1. Use dynamic item count
+                              itemCount: _reviewImagePaths.length,
+                              itemBuilder: (context, index) {
+                                // 2. Get the specific picture name
+                                final picName = _reviewImagePaths[index];
+                                // 3. Build the asset path
+                                final assetPath =
+                                    'assets/reviews/${picName.toLowerCase()}';
+                                
+                                return ClipRRect(
+                                  borderRadius: BorderRadius.circular(10),
+                                  child: Image.asset(
+                                    assetPath, // 4. Use dynamic path
+                                    width: 100,
+                                    fit: BoxFit.cover,
+                                    errorBuilder:
+                                        (context, error, stackTrace) {
+                                      print('Error loading review image: $assetPath');
+                                      return Image.asset(
+                                        'assets/images/placeholder.jpg',
+                                        width: 100,
+                                        fit: BoxFit.cover,
+                                      );
+                                    },
+                                  ),
+                                );
+                              },
+                              separatorBuilder: (context, index) =>
+                                  const SizedBox(width: 8),
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                        ],
 
                         const Text(
                           'Review',
@@ -620,8 +624,6 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
                                             _buildReviewTile(reviewData))
                                         .toList(),
                                   ),
-
-                        // Add padding at the bottom for scrolling
                         const SizedBox(height: 40),
                       ],
                     ),
@@ -629,7 +631,8 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
                 ],
               ),
             ),
-      // --- BOTTOM NAVIGATION BAR ADDED BACK ---
+
+      // Book service button
       bottomNavigationBar: Container(
         padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
         decoration: BoxDecoration(
