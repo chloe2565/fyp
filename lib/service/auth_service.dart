@@ -1,13 +1,12 @@
 import 'package:firebase_auth/firebase_auth.dart';
-import '../model/user.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-
+import '../../model/database_model.dart';
 import 'user.dart';
 
 class AuthService {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final UserService _userService = UserService(); 
-  final GoogleSignIn _googleSignIn = GoogleSignIn(
+  final FirebaseAuth auth = FirebaseAuth.instance;
+  final UserService userService = UserService(); 
+  final GoogleSignIn googleSignIn = GoogleSignIn(
     scopes: ['email'],
   );
 
@@ -15,23 +14,23 @@ class AuthService {
   Future<UserModel?> loginWithEmailAndPassword(String email, String password) async {
     try {
       // Ensure SafetyNet or reCAPTCHA is handled (Firebase handles it automatically with SafetyNet)
-      UserCredential userCredential = await _auth.signInWithEmailAndPassword(
+      UserCredential userCredential = await auth.signInWithEmailAndPassword(
         email: email.trim(),
         password: password.trim(),
       );
 
-      UserModel? user = await _userService.getUserByAuthID(userCredential.user!.uid);
+      UserModel? user = await userService.getUserByAuthID(userCredential.user!.uid);
       if (user == null) throw Exception('User data not found in Firestore.');
       return user;
     } on FirebaseAuthException catch (e) {
-      throw _getErrorMessage(e.code);
+      throw getErrorMessage(e.code);
     } catch (e) {
       throw 'An unexpected error occurred: ${e.toString()}';
     }
   }
 
   // Map FirebaseAuth error codes to user-friendly messages
-  String _getErrorMessage(String code) {
+  String getErrorMessage(String code) {
     switch (code) {
       case 'user-not-found':
         return 'No user found with this email.';
@@ -57,7 +56,7 @@ class AuthService {
   }) async {
     try {
       // Create user in Firebase Authentication
-      UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
+      UserCredential userCredential = await auth.createUserWithEmailAndPassword(
         email: email.trim(),
         password: password.trim(),
       );
@@ -75,11 +74,11 @@ class AuthService {
       );
 
       // Add user to Firestore
-      await _userService.addUser(newUser);
+      await userService.addUser(newUser);
 
       return newUser;
     } on FirebaseAuthException catch (e) {
-      throw _getErrorMessage(e.code);
+      throw getErrorMessage(e.code);
     } catch (e) {
       throw 'An unexpected error occurred during registration: ${e.toString()}';
     }
@@ -88,7 +87,7 @@ class AuthService {
   Future<UserModel?> signInWithGoogle() async {
     try {
       // Trigger Google Sign-In flow
-      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
       if (googleUser == null) {
         throw Exception('Google Sign-In cancelled.');
       }
@@ -101,10 +100,10 @@ class AuthService {
       );
 
       // Sign in to Firebase with Google credentials
-      UserCredential userCredential = await _auth.signInWithCredential(credential);
+      UserCredential userCredential = await auth.signInWithCredential(credential);
 
       // Fetch or create user in Firestore
-      UserModel? user = await _userService.getUserByAuthID(userCredential.user!.uid);
+      UserModel? user = await userService.getUserByAuthID(userCredential.user!.uid);
       if (user == null) {
         // Create a new user in Firestore if they don't exist
         user = UserModel(
@@ -117,12 +116,12 @@ class AuthService {
           userCreatedAt: DateTime.now(),
           authID: userCredential.user!.uid,
         );
-        await _userService.addUser(user);
+        await userService.addUser(user);
       }
 
       return user;
     } on FirebaseAuthException catch (e) {
-      throw _getErrorMessage(e.code);
+      throw getErrorMessage(e.code);
     } catch (e) {
       throw 'Google Sign-In failed: ${e.toString()}';
     }
@@ -130,7 +129,7 @@ class AuthService {
 
   Future<void> changePassword(String currentPassword, String newPassword) async {
     try {
-      User? user = _auth.currentUser;
+      User? user = auth.currentUser;
       if (user == null) {
         throw Exception('No user is currently signed in');
       }
@@ -151,7 +150,7 @@ class AuthService {
 
   Future<void> deleteAccount(String email) async {
     try {
-      User? user = _auth.currentUser;
+      User? user = auth.currentUser;
       if (user == null) {
         throw Exception('No user is currently signed in');
       }
@@ -161,7 +160,7 @@ class AuthService {
       }
 
       // Delete user data from Firestore
-      await _userService.deleteUser(user.uid);
+      await userService.deleteUser(user.uid);
 
       // Delete Firebase Auth account
       await user.delete();

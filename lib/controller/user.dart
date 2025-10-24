@@ -1,32 +1,27 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../../model/database_model.dart';
+import '../service/auth_service.dart';
 import '../service/user.dart';
 import '../service/customer.dart';
 import '../shared/helper.dart';
-import '../login.dart';
-import '../model/customer.dart';
-import '../model/user.dart';
-import '../modules/customer/register.dart';
-import '../service/auth_service.dart';
 import '../shared/navigatorBase.dart';
+import '../login.dart';
+import '../modules/customer/register.dart';
 import '../modules/customer/homepage.dart';
 
 class UserController {
-  final UserService _userService = UserService();  
-  final CustomerDatabase _customerService =  CustomerDatabase();
-  final AuthService _authService = AuthService();
-
+  final UserService userService = UserService();
+  final CustomerDatabase customerService = CustomerDatabase();
+  final AuthService authService = AuthService();
   final GlobalKey<FormState> formKey = GlobalKey<FormState>();
-
   final TextEditingController nameController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
   final TextEditingController phoneController = TextEditingController();
-  final TextEditingController currentPasswordController =
-      TextEditingController();
+  final TextEditingController currentPasswordController = TextEditingController();
   final TextEditingController newPasswordController = TextEditingController();
-  final TextEditingController confirmPasswordController =
-      TextEditingController();
+  final TextEditingController confirmPasswordController = TextEditingController();
 
   Gender? gender = Gender.male;
 
@@ -52,7 +47,7 @@ class UserController {
     obscureConfirmPassword = !obscureConfirmPassword;
   }
 
-  Future<String> _generateUserId() async {
+  Future<String> generateUserId() async {
     final snapshot = await FirebaseFirestore.instance
         .collection('User')
         .orderBy('userID', descending: true)
@@ -73,7 +68,7 @@ class UserController {
         print('No authenticated user found.');
         return null;
       }
-      return await _userService.getUserByAuthID(authUser.uid);
+      return await userService.getUserByAuthID(authUser.uid);
     } catch (e) {
       showErrorSnackBar('Failed to get user details: $e');
       return null;
@@ -81,8 +76,10 @@ class UserController {
   }
 
   // Login
-  Future<void> login(BuildContext context,
-      void Function(void Function()) setState) async {
+  Future<void> login(
+    BuildContext context,
+    void Function(void Function()) setState,
+  ) async {
     // Validate form input
     if (formKey.currentState?.validate() ?? false) {
       setState(() {
@@ -91,28 +88,27 @@ class UserController {
 
       try {
         // Attempt to log in with email and password
-        UserModel? user = await _authService.loginWithEmailAndPassword(
+        UserModel? user = await authService.loginWithEmailAndPassword(
           emailController.text.trim().toLowerCase(),
           currentPasswordController.text.trim(),
         );
 
         if (user != null) {
-          // Successfully authenticated and fetched user data from Firestore
-          // Store user data for future use (e.g., in a state management solution)
-          // For now, navigate based on userType
           print('UserType from Firestore: "${user.userType}"');
 
           if (user.userType == 'customer') {
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
-                  builder: (context) => const CustHomepage()), // Customer homepage
+                builder: (context) => const CustHomepage(),
+              ), // Customer homepage
             );
           } else if (user.userType == 'employee') {
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
-                  builder: (context) => const CustHomepage()), // Employee homepage
+                builder: (context) => const CustHomepage(),
+              ), // Employee homepage
             );
           } else {
             showErrorSnackBar('Invalid user type: ${user.userType}');
@@ -134,13 +130,15 @@ class UserController {
   }
 
   Future<void> signInWithGoogle(
-      BuildContext context, void Function(void Function()) setState) async {
+    BuildContext context,
+    void Function(void Function()) setState,
+  ) async {
     setState(() {
       isLoading = true;
     });
 
     try {
-      UserModel? user = await _authService.signInWithGoogle();
+      UserModel? user = await authService.signInWithGoogle();
       if (user != null) {
         if (user.userType == 'customer' || user.userType == 'employee') {
           Navigator.pushReplacement(
@@ -172,7 +170,9 @@ class UserController {
 
   // Register new user
   Future<void> register(
-      BuildContext context, void Function(void Function()) setState) async {
+    BuildContext context,
+    void Function(void Function()) setState,
+  ) async {
     if (!formKey.currentState!.validate()) return;
 
     setState(() {
@@ -181,15 +181,19 @@ class UserController {
 
     try {
       // Check for duplicate email and phone before registration
-      bool isEmailTaken = await _userService.isEmailTaken(
-          emailController.text.trim().toLowerCase(), '');
+      bool isEmailTaken = await userService.isEmailTaken(
+        emailController.text.trim().toLowerCase(),
+        '',
+      );
       if (isEmailTaken) {
         showErrorSnackBar('This email is already registered.');
         return;
       }
 
-      bool isPhoneTaken =
-          await _userService.isPhoneTaken(phoneController.text.trim(), '');
+      bool isPhoneTaken = await userService.isPhoneTaken(
+        phoneController.text.trim(),
+        '',
+      );
       if (isPhoneTaken) {
         showErrorSnackBar('This phone number is already registered.');
         return;
@@ -198,14 +202,14 @@ class UserController {
       // 1. Create Firebase Auth account
       final authResult = await FirebaseAuth.instance
           .createUserWithEmailAndPassword(
-        email: emailController.text.trim(),
-        password: newPasswordController.text.trim(),
-      );
+            email: emailController.text.trim(),
+            password: newPasswordController.text.trim(),
+          );
 
       final authID = authResult.user!.uid;
 
       // 2. Generate custom userID
-      final userID = await _generateUserId();
+      final userID = await generateUserId();
 
       // 3. Create UserModel
       final user = UserModel(
@@ -220,7 +224,7 @@ class UserController {
       );
 
       // 4. Save user in Firestore
-      await _userService.addUser(user);
+      await userService.addUser(user);
 
       // 5. Also create Customer entry if userType == customer
       if (user.userType == "customer") {
@@ -235,7 +239,7 @@ class UserController {
           userID: user.userID,
         );
 
-        await _customerService.addCustomer(customer);
+        await customerService.addCustomer(customer);
       }
 
       if (context.mounted) {
@@ -268,14 +272,15 @@ class UserController {
 
       await authUser.verifyBeforeUpdateEmail(newEmail);
       showErrorSnackBar(
-          'A verification link has been sent to $newEmail. Please check your inbox to complete the change.');
+        'A verification link has been sent to $newEmail. Please check your inbox to complete the change.',
+      );
     } on FirebaseAuthException catch (e) {
       if (e.code == 'requires-recent-login') {
         showErrorSnackBar(
-            'This action is sensitive and requires recent authentication. Please log in again before retrying.');
+          'This action is sensitive and requires recent authentication. Please log in again before retrying.',
+        );
       } else if (e.code == 'email-already-in-use') {
-        showErrorSnackBar(
-            'This email is already in use by another account.');
+        showErrorSnackBar('This email is already in use by another account.');
       } else {
         showErrorSnackBar('An error occurred: ${e.message}');
       }
@@ -286,7 +291,7 @@ class UserController {
 
   Future<bool> isEmailTaken(String email, String excludeUserID) async {
     try {
-      return _userService.isEmailTaken(email, excludeUserID);
+      return userService.isEmailTaken(email, excludeUserID);
     } catch (e) {
       showErrorSnackBar(e.toString());
       return true; // Assume taken if error
@@ -295,7 +300,7 @@ class UserController {
 
   Future<bool> isPhoneTaken(String phone, String excludeUserID) async {
     try {
-      return _userService.isPhoneTaken(phone, excludeUserID);
+      return userService.isPhoneTaken(phone, excludeUserID);
     } catch (e) {
       showErrorSnackBar(e.toString());
       return true; // Assume taken if error
@@ -332,7 +337,7 @@ class UserController {
 
     try {
       // Check for duplicate phone (excluding current user)
-      bool isPhoneTaken = await _userService.isPhoneTaken(contact, userID);
+      bool isPhoneTaken = await userService.isPhoneTaken(contact, userID);
       if (isPhoneTaken) {
         showErrorSnackBar('This phone number is already registered.');
         return;
@@ -356,7 +361,7 @@ class UserController {
         authID: authUser.uid,
       );
 
-      await _userService.updateUser(user);
+      await userService.updateUser(user);
       print('Firestore profile data updated successfully.');
 
       showErrorSnackBar('✅ Profile updated successfully!');
@@ -398,7 +403,7 @@ class UserController {
     });
 
     try {
-      await _authService.changePassword(currentPassword, newPassword);
+      await authService.changePassword(currentPassword, newPassword);
       showErrorSnackBar('Password changed successfully');
       currentPasswordController.clear();
       newPasswordController.clear();
@@ -448,7 +453,7 @@ class UserController {
     });
 
     try {
-      await _authService.deleteAccount(email);
+      await authService.deleteAccount(email);
       showErrorSnackBar('Account deleted successfully');
     } catch (e) {
       showErrorSnackBar('Failed to delete account: $e');

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../../model/handyman.dart';
-import '../../model/skill.dart';
+import '../../model/database_model.dart';
 import '../../controller/favoriteHandyman.dart';
 import '../../shared/navigatorBase.dart';
 
@@ -9,27 +8,27 @@ class FavoriteScreen extends StatefulWidget {
   const FavoriteScreen({super.key});
 
   @override
-  State<FavoriteScreen> createState() => _FavoriteScreenState();
+  State<FavoriteScreen> createState() => FavoriteScreenState();
 }
 
-class _FavoriteScreenState extends State<FavoriteScreen> {
-  int _currentIndex = 2;
-  late FavoriteController _controller;
+class FavoriteScreenState extends State<FavoriteScreen> {
+  int currentIndex = 2;
+  late FavoriteController controller;
 
   @override
   void initState() {
     super.initState();
-    _controller = FavoriteController();
+    controller = FavoriteController();
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    controller.dispose();
     super.dispose();
   }
 
-  void _onNavBarTap(int index) async {
-    if (index == _currentIndex) {
+  void onNavBarTap(int index) async {
+    if (index == currentIndex) {
       return;
     }
 
@@ -55,7 +54,7 @@ class _FavoriteScreenState extends State<FavoriteScreen> {
 
       if (mounted) {
         setState(() {
-          _currentIndex = 2;
+          currentIndex = 2;
         });
       }
     }
@@ -64,7 +63,7 @@ class _FavoriteScreenState extends State<FavoriteScreen> {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: _controller,
+      listenable: controller,
       builder: (context, child) {
         return Scaffold(
           appBar: AppBar(
@@ -92,26 +91,26 @@ class _FavoriteScreenState extends State<FavoriteScreen> {
           ),
           body: Column(
             children: [
-              _buildDatePickers(context),
-              Expanded(child: _buildFavoritesList()),
+              buildDatePickers(context),
+              Expanded(child: buildFavoritesList()),
             ],
           ),
           bottomNavigationBar: AppNavigationBar(
-            currentIndex: _currentIndex,
-            onTap: _onNavBarTap,
+            currentIndex: currentIndex,
+            onTap: onNavBarTap,
           ),
         );
       },
     );
   }
 
-  Widget _buildDatePickers(BuildContext context) {
+  Widget buildDatePickers(BuildContext context) {
     String formattedStartDate = DateFormat(
       'dd MMM yyyy',
-    ).format(_controller.startDate);
+    ).format(controller.startDate);
     String formattedEndDate = DateFormat(
       'dd MMM yyyy',
-    ).format(_controller.endDate);
+    ).format(controller.endDate);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
@@ -119,25 +118,25 @@ class _FavoriteScreenState extends State<FavoriteScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          _buildDatePickerInput(context, formattedStartDate, true),
+          buildDatePickerInput(context, formattedStartDate, true),
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 8.0),
             child: Text('to', style: TextStyle(fontSize: 16)),
           ),
-          _buildDatePickerInput(context, formattedEndDate, false),
+          buildDatePickerInput(context, formattedEndDate, false),
         ],
       ),
     );
   }
 
-  Widget _buildDatePickerInput(
+  Widget buildDatePickerInput(
     BuildContext context,
     String text,
     bool isStart,
   ) {
     return Expanded(
       child: InkWell(
-        onTap: () => _controller.selectDate(context, isStart),
+        onTap: () => controller.selectDate(context, isStart),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 10.0),
           decoration: BoxDecoration(
@@ -162,9 +161,9 @@ class _FavoriteScreenState extends State<FavoriteScreen> {
     );
   }
 
-  Widget _buildFavoritesList() {
+  Widget buildFavoritesList() {
     return FutureBuilder<List<Map<String, dynamic>>>(
-      future: _controller.favoritesFuture,
+      future: controller.favoritesFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -188,7 +187,7 @@ class _FavoriteScreenState extends State<FavoriteScreen> {
           padding: const EdgeInsets.all(16.0),
           itemCount: favorites.length,
           itemBuilder: (context, index) {
-            return _FavoriteItemCard(detailsMap: favorites[index]);
+            return FavoriteItemCard(detailsMap: favorites[index]);
           },
         );
       },
@@ -196,10 +195,10 @@ class _FavoriteScreenState extends State<FavoriteScreen> {
   }
 }
 
-class _FavoriteItemCard extends StatelessWidget {
+class FavoriteItemCard extends StatelessWidget {
   final Map<String, dynamic> detailsMap;
 
-  const _FavoriteItemCard({required this.detailsMap});
+  const FavoriteItemCard({required this.detailsMap});
 
   @override
   Widget build(BuildContext context) {
@@ -243,7 +242,7 @@ class _FavoriteItemCard extends StatelessWidget {
                   const SizedBox(height: 4),
                   // Row 2: Handyman Name
                   Text(
-                    handyman.handymanName,
+                    handyman.handymanID,
                     style: TextStyle(fontSize: 16, color: Colors.grey[700]),
                   ),
                   const SizedBox(height: 8),

@@ -23,15 +23,15 @@ class EditProfileScreen extends StatefulWidget {
   });
 
   @override
-  State<EditProfileScreen> createState() => _EditProfileScreenState();
+  State<EditProfileScreen> createState() => EditProfileScreenState();
 }
 
-class _EditProfileScreenState extends State<EditProfileScreen>
+class EditProfileScreenState extends State<EditProfileScreen>
     with WidgetsBindingObserver {
-  final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
-  final _emailController = TextEditingController();
-  final _phoneController = TextEditingController();
+  final formKey = GlobalKey<FormState>();
+  final nameController = TextEditingController();
+  final emailController = TextEditingController();
+  final phoneController = TextEditingController();
 
   Gender? genderItem;
   bool isLoading = false;
@@ -43,13 +43,13 @@ class _EditProfileScreenState extends State<EditProfileScreen>
   String? emailError;
   String? phoneError;
 
-  late UserController _userController;
+  late UserController userController;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _userController = UserController(
+    userController = UserController(
       showErrorSnackBar: (message) {
         if (mounted) {
           ScaffoldMessenger.of(
@@ -64,9 +64,9 @@ class _EditProfileScreenState extends State<EditProfileScreen>
         ? '0${initialPhone.substring(3)}'
         : initialPhone;
 
-    _nameController.text = widget.initialName;
-    _emailController.text = widget.initialEmail;
-    _phoneController.text = localNumber;
+    nameController.text = widget.initialName;
+    emailController.text = widget.initialEmail;
+    phoneController.text = localNumber;
     genderItem = widget.initialGender;
     originalEmail = widget.initialEmail.toLowerCase();
     originalContact = widget.initialPhoneNumber;
@@ -77,22 +77,22 @@ class _EditProfileScreenState extends State<EditProfileScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     verificationTimer?.cancel();
-    _nameController.dispose();
-    _emailController.dispose();
-    _phoneController.dispose();
-    _userController.dispose();
+    nameController.dispose();
+    emailController.dispose();
+    phoneController.dispose();
+    userController.dispose();
     super.dispose();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed && isVerificationEmailSent) {
-      _checkEmailUpdate();
+      checkEmailUpdate();
     }
   }
 
-  Future<void> _sendVerificationEmail() async {
-    if (Validator.validateEmail(_emailController.text.trim()) != null) {
+  Future<void> sendVerificationEmail() async {
+    if (Validator.validateEmail(emailController.text.trim()) != null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter a valid email address.')),
       );
@@ -104,14 +104,14 @@ class _EditProfileScreenState extends State<EditProfileScreen>
     });
 
     try {
-      await _userController.sendUpdateEmailVerification(
-        _emailController.text.trim(),
+      await userController.sendUpdateEmailVerification(
+        emailController.text.trim(),
       );
       setState(() {
         isVerificationEmailSent = true;
         emailError = 'Verification email sent. Check your new email\'s inbox.';
       });
-      _startVerificationTimer();
+      startVerificationTimer();
     } catch (e) {
       setState(() {
         isVerificationEmailSent = false;
@@ -123,16 +123,16 @@ class _EditProfileScreenState extends State<EditProfileScreen>
     }
   }
 
-  void _startVerificationTimer() {
+  void startVerificationTimer() {
     verificationTimer?.cancel();
     verificationTimer = Timer.periodic(const Duration(seconds: 3), (
       timer,
     ) async {
-      await _checkEmailUpdate();
+      await checkEmailUpdate();
     });
   }
 
-  Future<void> _checkEmailUpdate() async {
+  Future<void> checkEmailUpdate() async {
     try {
       User? user = FirebaseAuth.instance.currentUser;
       if (user != null) {
@@ -141,7 +141,7 @@ class _EditProfileScreenState extends State<EditProfileScreen>
         user = FirebaseAuth.instance.currentUser;
 
         if (user?.email?.toLowerCase() ==
-            _emailController.text.trim().toLowerCase()) {
+            emailController.text.trim().toLowerCase()) {
           verificationTimer?.cancel();
           if (mounted) {
             setState(() {
@@ -149,7 +149,7 @@ class _EditProfileScreenState extends State<EditProfileScreen>
               isVerificationEmailSent = false;
               originalEmail = user?.email?.toLowerCase();
               emailError = null;
-              _emailController.text = user?.email ?? '';
+              emailController.text = user?.email ?? '';
             });
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
@@ -168,14 +168,14 @@ class _EditProfileScreenState extends State<EditProfileScreen>
             e.code == 'user-mismatch') {
           verificationTimer?.cancel();
           if (mounted) {
-            _showReauthDialog();
+            showReauthDialog();
           }
         }
       }
     }
   }
 
-  void _showReauthDialog() {
+  void showReauthDialog() {
     final passwordController = TextEditingController();
     final formKey = GlobalKey<FormState>();
 
@@ -222,7 +222,7 @@ class _EditProfileScreenState extends State<EditProfileScreen>
               if (formKey.currentState?.validate() ?? false) {
                 try {
                   final user = FirebaseAuth.instance.currentUser;
-                  final newEmail = _emailController.text.trim();
+                  final newEmail = emailController.text.trim();
                   final credential = EmailAuthProvider.credential(
                     email: newEmail,
                     password: passwordController.text,
@@ -241,7 +241,7 @@ class _EditProfileScreenState extends State<EditProfileScreen>
                       isVerificationEmailSent = false;
                       originalEmail = updatedUser?.email?.toLowerCase();
                       emailError = null;
-                      _emailController.text = updatedUser?.email ?? '';
+                      emailController.text = updatedUser?.email ?? '';
                     });
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
@@ -274,8 +274,8 @@ class _EditProfileScreenState extends State<EditProfileScreen>
     );
   }
 
-  Future<void> _submitProfile() async {
-    if (_emailController.text.trim().toLowerCase() != originalEmail &&
+  Future<void> submitProfile() async {
+    if (emailController.text.trim().toLowerCase() != originalEmail &&
         !isEmailVerified) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -287,16 +287,16 @@ class _EditProfileScreenState extends State<EditProfileScreen>
       return;
     }
 
-    if (_formKey.currentState!.validate()) {
+    if (formKey.currentState!.validate()) {
       setState(() => isLoading = true);
 
       try {
-        await _userController.updateProfile(
+        await userController.updateProfile(
           userID: widget.userID,
-          name: _nameController.text.trim(),
-          email: _emailController.text.trim().toLowerCase(),
+          name: nameController.text.trim(),
+          email: emailController.text.trim().toLowerCase(),
           gender: genderItem == Gender.male ? 'M' : 'F',
-          contact: _phoneController.text.trim(),
+          contact: phoneController.text.trim(),
           setState: setState,
           context: context,
         );
@@ -319,7 +319,7 @@ class _EditProfileScreenState extends State<EditProfileScreen>
   @override
   Widget build(BuildContext context) {
     bool isEmailChanged =
-        _emailController.text.trim().toLowerCase() != originalEmail;
+        emailController.text.trim().toLowerCase() != originalEmail;
     bool canSubmit = !isEmailChanged || (isEmailChanged && isEmailVerified);
 
     return Scaffold(
@@ -346,7 +346,7 @@ class _EditProfileScreenState extends State<EditProfileScreen>
                   vertical: 24,
                 ),
                 child: Form(
-                  key: _formKey,
+                  key: formKey,
                   autovalidateMode: AutovalidateMode.onUserInteraction,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -393,7 +393,7 @@ class _EditProfileScreenState extends State<EditProfileScreen>
                       ),
                       const SizedBox(height: 50),
                       TextFormField(
-                        controller: _nameController,
+                        controller: nameController,
                         decoration: const InputDecoration(
                           labelText: 'Name',
                           prefixIcon: Icon(
@@ -407,7 +407,7 @@ class _EditProfileScreenState extends State<EditProfileScreen>
                       ),
                       const SizedBox(height: 24),
                       TextFormField(
-                        controller: _emailController,
+                        controller: emailController,
                         decoration: InputDecoration(
                           labelText: 'Email Address',
                           prefixIcon: const Icon(
@@ -430,7 +430,7 @@ class _EditProfileScreenState extends State<EditProfileScreen>
                                         ),
                                         onPressed: isLoading
                                             ? null
-                                            : _sendVerificationEmail,
+                                            : sendVerificationEmail,
                                       )
                               : const Icon(
                                   Icons.check_circle,
@@ -453,7 +453,7 @@ class _EditProfileScreenState extends State<EditProfileScreen>
 
                           if (isChanged &&
                               Validator.validateEmail(value) == null) {
-                            bool taken = await _userController.isEmailTaken(
+                            bool taken = await userController.isEmailTaken(
                               newEmail,
                               widget.userID,
                             );
@@ -528,7 +528,7 @@ class _EditProfileScreenState extends State<EditProfileScreen>
                       ),
                       const SizedBox(height: 24),
                       TextFormField(
-                        controller: _phoneController,
+                        controller: phoneController,
                         decoration: const InputDecoration(
                           labelText: 'Contact Number',
                           prefixIcon: Icon(
@@ -546,7 +546,7 @@ class _EditProfileScreenState extends State<EditProfileScreen>
                           if (Validator.validateContact(value) == null) {
                             String contact = value.trim();
                             if (contact != originalContact) {
-                              bool taken = await _userController.isPhoneTaken(
+                              bool taken = await userController.isPhoneTaken(
                                 contact,
                                 widget.userID,
                               );
@@ -584,7 +584,7 @@ class _EditProfileScreenState extends State<EditProfileScreen>
                             child: ElevatedButton(
                               onPressed: isLoading || !canSubmit
                                   ? null
-                                  : _submitProfile,
+                                  : submitProfile,
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFFFD722E),
                                 disabledBackgroundColor: Colors.orange.shade200,

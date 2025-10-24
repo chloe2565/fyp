@@ -1,13 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../model/user.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../../model/database_model.dart';
 
 class UserService {
   final CollectionReference usersCollection;
-
-  // Default to use FirebaseFirestore.instance if none is provided
+  final FirebaseAuth auth = FirebaseAuth.instance;
   UserService([FirebaseFirestore? db])
-      : usersCollection = (db ?? FirebaseFirestore.instance).collection('User');
-
+    : usersCollection = (db ?? FirebaseFirestore.instance).collection('User');
 
   // Fetch user data by authID (Firebase Authentication uid)
   Future<UserModel?> getUserByAuthID(String authID) async {
@@ -28,6 +27,45 @@ class UserService {
     } catch (e) {
       print('Error fetching user by authID: $e');
       throw Exception('Failed to fetch user data: $e');
+    }
+  }
+
+  Future<String?> getCurrentCustomerID() async {
+    try {
+      final userAuth = auth.currentUser;
+      if (userAuth == null) {
+        print("User not logged in");
+        return null;
+      }
+
+      // Get authID then find matched authID
+      final userQuery = await usersCollection
+          .where('authID', isEqualTo: userAuth.uid)
+          .limit(1)
+          .get();
+
+      if (userQuery.docs.isEmpty) {
+        print("No User document found for authID ${userAuth.uid}");
+        return null;
+      }
+
+      final customerCollection = usersCollection.firestore.collection(
+        'Customer',
+      );
+
+      final customerQuery = await customerCollection
+          .where('userID', isEqualTo: userQuery.docs.first.id)
+          .limit(1)
+          .get();
+
+      if (customerQuery.docs.isEmpty) {
+        print("No customer profile found for user ${userQuery.docs.first.id}");
+        return null;
+      }
+      return customerQuery.docs.first.id;
+    } catch (e) {
+      print("Error fetching customer ID: $e");
+      return null;
     }
   }
 

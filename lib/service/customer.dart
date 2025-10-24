@@ -1,12 +1,13 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../model/customer.dart';
+import '../../model/database_model.dart';
 
 class CustomerDatabase {
-    final CollectionReference customerCollection;
+  final CollectionReference customerCollection;
 
-  // Default to use FirebaseFirestore.instance if none is provided
   CustomerDatabase([FirebaseFirestore? db])
-      : customerCollection = (db ?? FirebaseFirestore.instance).collection('Customer');
+    : customerCollection = (db ?? FirebaseFirestore.instance).collection(
+        'Customer',
+      );
 
   // Add or update customer
   Future<void> addCustomer(CustomerModel customer) async {

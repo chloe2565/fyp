@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../controller/service.dart';
+import '../../model/reviewDisplayViewModel.dart';
 import '../../shared/helper.dart';
 import '../../shared/fullScreenImage.dart';
 
@@ -13,7 +13,7 @@ class AllReviewsPage extends StatelessWidget {
     required this.reviews,
   });
 
-  String _buildAssetPath(String picName) {
+  String buildAssetPath(String picName) {
     return 'assets/reviews/${picName.trim().toLowerCase()}';
   }
 
@@ -70,7 +70,7 @@ class AllReviewsPage extends StatelessWidget {
                               const SizedBox(width: 8),
                           itemBuilder: (context, imageIndex) {
                             final picName = reviewImages[imageIndex];
-                            final assetPath = _buildAssetPath(picName);
+                            final assetPath = buildAssetPath(picName);
                             final int initialGalleryIndex = imagePaths.indexOf(
                               picName,
                             );

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../controller/service.dart';
-import '../../model/service.dart';
+import '../../model/database_model.dart';
 import 'serviceDetail.dart';
 import '../../shared/helper.dart';
 
@@ -8,11 +8,11 @@ class AllServicesScreen extends StatefulWidget {
   const AllServicesScreen({super.key});
 
   @override
-  State<AllServicesScreen> createState() => _AllServicesScreenState();
+  State<AllServicesScreen> createState() => AllServicesScreenState();
 }
 
-class _AllServicesScreenState extends State<AllServicesScreen> {
-  final TextEditingController _searchController = TextEditingController();
+class AllServicesScreenState extends State<AllServicesScreen> {
+  final TextEditingController searchController = TextEditingController();
   late Future<List<ServiceModel>> servicesFuture;
   List<ServiceModel> allServices = [];
   List<ServiceModel> displayedServices = [];
@@ -25,11 +25,11 @@ class _AllServicesScreenState extends State<AllServicesScreen> {
   void initState() {
     super.initState();
     servicesFuture = ServiceController().getAllServices();
-    _loadServices();
-    _searchController.addListener(_filterServices);
+    loadServices();
+    searchController.addListener(filterServices);
   }
 
-  Future<void> _loadServices() async {
+  Future<void> loadServices() async {
     try {
       allServices = await servicesFuture;
       displayedServices = allServices;
@@ -41,8 +41,8 @@ class _AllServicesScreenState extends State<AllServicesScreen> {
     });
   }
 
-  void _filterServices() {
-    final query = _searchController.text.toLowerCase();
+  void filterServices() {
+    final query = searchController.text.toLowerCase();
     setState(() {
       displayedServices = allServices.where((service) {
         final matchesName = service.serviceName.toLowerCase().contains(query);
@@ -54,7 +54,7 @@ class _AllServicesScreenState extends State<AllServicesScreen> {
     });
   }
 
-  void _showFilterDialog() {
+  void showFilterDialog() {
     showDialog(
       context: context,
       builder: (context) {
@@ -90,7 +90,7 @@ class _AllServicesScreenState extends State<AllServicesScreen> {
           actions: [
             TextButton(
               onPressed: () {
-                _filterServices();
+                filterServices();
                 Navigator.pop(context);
               },
               child: const Text('Apply'),
@@ -103,7 +103,7 @@ class _AllServicesScreenState extends State<AllServicesScreen> {
 
   @override
   void dispose() {
-    _searchController.dispose();
+    searchController.dispose();
     super.dispose();
   }
 
@@ -128,14 +128,14 @@ class _AllServicesScreenState extends State<AllServicesScreen> {
             const SizedBox(height: 16),
             // Search bar with filter
             TextFormField(
-              controller: _searchController,
+              controller: searchController,
               decoration: InputDecoration(
                 hintText: 'Search here..',
                 hintStyle: const TextStyle(color: Colors.grey),
                 prefixIcon: const Icon(Icons.search, color: Colors.grey),
                 suffixIcon: IconButton(
                   icon: const Icon(Icons.tune, color: Colors.orange),
-                  onPressed: _showFilterDialog,
+                  onPressed: showFilterDialog,
                 ),
                 border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(16),

@@ -1,8 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../model/ratingReview.dart';
+import '../model/database_model.dart';
 
 class RatingReviewService {
-  final CollectionReference _ratingReviewCollection = FirebaseFirestore.instance.collection('RatingReview');
+  final CollectionReference ratingReviewCollection = FirebaseFirestore.instance.collection('RatingReview');
 
   Future<List<RatingReviewModel>> getReviewsForServiceRequests(
       List<String> reqIDs) async {
@@ -11,7 +11,7 @@ class RatingReviewService {
     }
 
     try {
-      QuerySnapshot querySnapshot = await _ratingReviewCollection
+      QuerySnapshot querySnapshot = await ratingReviewCollection
           .where('reqID', whereIn: reqIDs) 
           .get();
 

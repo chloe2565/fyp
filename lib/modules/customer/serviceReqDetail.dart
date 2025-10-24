@@ -1,52 +1,63 @@
+import 'dart:io';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
+import 'package:path/path.dart' as p;
+import '../../controller/serviceRequest.dart';
+import '../../shared/helper.dart';
 
 class ServiceRequestDetailsPage extends StatefulWidget {
   final String selectedLocation;
+  final String serviceID;
 
   const ServiceRequestDetailsPage({
     super.key,
     this.selectedLocation = '18, Jalan Lembah Permai, Tanjung Bungah',
+    required this.serviceID,
   });
 
   @override
   State<ServiceRequestDetailsPage> createState() =>
-      _ServiceRequestDetailsPageState();
+      ServiceRequestDetailsPageState();
 }
 
-class _ServiceRequestDetailsPageState extends State<ServiceRequestDetailsPage> {
-  final TextEditingController _locationController = TextEditingController();
-  final TextEditingController _dateController = TextEditingController();
-  final TextEditingController _timeController = TextEditingController();
-  final TextEditingController _descriptionController = TextEditingController();
-  final TextEditingController _remarkController = TextEditingController();
+class ServiceRequestDetailsPageState extends State<ServiceRequestDetailsPage> {
+  final TextEditingController locationController = TextEditingController();
+  final TextEditingController dateController = TextEditingController();
+  final TextEditingController timeController = TextEditingController();
+  final TextEditingController descriptionController = TextEditingController();
+  final TextEditingController remarkController = TextEditingController();
 
   DateTime? selectedDate;
   TimeOfDay? selectedTime;
 
+  List<File> uploadedImages = [];
+  final ImagePicker picker = ImagePicker();
+
   @override
   void initState() {
     super.initState();
-    _locationController.text = widget.selectedLocation;
+    locationController.text = widget.selectedLocation;
   }
 
   @override
   void dispose() {
-    _locationController.dispose();
-    _dateController.dispose();
-    _timeController.dispose();
-    _descriptionController.dispose();
-    _remarkController.dispose();
+    locationController.dispose();
+    dateController.dispose();
+    timeController.dispose();
+    descriptionController.dispose();
+    remarkController.dispose();
     super.dispose();
   }
 
-  DateTime _dateTimeFromTimeOfDay(TimeOfDay tod) {
+  DateTime dateTimeFromTimeOfDay(TimeOfDay tod) {
     final now = DateTime.now();
     return DateTime(now.year, now.month, now.day, tod.hour, tod.minute);
   }
 
-  Future<void> _selectDate(BuildContext context) async {
+  Future<void> selectDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: selectedDate ?? DateTime.now(),
@@ -73,17 +84,17 @@ class _ServiceRequestDetailsPageState extends State<ServiceRequestDetailsPage> {
     if (picked != null && picked != selectedDate) {
       setState(() {
         selectedDate = picked;
-        _dateController.text = DateFormat('dd MMM yyyy').format(selectedDate!);
+        dateController.text = DateFormat('dd MMM yyyy').format(selectedDate!);
       });
     }
   }
 
-  Future<void> _selectTime(BuildContext context) async {
+  Future<void> selectTime(BuildContext context) async {
     DateTime now = DateTime.now();
     DateTime minTime = DateTime(now.year, now.month, now.day, 9, 0); // 9:00 AM
     DateTime maxTime = DateTime(now.year, now.month, now.day, 17, 0); // 5:00 PM
 
-    DateTime initialDt = _dateTimeFromTimeOfDay(
+    DateTime initialDt = dateTimeFromTimeOfDay(
       selectedTime ?? const TimeOfDay(hour: 9, minute: 0),
     );
     if (initialDt.isBefore(minTime)) initialDt = minTime;
@@ -149,30 +160,98 @@ class _ServiceRequestDetailsPageState extends State<ServiceRequestDetailsPage> {
           selectedTime!.hour,
           selectedTime!.minute,
         );
-        _timeController.text = DateFormat('hh:mm a').format(tempDate);
+        timeController.text = DateFormat('hh:mm a').format(tempDate);
       });
     }
   }
 
-  void _handleSubmit() {
-    // TODO: Implement submission logic
-    print('Submit button pressed!');
-    print('Location: ${_locationController.text}');
-    print('Date: ${_dateController.text}');
-    print('Time: ${_timeController.text}');
-    print('Description: ${_descriptionController.text}');
-    print('Remark: ${_remarkController.text}');
+  Future<void> handleUploadPhoto() async {
+    final List<XFile> pickedFiles = await picker.pickMultiImage();
+    if (pickedFiles.isNotEmpty) {
+      setState(() {
+        uploadedImages.addAll(pickedFiles.map((file) => File(file.path)));
+      });
+    }
   }
 
-  void _handleCancel() {
+  void removePhoto(int index) {
+    setState(() {
+      uploadedImages.removeAt(index);
+    });
+  }
+
+  Future<void> handleSubmit() async {
+    if (selectedDate == null) {
+      showErrorDialog(context, "Please select a preferred date.");
+      return;
+    }
+    if (selectedTime == null) {
+      showErrorDialog(context, "Please select a preferred time.");
+      return;
+    }
+    if (descriptionController.text.isEmpty) {
+      showErrorDialog(context, "Please enter a service description.");
+      return;
+    }
+    if (uploadedImages.isEmpty) {
+      showErrorDialog(context, "Please upload at least one photo.");
+      return;
+    }
+
+    final DateTime scheduledDateTime = DateTime(
+      selectedDate!.year,
+      selectedDate!.month,
+      selectedDate!.day,
+      selectedTime!.hour,
+      selectedTime!.minute,
+    );
+
+    final List<String> photoFilenames =
+        uploadedImages.map((file) => p.basename(file.path)).toList();
+
+    showLoadingDialog(context, "Submitting...");
+
+    try {
+      final controller = Provider.of<ServiceRequestController>(
+        context,
+        listen: false,
+      );
+
+      final bool success = await controller.addNewRequest(
+        location: locationController.text,
+        scheduledDateTime: scheduledDateTime,
+        description: descriptionController.text,
+        reqPicFileName: photoFilenames,
+        serviceID: widget.serviceID,
+        remark: remarkController.text.isNotEmpty ? remarkController.text : null,
+      );
+
+      Navigator.of(context).pop();
+
+      if (success) {
+        showSuccessDialog(
+          context,
+          'Success!',
+          'Your service request has been submitted.',
+          () {
+            Navigator.of(context).pop(); // Close success dialog
+            int popCount = 2;
+            Navigator.of(context).popUntil((_) => popCount-- == 0);
+          },
+        );
+      } else {
+        showErrorDialog(context, "Failed to submit request. Please try again.");
+      }
+    } catch (e) {
+      Navigator.of(context).pop();
+      showErrorDialog(context, "An error occurred: $e");
+    }
+  }
+
+  void handleCancel() {
     // TODO: Implement cancel logic or simply pop the page
     print('Cancel button pressed!');
     Navigator.pop(context);
-  }
-
-  void _handleUploadPhoto() {
-    // TODO: Implement photo upload logic (e.g., using image_picker package)
-    print('Upload photo button pressed!');
   }
 
   @override
@@ -207,7 +286,7 @@ class _ServiceRequestDetailsPageState extends State<ServiceRequestDetailsPage> {
             ),
             const SizedBox(height: 8),
             TextFormField(
-              controller: _locationController,
+              controller: locationController,
               readOnly: true,
               style: Theme.of(context).textTheme.bodySmall,
               decoration: InputDecoration(
@@ -239,10 +318,10 @@ class _ServiceRequestDetailsPageState extends State<ServiceRequestDetailsPage> {
                 const SizedBox(width: 16),
                 Expanded(
                   child: GestureDetector(
-                    onTap: () => _selectDate(context),
+                    onTap: () => selectDate(context),
                     child: AbsorbPointer(
                       child: TextFormField(
-                        controller: _dateController,
+                        controller: dateController,
                         style: Theme.of(context).textTheme.bodySmall,
                         decoration: InputDecoration(
                           hintText: 'Select Date',
@@ -295,10 +374,10 @@ class _ServiceRequestDetailsPageState extends State<ServiceRequestDetailsPage> {
                 const SizedBox(width: 16),
                 Expanded(
                   child: GestureDetector(
-                    onTap: () => _selectTime(context),
+                    onTap: () => selectTime(context),
                     child: AbsorbPointer(
                       child: TextFormField(
-                        controller: _timeController,
+                        controller: timeController,
                         style: Theme.of(context).textTheme.bodySmall,
                         decoration: InputDecoration(
                           hintText: 'Select Time',
@@ -347,7 +426,7 @@ class _ServiceRequestDetailsPageState extends State<ServiceRequestDetailsPage> {
             ),
             const SizedBox(height: 8),
             TextFormField(
-              controller: _descriptionController,
+              controller: descriptionController,
               style: Theme.of(context).textTheme.bodySmall,
               maxLines: 5,
               decoration: InputDecoration(
@@ -388,10 +467,10 @@ class _ServiceRequestDetailsPageState extends State<ServiceRequestDetailsPage> {
             ),
             const SizedBox(height: 8),
             TextButton.icon(
-              onPressed: _handleUploadPhoto,
+              onPressed: handleUploadPhoto,
               icon: const Icon(Icons.upload_file, color: Colors.black),
               label: Text(
-                'Upload photo',
+                uploadedImages.isEmpty ? 'Upload photo' : 'Add another photo',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
               style: TextButton.styleFrom(
@@ -406,6 +485,10 @@ class _ServiceRequestDetailsPageState extends State<ServiceRequestDetailsPage> {
                 ),
               ),
             ),
+            PhotoPreviewList(
+              images: uploadedImages,
+              onRemove: removePhoto,
+            ),
             const SizedBox(height: 20),
 
             const Text(
@@ -418,7 +501,7 @@ class _ServiceRequestDetailsPageState extends State<ServiceRequestDetailsPage> {
             ),
             const SizedBox(height: 8),
             TextFormField(
-              controller: _remarkController,
+              controller: remarkController,
               style: Theme.of(context).textTheme.bodySmall,
               maxLines: 5,
               decoration: InputDecoration(
@@ -453,7 +536,7 @@ class _ServiceRequestDetailsPageState extends State<ServiceRequestDetailsPage> {
               children: [
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: _handleSubmit,
+                    onPressed: handleSubmit,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFFFF7643),
                       padding: const EdgeInsets.symmetric(vertical: 16),
@@ -475,7 +558,7 @@ class _ServiceRequestDetailsPageState extends State<ServiceRequestDetailsPage> {
 
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: _handleCancel,
+                    onPressed: handleCancel,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.grey.shade300,
                       padding: const EdgeInsets.symmetric(vertical: 16),

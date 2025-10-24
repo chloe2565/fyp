@@ -1,6 +1,8 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../controller/service.dart';
+import '../model/reviewDisplayViewModel.dart';
 
 class Validator {
   static String? validateName(String? value) {
@@ -572,6 +574,346 @@ Widget buildReviewTile(ReviewDisplayData reviewData) {
       ],
     ),
   );
+}
+
+Widget buildSearchField({
+  required BuildContext context,
+  String hintText = 'Search here...',
+  VoidCallback? onFilterPressed,
+}) {
+  return Container(
+    padding: const EdgeInsets.fromLTRB(16.0, 8.0, 16.0, 16.0),
+    child: TextFormField(
+      decoration: InputDecoration(
+        hintText: hintText,
+        hintStyle: const TextStyle(color: Colors.grey),
+        prefixIcon: const Icon(Icons.search, color: Colors.grey),
+        suffixIcon: IconButton(
+          icon: const Icon(Icons.tune),
+          color: Theme.of(context).colorScheme.primary,
+          onPressed: onFilterPressed,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide.none,
+        ),
+        filled: true,
+        fillColor: Colors.grey.shade100,
+      ),
+    ),
+  );
+}
+
+Widget buildPrimaryTabBar({
+  required BuildContext context,
+  required List<String> tabs,
+  EdgeInsetsGeometry margin = const EdgeInsets.symmetric(horizontal: 20.0),
+}) {
+  return Container(
+    margin: margin,
+    color: Colors.white,
+    child: TabBar(
+      indicatorColor: Theme.of(context).colorScheme.primary,
+      indicatorWeight: 3.0,
+      indicatorSize: TabBarIndicatorSize.tab,
+      labelColor: Theme.of(context).colorScheme.primary,
+      unselectedLabelColor: Colors.black,
+      unselectedLabelStyle: Theme.of(
+        context,
+      ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+      labelStyle: Theme.of(
+        context,
+      ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+      tabs: tabs
+          .map(
+            (label) => SizedBox(
+              width: MediaQuery.of(context).size.width / (tabs.length * 2),
+              child: Tab(text: label),
+            ),
+          )
+          .toList(),
+    ),
+  );
+}
+
+class InfoCard extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final List<MapEntry<String, String>> details;
+  final List<Widget>? actions;
+
+  const InfoCard({
+    super.key,
+    required this.icon,
+    required this.title,
+    required this.details,
+    this.actions,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 1,
+      color: Colors.white,
+      shadowColor: Colors.black.withOpacity(0.1),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 35,
+                  height: 35,
+                  decoration: BoxDecoration(
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.primary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    icon,
+                    color: Theme.of(context).colorScheme.primary,
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            const Divider(height: 1, thickness: 1, color: Color(0xFFEEEEEE)),
+            const SizedBox(height: 16),
+
+            ...details.map((e) => buildDetailRow(context, e.key, e.value)),
+            if (actions != null) ...[
+              Row(
+                children: actions!.expand((a) sync* {
+                  yield Expanded(child: a);
+                  if (a != actions!.last) yield const SizedBox(width: 16);
+                }).toList(),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget buildDetailRow(BuildContext context, String title, String value) {
+    final bool isStatusRow = title.toLowerCase() == 'status';
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            flex: 1,
+            child: Text(
+              title,
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+            ),
+          ),
+          Expanded(
+            flex: 2,
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: isStatusRow ? getStatusColor(value) : Colors.black87,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+String capitalizeFirst(String text) {
+  if (text.isEmpty) return text;
+  return text[0].toUpperCase() + text.substring(1).toLowerCase();
+}
+
+Color getStatusColor(String status) {
+  switch (status.toLowerCase()) {
+    case 'pending':
+      return Colors.amber;
+    case 'confirmed':
+      return Colors.blue;
+    case 'completed':
+      return Colors.green;
+    case 'cancelled':
+      return Colors.red;
+    default:
+      return Colors.grey;
+  }
+}
+
+void showErrorDialog(BuildContext context, String message) {
+  showDialog(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: const Text('Error'),
+      content: Text(message),
+      actions: [
+        TextButton(
+          child: const Text('Okay'),
+          onPressed: () => Navigator.of(ctx).pop(),
+        ),
+      ],
+    ),
+  );
+}
+
+void showLoadingDialog(BuildContext context, [String message = 'Loading...']) {
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (ctx) => Dialog(
+      child: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const CircularProgressIndicator(),
+            const SizedBox(width: 20),
+            Text(message),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+void showSuccessDialog(
+  BuildContext context,
+  String title,
+  String message,
+  VoidCallback onPressed,
+) {
+  showDialog(
+    context: context,
+    barrierDismissible: false, // User must press ok to proceed
+    builder: (ctx) => AlertDialog(
+      title: Text(title),
+      content: Text(message),
+      actions: [
+        TextButton(
+          onPressed: onPressed,
+          child: const Text('Okay'),
+        ),
+      ],
+    ),
+  );
+}
+
+String parseStateFromAddress(String fullAddress) {
+    const states = [
+      'Johor',
+      'Kedah',
+      'Kelantan',
+      'Melaka',
+      'Negeri Sembilan',
+      'Pahang',
+      'Perak',
+      'Perlis',
+      'Pulau Pinang',
+      'Sabah',
+      'Sarawak',
+      'Selangor',
+      'Terengganu',
+      'Kuala Lumpur',
+      'Labuan',
+      'Putrajaya',
+    ];
+
+    final parts = fullAddress.split(',').map((s) => s.trim()).toList();
+
+    for (final part in parts.reversed) {
+      for (final state in states) {
+        if (part.contains(state)) {
+          return state; 
+        }
+      }
+    }
+    return "Unknown"; 
+  }
+
+class PhotoPreviewList extends StatelessWidget {
+  final List<File> images;
+  final ValueSetter<int> onRemove;
+
+  const PhotoPreviewList({
+    super.key,
+    required this.images,
+    required this.onRemove,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (images.isEmpty) {
+      return const SizedBox.shrink(); 
+    }
+    return Container(
+      height: 100,
+      margin: const EdgeInsets.only(top: 16),
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        itemCount: images.length,
+        itemBuilder: (context, index) {
+          return Padding(
+            padding: const EdgeInsets.only(right: 8.0),
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.file(
+                    images[index],
+                    width: 100,
+                    height: 100,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+                Positioned(
+                  top: -8,
+                  right: -8,
+                  child: GestureDetector(
+                    onTap: () => onRemove(index),
+                    child: Container(
+                      decoration: const BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.close,
+                        color: Colors.white,
+                        size: 18,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
 }
 
 

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../shared/helper.dart';
-import '../../model/service.dart';
+import '../../model/reviewDisplayViewModel.dart';
+import '../../model/database_model.dart';
 import '../../controller/service.dart';
-import '../../model/servicePicture.dart';
 import 'serviceReqLocation.dart';
 import 'allReview.dart';
 
@@ -12,12 +12,12 @@ class ServiceDetailPage extends StatefulWidget {
   const ServiceDetailPage({super.key, required this.service});
 
   @override
-  State<ServiceDetailPage> createState() => _ServiceDetailPageState();
+  State<ServiceDetailPage> createState() => ServiceDetailPageState();
 }
 
-class _ServiceDetailPageState extends State<ServiceDetailPage> {
-  final PageController _pageController = PageController();
-  final ServiceController _serviceController = ServiceController();
+class ServiceDetailPageState extends State<ServiceDetailPage> {
+  final PageController pageController = PageController();
+  final ServiceController serviceController = ServiceController();
 
   int currentPage = 0;
   List<String> mainImagePaths = [];
@@ -32,12 +32,12 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
   @override
   void initState() {
     super.initState();
-    _loadImages();
-    _loadReviews();
-    _loadAggregates();
-    _pageController.addListener(() {
-      if (_pageController.page != null) {
-        int nextP = _pageController.page!.round();
+    loadImages();
+    loadReviews();
+    loadAggregates();
+    pageController.addListener(() {
+      if (pageController.page != null) {
+        int nextP = pageController.page!.round();
         if (currentPage != nextP) {
           setState(() {
             currentPage = nextP;
@@ -47,8 +47,8 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
     });
   }
 
-  Future<void> _loadImages() async {
-    List<ServicePictureModel> pictures = await _serviceController
+  Future<void> loadImages() async {
+    List<ServicePictureModel> pictures = await serviceController
         .getPicturesForService(widget.service.serviceID);
 
     if (!mounted) return;
@@ -65,14 +65,14 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
     });
   }
 
-  Future<void> _loadAggregates() async {
+  Future<void> loadAggregates() async {
     if (!mounted) return;
     setState(() {
       isLoadingAggregates = true;
     });
 
     try {
-      final aggregates = await _serviceController.getServiceAggregates(
+      final aggregates = await serviceController.getServiceAggregates(
         widget.service.serviceID,
       );
       if (mounted) {
@@ -94,13 +94,13 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
     }
   }
 
-  Future<void> _loadReviews() async {
+  Future<void> loadReviews() async {
     if (!mounted) return;
     setState(() {
       isLoadingReviews = true;
     });
     try {
-      final reviewsData = await _serviceController.getReviewsForService(
+      final reviewsData = await serviceController.getReviewsForService(
         widget.service.serviceID,
       );
 
@@ -131,12 +131,12 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
 
   @override
   void dispose() {
-    _pageController.dispose();
+    pageController.dispose();
     super.dispose();
   }
 
   // Helper method to build the dot indicator row
-  Widget _buildDotIndicator() {
+  Widget buildDotIndicator() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: List.generate(
@@ -211,7 +211,7 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
                             fit: BoxFit.cover,
                           )
                         : PageView.builder(
-                            controller: _pageController,
+                            controller: pageController,
                             itemCount: mainImagePaths.length,
                             itemBuilder: (context, index) {
                               return Image.asset(
@@ -232,7 +232,7 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
                   if (mainImagePaths.length > 1)
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 12.0),
-                      child: _buildDotIndicator(),
+                      child: buildDotIndicator(),
                     ),
 
                   // --- 3. White Info Card ---
@@ -583,7 +583,9 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => const ServiceRequestLocationPage(),
+                builder: (context) => ServiceRequestLocationPage(
+                  serviceID: widget.service.serviceID,
+                ),
               ),
             );
           },

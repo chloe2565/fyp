@@ -8,53 +8,56 @@ import 'package:http/http.dart' as http;
 import 'serviceReqDetail.dart';
 
 class ServiceRequestLocationPage extends StatefulWidget {
-  const ServiceRequestLocationPage({super.key});
+  final String serviceID;
+
+  const ServiceRequestLocationPage({super.key, required this.serviceID});
 
   @override
   State<ServiceRequestLocationPage> createState() =>
-      _ServiceRequestLocationPageState();
+      ServiceRequestLocationPageState();
 }
 
-class _ServiceRequestLocationPageState
+class ServiceRequestLocationPageState
     extends State<ServiceRequestLocationPage> {
-  final TextEditingController _searchController = TextEditingController();
-  final MapController _mapController = MapController();
+  final TextEditingController searchController = TextEditingController();
+  final MapController mapController = MapController();
 
-  l.LatLng? _selectedLocation;
-  final l.LatLng _initialCenter = l.LatLng(32.522, -116.98);
+  l.LatLng? selectedLocation;
+  final l.LatLng initialCenter = l.LatLng(32.522, -116.98);
 
   // Search results dropdown
-  Timer? _debounce;
-  List<Map<String, dynamic>> _searchResults = [];
+  Timer? debounce;
+  List<Map<String, dynamic>> searchResults = [];
 
   @override
   void dispose() {
-    _searchController.dispose();
-    _mapController.dispose();
-    _debounce?.cancel();
+    searchController.dispose();
+    mapController.dispose();
+    debounce?.cancel();
     super.dispose();
   }
 
   // Handles map tap events
-  void _onMapTapped(TapPosition tapPosition, l.LatLng location) async {
+  void onMapTapped(TapPosition tapPosition, l.LatLng location) async {
     setState(() {
-      _selectedLocation = location;
-      _searchResults = []; // Hide search results
-      _searchController.text = "Loading address..."; 
+      selectedLocation = location;
+      searchResults = []; // Hide search results
+      searchController.text = "Loading address...";
       FocusScope.of(context).unfocus();
     });
-    
+
     // Get the address
-    final String address = await _getAddressFromLatLng(location);
+    final String address = await getAddressFromLatLng(location);
     setState(() {
-      _searchController.text = address;
+      searchController.text = address;
     });
   }
 
   // Converts coordinates (LatLng) into a human-readable address
-  Future<String> _getAddressFromLatLng(l.LatLng location) async {
+  Future<String> getAddressFromLatLng(l.LatLng location) async {
     final url = Uri.parse(
-        'https://nominatim.openstreetmap.org/reverse?format=json&lat=${location.latitude}&lon=${location.longitude}&zoom=18&addressdetails=1');
+      'https://nominatim.openstreetmap.org/reverse?format=json&lat=${location.latitude}&lon=${location.longitude}&zoom=18&addressdetails=1',
+    );
 
     try {
       final response = await http.get(
@@ -64,8 +67,8 @@ class _ServiceRequestLocationPageState
 
       if (response.statusCode == 200) {
         final results = json.decode(response.body);
-        if (results != null && results['display_name'] != null) {
-          return results['display_name'];
+        if (results != null && results['displayName'] != null) {
+          return results['displayName'];
         }
       }
     } catch (e) {
@@ -75,7 +78,7 @@ class _ServiceRequestLocationPageState
   }
 
   // Gets user's current location and moves the map
-  Future<void> _getCurrentLocation() async {
+  Future<void> getCurrentLocation() async {
     bool serviceEnabled;
     LocationPermission permission;
 
@@ -115,18 +118,18 @@ class _ServiceRequestLocationPageState
       );
       l.LatLng currentLatLng = l.LatLng(position.latitude, position.longitude);
 
-      _mapController.move(currentLatLng, 15.0);
+      mapController.move(currentLatLng, 15.0);
       setState(() {
-        _selectedLocation = currentLatLng;
-        _searchResults = []; // Hide search results
-        _searchController.text = "Loading address...";
+        selectedLocation = currentLatLng;
+        searchResults = []; // Hide search results
+        searchController.text = "Loading address...";
         FocusScope.of(context).unfocus();
       });
-      
+
       // Get the address
-      final String address = await _getAddressFromLatLng(currentLatLng);
+      final String address = await getAddressFromLatLng(currentLatLng);
       setState(() {
-        _searchController.text = address;
+        searchController.text = address;
       });
     } catch (e) {
       print("Error getting location: $e");
@@ -134,21 +137,21 @@ class _ServiceRequestLocationPageState
   }
 
   // Called on every keystroke in the search bar
-  void _onSearchChanged(String query) {
-    if (_debounce?.isActive ?? false) _debounce!.cancel();
-    _debounce = Timer(const Duration(milliseconds: 750), () {
+  void onSearchChanged(String query) {
+    if (debounce?.isActive ?? false) debounce!.cancel();
+    debounce = Timer(const Duration(milliseconds: 750), () {
       if (query.isNotEmpty) {
-        _searchLocation(query);
+        searchLocation(query);
       } else {
         setState(() {
-          _searchResults = [];
+          searchResults = [];
         });
       }
     });
   }
 
   // Search for a location using Nominatim API
-  Future<void> _searchLocation(String query) async {
+  Future<void> searchLocation(String query) async {
     if (query.isEmpty) return;
 
     final url = Uri.parse(
@@ -164,7 +167,7 @@ class _ServiceRequestLocationPageState
       if (response.statusCode == 200) {
         final results = json.decode(response.body) as List;
         setState(() {
-          _searchResults = results.cast<Map<String, dynamic>>();
+          searchResults = results.cast<Map<String, dynamic>>();
         });
       }
     } catch (e) {
@@ -173,7 +176,7 @@ class _ServiceRequestLocationPageState
   }
 
   // Search and select the top result then move the map
-  Future<void> _searchAndSelectTopResult(String query) async {
+  Future<void> searchAndSelectTopResult(String query) async {
     if (query.isEmpty) return;
 
     final url = Uri.parse(
@@ -196,18 +199,18 @@ class _ServiceRequestLocationPageState
           final newLocation = l.LatLng(lat, lon);
 
           // Move map and update marker
-          _mapController.move(newLocation, 15.0);
+          mapController.move(newLocation, 15.0);
           setState(() {
-            _selectedLocation = newLocation;
-            _searchController.text = result['display_name'];
-            _searchResults = []; // Hide dropdown
+            selectedLocation = newLocation;
+            searchController.text = result['displayName'];
+            searchResults = []; // Hide dropdown
           });
           FocusScope.of(context).unfocus(); // Hide keyboard
         } else {
           // No result found
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Location not found.')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Location not found.')));
         }
       }
     } catch (e) {
@@ -216,15 +219,15 @@ class _ServiceRequestLocationPageState
   }
 
   // Builds the list of markers to display on the map
-  List<Marker> _buildMarkers() {
-    if (_selectedLocation == null) {
-      return []; 
+  List<Marker> buildMarkers() {
+    if (selectedLocation == null) {
+      return [];
     }
     return [
       Marker(
         width: 40.0,
         height: 40.0,
-        point: _selectedLocation!,
+        point: selectedLocation!,
         child: Icon(
           Icons.location_on,
           color: Theme.of(context).primaryColor,
@@ -235,18 +238,20 @@ class _ServiceRequestLocationPageState
   }
 
   // Navigates to the details page
-  void _navigateToNext() {
-    if (_selectedLocation == null) return;
+  void navigateToNext() {
+    if (selectedLocation == null) return;
 
-    final String locationData = _searchController.text.isNotEmpty
-        ? _searchController.text
-        : '${_selectedLocation!.latitude.toStringAsFixed(5)}, ${_selectedLocation!.longitude.toStringAsFixed(5)}';
+    final String locationData = searchController.text.isNotEmpty
+        ? searchController.text
+        : '${selectedLocation!.latitude.toStringAsFixed(5)}, ${selectedLocation!.longitude.toStringAsFixed(5)}';
 
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) =>
-            ServiceRequestDetailsPage(selectedLocation: locationData),
+        builder: (context) => ServiceRequestDetailsPage(
+          selectedLocation: locationData,
+          serviceID: widget.serviceID,
+        ),
       ),
     );
   }
@@ -281,9 +286,9 @@ class _ServiceRequestLocationPageState
                   children: [
                     Expanded(
                       child: TextFormField(
-                        controller: _searchController,
+                        controller: searchController,
                         style: Theme.of(context).textTheme.bodySmall,
-                        onChanged: _onSearchChanged,
+                        onChanged: onSearchChanged,
                         decoration: InputDecoration(
                           hintText: 'Search Location',
                           hintStyle: TextStyle(
@@ -295,7 +300,7 @@ class _ServiceRequestLocationPageState
                             color: Colors.grey,
                           ),
                           suffixIcon: GestureDetector(
-                            onTap: _getCurrentLocation,
+                            onTap: getCurrentLocation,
                             child: Container(
                               margin: const EdgeInsets.all(6),
                               decoration: BoxDecoration(
@@ -326,7 +331,7 @@ class _ServiceRequestLocationPageState
                             vertical: 10,
                           ),
                         ),
-                        onFieldSubmitted: _searchAndSelectTopResult,
+                        onFieldSubmitted: searchAndSelectTopResult,
                       ),
                     ),
                   ],
@@ -339,11 +344,11 @@ class _ServiceRequestLocationPageState
                     horizontal: 17.0,
                   ),
                   child: FlutterMap(
-                    mapController: _mapController,
+                    mapController: mapController,
                     options: MapOptions(
-                      initialCenter: _initialCenter,
+                      initialCenter: initialCenter,
                       initialZoom: 15.0,
-                      onTap: _onMapTapped,
+                      onTap: onMapTapped,
                     ),
                     children: [
                       // Actual map
@@ -352,7 +357,7 @@ class _ServiceRequestLocationPageState
                             'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                         userAgentPackageName: 'com.example.fyp',
                       ),
-                      MarkerLayer(markers: _buildMarkers()),
+                      MarkerLayer(markers: buildMarkers()),
                     ],
                   ),
                 ),
@@ -363,14 +368,12 @@ class _ServiceRequestLocationPageState
                 child: SizedBox(
                   width: MediaQuery.of(context).size.width * 0.8,
                   child: ElevatedButton(
-                    onPressed: _selectedLocation == null
-                        ? null
-                        : _navigateToNext,
+                    onPressed: selectedLocation == null ? null : navigateToNext,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: _selectedLocation == null
+                      backgroundColor: selectedLocation == null
                           ? const Color(0xFFE0E0E0)
                           : Theme.of(context).colorScheme.primary,
-                      foregroundColor: _selectedLocation == null
+                      foregroundColor: selectedLocation == null
                           ? Colors.grey
                           : Colors.white,
                       disabledBackgroundColor: const Color(0xFFE0E0E0),
@@ -392,7 +395,7 @@ class _ServiceRequestLocationPageState
               ),
             ],
           ),
-          if (_searchResults.isNotEmpty)
+          if (searchResults.isNotEmpty)
             Positioned(
               top: 70, // Adjust this to position below your search bar
               left: 16.0,
@@ -409,22 +412,24 @@ class _ServiceRequestLocationPageState
                   child: ListView.builder(
                     padding: EdgeInsets.zero,
                     shrinkWrap: true,
-                    itemCount: _searchResults.length,
+                    itemCount: searchResults.length,
                     itemBuilder: (context, index) {
-                      final result = _searchResults[index];
+                      final result = searchResults[index];
                       return ListTile(
-                        title: Text(result['display_name'] ?? 'Unknown location'),
+                        title: Text(
+                          result['displayName'] ?? 'Unknown location',
+                        ),
                         dense: true,
                         onTap: () {
                           final lat = double.parse(result['lat']);
                           final lon = double.parse(result['lon']);
                           final newLocation = l.LatLng(lat, lon);
 
-                          _mapController.move(newLocation, 15.0);
+                          mapController.move(newLocation, 15.0);
                           setState(() {
-                            _selectedLocation = newLocation;
-                            _searchController.text = result['display_name'];
-                            _searchResults = []; // Hide list
+                            selectedLocation = newLocation;
+                            searchController.text = result['displayName'];
+                            searchResults = []; // Hide list
                           });
                           FocusScope.of(context).unfocus(); // Hide keyboard
                         },

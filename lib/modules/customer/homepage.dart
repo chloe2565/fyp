@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../controller/user.dart';
 import '../../shared/helper.dart';
-import '../../model/service.dart';
-import '../../model/user.dart';
+import '../../model/database_model.dart';
 import '../../shared/navigatorBase.dart';
 import '../../controller/service.dart';
 import 'allServices.dart';
@@ -12,20 +11,20 @@ class CustHomepage extends StatefulWidget {
   const CustHomepage({super.key});
 
   @override
-  State<CustHomepage> createState() => _CustHomepageState();
+  State<CustHomepage> createState() => CustHomepageState();
 }
 
-class _CustHomepageState extends State<CustHomepage> {
-  late UserController _userController;
-  late Future<UserModel?> _userFuture;
+class CustHomepageState extends State<CustHomepage> {
+  late UserController userController;
+  late Future<UserModel?> userFuture;
 
-  bool _isMenuOpen = false;
-  int _currentIndex = 0;
+  bool isMenuOpen = false;
+  int currentIndex = 0;
 
   @override
   void initState() {
     super.initState();
-    _userController = UserController(
+    userController = UserController(
       showErrorSnackBar: (message) {
         if (mounted) {
           ScaffoldMessenger.of(
@@ -34,10 +33,10 @@ class _CustHomepageState extends State<CustHomepage> {
         }
       },
     );
-    _userFuture = _getCurrentUser();
+    userFuture = getCurrentUser();
   }
 
-  void _handleLogout(BuildContext context) async {
+  void handleLogout(BuildContext context) async {
     print("Logout selected");
     if (!mounted) return;
 
@@ -49,12 +48,12 @@ class _CustHomepageState extends State<CustHomepage> {
     Navigator.of(context).pop();
   }
 
-  Future<UserModel?> _getCurrentUser() async {
-    return await _userController.getCurrentUser();
+  Future<UserModel?> getCurrentUser() async {
+    return await userController.getCurrentUser();
   }
 
-  void _onNavBarTap(int index) async {
-    if (index == _currentIndex) {
+  void onNavBarTap(int index) async {
+    if (index == currentIndex) {
       return;
     }
 
@@ -80,7 +79,7 @@ class _CustHomepageState extends State<CustHomepage> {
 
       if (mounted) {
         setState(() {
-          _currentIndex = 0;
+          currentIndex = 0;
         });
       }
     }
@@ -111,7 +110,7 @@ class _CustHomepageState extends State<CustHomepage> {
                   ).textTheme.bodyMedium?.copyWith(color: Colors.grey.shade600),
                 ),
                 FutureBuilder<UserModel?>(
-                  future: _userFuture,
+                  future: userFuture,
                   builder: (context, snapshot) {
                     if (snapshot.hasData && snapshot.data != null) {
                       return Text(
@@ -172,15 +171,15 @@ class _CustHomepageState extends State<CustHomepage> {
           const SizedBox(width: 16),
           Container(
             decoration: BoxDecoration(
-              color: _isMenuOpen ? Colors.grey.shade300 : Colors.transparent,
+              color: isMenuOpen ? Colors.grey.shade300 : Colors.transparent,
               borderRadius: BorderRadius.circular(12),
             ),
             child: PopupMenuButton<String>(
               onSelected: (value) {
-                if (value == 'logout') _handleLogout(context);
-                setState(() => _isMenuOpen = false);
+                if (value == 'logout') handleLogout(context);
+                setState(() => isMenuOpen = false);
               },
-              onOpened: () => setState(() => _isMenuOpen = true),
+              onOpened: () => setState(() => isMenuOpen = true),
               offset: const Offset(0, 50),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -199,8 +198,8 @@ class _CustHomepageState extends State<CustHomepage> {
       ),
       body: HomepageScreen(controller: ServiceController()),
       bottomNavigationBar: AppNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: _onNavBarTap,
+        currentIndex: currentIndex,
+        onTap: onNavBarTap,
       ),
     );
   }
@@ -211,24 +210,24 @@ class HomepageScreen extends StatefulWidget {
   const HomepageScreen({required this.controller, super.key});
 
   @override
-  State<HomepageScreen> createState() => _HomepageScreenState();
+  State<HomepageScreen> createState() => HomepageScreenState();
 }
 
-class _HomepageScreenState extends State<HomepageScreen> {
-  late Future<void> _servicesLoadFuture;
-  late final ServiceController _serviceController;
+class HomepageScreenState extends State<HomepageScreen> {
+  late Future<void> servicesLoadFuture;
+  late final ServiceController serviceController;
 
   @override
   void initState() {
     super.initState();
-    _serviceController = widget.controller;
-    _servicesLoadFuture = _loadServices();
+    serviceController = widget.controller;
+    servicesLoadFuture = loadServices();
   }
 
-  Future<void> _loadServices({bool refresh = false}) async {
+  Future<void> loadServices({bool refresh = false}) async {
     try {
       // Call the controller to load and cache the data
-      await _serviceController.loadServices(refresh: refresh);
+      await serviceController.loadServices(refresh: refresh);
       print('Homepage: Controller loaded services');
     } catch (e) {
       print('Homepage Error: $e');
@@ -243,7 +242,7 @@ class _HomepageScreenState extends State<HomepageScreen> {
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<void>(
-      future: _servicesLoadFuture,
+      future: servicesLoadFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -266,7 +265,7 @@ class _HomepageScreenState extends State<HomepageScreen> {
         }
 
         // Check if the load was successful but returned no data
-        if (_serviceController.allServices.isEmpty) {
+        if (serviceController.allServices.isEmpty) {
           return const Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -284,9 +283,9 @@ class _HomepageScreenState extends State<HomepageScreen> {
 
         return RefreshIndicator(
           onRefresh: () async {
-            final newFuture = _loadServices(refresh: true);
+            final newFuture = loadServices(refresh: true);
             setState(() {
-              _servicesLoadFuture = newFuture;
+              servicesLoadFuture = newFuture;
             });
             await newFuture;
           },
@@ -294,9 +293,9 @@ class _HomepageScreenState extends State<HomepageScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 20),
             children: [
               const SizedBox(height: 10),
-              _buildServicesSection(),
+              buildServicesSection(),
               const SizedBox(height: 24),
-              _buildPopularServicesSection(),
+              buildPopularServicesSection(),
               const SizedBox(height: 24),
             ],
           ),
@@ -305,11 +304,11 @@ class _HomepageScreenState extends State<HomepageScreen> {
     );
   }
 
-  Widget _buildServicesSection() {
-    final int serviceIconCount = _serviceController.serviceIconCountInGrid;
-    final bool showMoreIcon = _serviceController.showMoreIconInGrid;
-    final int gridItemCount = _serviceController.gridItemCount;
-    final List<ServiceModel> services = _serviceController.servicesForGrid;
+  Widget buildServicesSection() {
+    final int serviceIconCount = serviceController.serviceIconCountInGrid;
+    final bool showMoreIcon = serviceController.showMoreIconInGrid;
+    final int gridItemCount = serviceController.gridItemCount;
+    final List<ServiceModel> services = serviceController.servicesForGrid;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -334,7 +333,6 @@ class _HomepageScreenState extends State<HomepageScreen> {
               child: Text(
                 'View all',
                 style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
                   color: Colors.orange,
                 ),
               ),
@@ -389,12 +387,12 @@ class _HomepageScreenState extends State<HomepageScreen> {
     );
   }
 
-  Widget _buildPopularServicesSection() {
-    if (!_serviceController.hasPopularServices) {
+  Widget buildPopularServicesSection() {
+    if (!serviceController.hasPopularServices) {
       return const SizedBox.shrink();
     }
 
-    final popularServices = _serviceController.popularServicesForList;
+    final popularServices = serviceController.popularServicesForList;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -419,7 +417,6 @@ class _HomepageScreenState extends State<HomepageScreen> {
               child: Text(
                 'View all',
                 style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
                   color: Colors.orange,
                 ),
               ),

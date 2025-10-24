@@ -1,12 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../model/favoriteHandyman.dart';
-import '../model/handymanAvailability.dart';
-import '../model/handyman.dart';
-import '../model/handymanSkill.dart';
-import '../model/skill.dart';
+import '../../model/database_model.dart';
 
 class FavoriteService {
-  final FirebaseFirestore _db = FirebaseFirestore.instance;
+  final FirebaseFirestore db = FirebaseFirestore.instance;
 
   // Get all favorite handymen details (filtered by date availability)
   Future<List<Map<String, dynamic>>> getFavoriteDetails(
@@ -16,7 +12,7 @@ class FavoriteService {
   ) async {
     try {
       // 1. Get all favorites for this customer
-      final favoriteDocs = await _db
+      final favoriteDocs = await db
           .collection('FavoriteHandyman')
           .where('customerID', isEqualTo: customerID)
           .get();
@@ -29,12 +25,11 @@ class FavoriteService {
         return FavoriteHandymanModel.fromMap(data);
       }).toList();
 
-      // Extract all handyman IDs
       final allFavoriteHandymanIDs =
           favoriteList.map((fav) => fav.handymanID).toList();
 
       // 2. Filter which of those are available in the date range
-      final availableHandymanIDs = await _getAvailableHandymanIDs(
+      final availableHandymanIDs = await getAvailableHandymanIDs(
         allFavoriteHandymanIDs,
         startDate,
         endDate,
@@ -46,7 +41,7 @@ class FavoriteService {
       final List<Future<Map<String, dynamic>?>> detailFutures = [];
 
       for (final handymanID in availableHandymanIDs) {
-        detailFutures.add(_getHandymanAndSkill(handymanID));
+        detailFutures.add(getHandymanAndSkill(handymanID));
       }
 
       final results = await Future.wait(detailFutures);
@@ -59,15 +54,14 @@ class FavoriteService {
     }
   }
 
-  // 🔹 Helper: Filter handyman IDs by availability
-  Future<Set<String>> _getAvailableHandymanIDs(
+  Future<Set<String>> getAvailableHandymanIDs(
     List<String> handymanIDs,
     DateTime startDate,
     DateTime endDate,
   ) async {
     if (handymanIDs.isEmpty) return {};
 
-    final availabilityDocs = await _db
+    final availabilityDocs = await db
         .collection('HandymanAvailability')
         .where('handymanID', whereIn: handymanIDs)
         .where('availabilityStartDateTime', isLessThanOrEqualTo: endDate)
@@ -79,7 +73,6 @@ class FavoriteService {
       final data = doc.data();
       final availability = HandymanAvailabilityModel.fromMap(data);
 
-      // Include if their availability overlaps the desired range
       if (availability.availabilityEndDateTime.isAfter(startDate) ||
           availability.availabilityEndDateTime.isAtSameMomentAs(startDate)) {
         availableIDs.add(availability.handymanID);
@@ -89,19 +82,18 @@ class FavoriteService {
     return availableIDs;
   }
 
-  // 🔹 Helper: Fetch a handyman and their main skill
-  Future<Map<String, dynamic>?> _getHandymanAndSkill(String handymanID) async {
+  Future<Map<String, dynamic>?> getHandymanAndSkill(String handymanID) async {
     try {
       // 1. Get handyman details
       final handymanDoc =
-          await _db.collection('Handyman').doc(handymanID).get();
+          await db.collection('Handyman').doc(handymanID).get();
       if (!handymanDoc.exists) return null;
 
       final handymanData = handymanDoc.data()!;
       final handyman = HandymanModel.fromMap(handymanData);
 
       // 2. Get their first listed skill
-      final skillQuery = await _db
+      final skillQuery = await db
           .collection('HandymanSkill')
           .where('handymanID', isEqualTo: handymanID)
           .limit(1)
@@ -114,7 +106,7 @@ class FavoriteService {
 
       // 3. Get skill details
       final skillDoc =
-          await _db.collection('Skill').doc(handymanSkill.skillID).get();
+          await db.collection('Skill').doc(handymanSkill.skillID).get();
       if (!skillDoc.exists) return null;
 
       final skill = SkillModel.fromMap(skillDoc.data()!);

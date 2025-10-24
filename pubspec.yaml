@@ -48,6 +48,9 @@ dependencies:
   latlong2: ^0.9.1         # Helper for LatLng objects
   geolocator: ^14.0.2    # For the "My Location" button
   http: ^1.2.1             # For calling the free search API (Nominatim)
+  provider: ^6.1.5+1
+  image_picker: ^1.2.0
+  path: ^1.9.1
 
 dev_dependencies:
   flutter_test:

@@ -1,12 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../model/servicePicture.dart';
+import '../../model/database_model.dart';
 
 class ServicePictureService {
-  final CollectionReference _picturesCollection =
+  final CollectionReference picturesCollection =
       FirebaseFirestore.instance.collection('ServicePicture');
 
   Future<List<ServicePictureModel>> getPicturesForService(String serviceID) async {
-    QuerySnapshot query = await _picturesCollection
+    QuerySnapshot query = await picturesCollection
         .where('serviceID', isEqualTo: serviceID)
         .get();
 

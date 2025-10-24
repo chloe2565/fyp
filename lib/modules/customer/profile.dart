@@ -1,28 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:fyp/modules/customer/editProfile.dart';
 import '../../controller/user.dart';
-import '../../login.dart';
-import '../../model/user.dart';
+import '../../model/database_model.dart';
 import '../../shared/helper.dart';
+import '../../login.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
   @override
-  State<ProfileScreen> createState() => _ProfileScreenState();
+  State<ProfileScreen> createState() => ProfileScreenState();
 }
 
-class _ProfileScreenState extends State<ProfileScreen> {
-  UserModel? _user;
+class ProfileScreenState extends State<ProfileScreen> {
+  UserModel? userModel;
   bool isLoading = true;
   String? errorMessage;
 
-  late UserController _userController;
+  late UserController userController;
 
   @override
   void initState() {
     super.initState();
-    _userController = UserController(
+    userController = UserController(
       showErrorSnackBar: (message) {
         ScaffoldMessenger.of(
           context,
@@ -30,19 +30,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
       },
     );
 
-    _fetchUserData();
+    fetchUserData();
   }
 
-  Future<void> _fetchUserData() async {
+  Future<void> fetchUserData() async {
     setState(() {
       isLoading = true;
       errorMessage = null;
     });
 
     try {
-      final user = await _userController.getCurrentUser();
+      final user = await userController.getCurrentUser();
       setState(() {
-        _user = user;
+        userModel = user;
         isLoading = false;
       });
     } catch (e) {
@@ -55,7 +55,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   void dispose() {
-    _userController.dispose();
+    userController.dispose();
     super.dispose();
   }
 
@@ -80,7 +80,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ? const Center(child: CircularProgressIndicator())
           : errorMessage != null
           ? Center(child: Text(errorMessage!))
-          : _user == null
+          : userModel == null
           ? const Center(child: Text('No user data found'))
           : SingleChildScrollView(
               child: Padding(
@@ -106,21 +106,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     const SizedBox(height: 50),
                     // Profile Details
-                    _ProfileInfoTile(label: 'Name', value: _user!.userName),
+                    ProfileInfoTile(label: 'Name', value: userModel!.userName),
                     const SizedBox(height: 24),
-                    _ProfileInfoTile(
+                    ProfileInfoTile(
                       label: 'Email Address',
-                      value: _user!.userEmail,
+                      value: userModel!.userEmail,
                     ),
                     const SizedBox(height: 24),
-                    _ProfileInfoTile(
+                    ProfileInfoTile(
                       label: 'Gender',
-                      value: _user!.userGender == 'M' ? 'Male' : 'Female',
+                      value: userModel!.userGender == 'M' ? 'Male' : 'Female',
                     ),
                     const SizedBox(height: 24),
-                    _ProfileInfoTile(
+                    ProfileInfoTile(
                       label: 'Contact Number',
-                      value: Formatter.formatPhoneNumber(_user!.userContact),
+                      value: Formatter.formatPhoneNumber(userModel!.userContact),
                     ),
                     const SizedBox(height: 50),
                     // Action Buttons
@@ -128,24 +128,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       children: [
                         Expanded(
                           child: ElevatedButton(
-                            onPressed: _user != null
+                            onPressed: userModel != null
                                 ? () {
                                     Navigator.push(
                                       context,
                                       MaterialPageRoute(
                                         builder: (context) => EditProfileScreen(
-                                          initialName: _user!.userName,
-                                          initialEmail: _user!.userEmail,
+                                          initialName: userModel!.userName,
+                                          initialEmail: userModel!.userEmail,
                                           initialGender:
-                                              _user!.userGender == 'M'
+                                              userModel!.userGender == 'M'
                                               ? Gender.male
                                               : Gender.female,
                                           initialPhoneNumber:
-                                              _user!.userContact,
-                                          userID: _user!.userID,
+                                              userModel!.userContact,
+                                          userID: userModel!.userID,
                                         ),
                                       ),
-                                    ).then((_) => _fetchUserData());
+                                    ).then((_) => fetchUserData());
                                   }
                                 : null,
                             style: ElevatedButton.styleFrom(
@@ -165,23 +165,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         const SizedBox(width: 16),
                         Expanded(
                           child: ElevatedButton(
-                            onPressed: _user != null
+                            onPressed: userModel != null
                                 ? () {
-                                    _userController.emailController.text =
-                                        _user!.userEmail;
+                                    userController.emailController.text =
+                                        userModel!.userEmail;
                                     showDeleteAccountDialog(
                                       context: context,
                                       emailController:
-                                          _userController.emailController,
+                                          userController.emailController,
                                       onDelete: () async {
-                                        await _userController.deleteAccount(
-                                          email: _userController
+                                        await userController.deleteAccount(
+                                          email: userController
                                               .emailController
                                               .text
                                               .trim(),
                                           setState: setState,
                                         );
-                                        if (_userController.isLoading ==
+                                        if (userController.isLoading ==
                                                 false &&
                                             context.mounted) {
                                           Navigator.pushReplacement(
@@ -214,33 +214,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     const SizedBox(height: 16),
                     ElevatedButton(
-                      onPressed: _user != null
+                      onPressed: userModel != null
                           ? () {
                               showChangePasswordDialog(
                                 context: context,
                                 currentPasswordController:
-                                    _userController.currentPasswordController,
+                                    userController.currentPasswordController,
                                 newPasswordController:
-                                    _userController.newPasswordController,
+                                    userController.newPasswordController,
                                 confirmNewPasswordController:
-                                    _userController.confirmPasswordController,
+                                    userController.confirmPasswordController,
                                 onSubmit: () async {
-                                  await _userController.changePassword(
-                                    currentPassword: _userController
+                                  await userController.changePassword(
+                                    currentPassword: userController
                                         .currentPasswordController
                                         .text
                                         .trim(),
-                                    newPassword: _userController
+                                    newPassword: userController
                                         .newPasswordController
                                         .text
                                         .trim(),
-                                    confirmNewPassword: _userController
+                                    confirmNewPassword: userController
                                         .confirmPasswordController
                                         .text
                                         .trim(),
                                     setState: setState,
                                   );
-                                  if (_userController.isLoading == false &&
+                                  if (userController.isLoading == false &&
                                       context.mounted) {
                                     Navigator.of(context).pop();
                                   }
@@ -269,10 +269,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 }
 
-class _ProfileInfoTile extends StatelessWidget {
+class ProfileInfoTile extends StatelessWidget {
   final String label;
   final String value;
-  const _ProfileInfoTile({required this.label, required this.value});
+  const ProfileInfoTile({required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) {

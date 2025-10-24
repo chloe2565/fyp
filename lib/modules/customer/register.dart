@@ -24,19 +24,19 @@ class RegisterList extends StatefulWidget {
   const RegisterList({super.key});
 
   @override
-  State<RegisterList> createState() => _RegisterListState();
+  State<RegisterList> createState() => RegisterListState();
 }
 
-class _RegisterListState extends State<RegisterList> {
+class RegisterListState extends State<RegisterList> {
   bool acceptTerms = false;
 
-  final UserController _controller = UserController(
+  final UserController controller = UserController(
     showErrorSnackBar: (msg) => debugPrint(msg),
   );
 
   @override
   void dispose() {
-    _controller.dispose();
+    controller.dispose();
     super.dispose();
   }
 
@@ -46,7 +46,7 @@ class _RegisterListState extends State<RegisterList> {
       children: [
         SingleChildScrollView(
           child: Form(
-            key: _controller.formKey,
+            key: controller.formKey,
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 5),
               child: Column(
@@ -66,7 +66,7 @@ class _RegisterListState extends State<RegisterList> {
 
                   // Name input field
                   TextFormField(
-                    controller: _controller.nameController,
+                    controller: controller.nameController,
                     decoration: InputDecoration(
                       labelText: "Enter your name",
                       prefixIcon: Icon(Icons.person_outlined),
@@ -80,7 +80,7 @@ class _RegisterListState extends State<RegisterList> {
 
                   // Email input field
                   TextFormField(
-                    controller: _controller.emailController,
+                    controller: controller.emailController,
                     decoration: InputDecoration(
                       labelText: "Enter your email",
                       prefixIcon: Icon(Icons.email_outlined),
@@ -102,16 +102,16 @@ class _RegisterListState extends State<RegisterList> {
                       const SizedBox(width: 16),
                       Radio(
                         value: Gender.male,
-                        groupValue: _controller.gender,
+                        groupValue: controller.gender,
                         onChanged: (val) =>
-                            setState(() => _controller.gender = val),
+                            setState(() => controller.gender = val),
                       ),
                       Text("Male"),
                       Radio(
                         value: Gender.female,
-                        groupValue: _controller.gender,
+                        groupValue: controller.gender,
                         onChanged: (val) =>
-                            setState(() => _controller.gender = val),
+                            setState(() => controller.gender = val),
                       ),
                       Text("Female"),
                     ],
@@ -120,7 +120,7 @@ class _RegisterListState extends State<RegisterList> {
 
                   // Phone input field
                   TextFormField(
-                    controller: _controller.phoneController,
+                    controller: controller.phoneController,
                     decoration: InputDecoration(
                       labelText: "Enter your phone",
                       prefixIcon: Icon(Icons.phone_outlined),
@@ -134,20 +134,20 @@ class _RegisterListState extends State<RegisterList> {
 
                   // Password input field
                   TextFormField(
-                    controller: _controller.newPasswordController,
-                    obscureText: _controller.obscureNewPassword,
+                    controller: controller.newPasswordController,
+                    obscureText: controller.obscureNewPassword,
                     decoration: InputDecoration(
                       labelText: "Enter your password",
                       prefixIcon: const Icon(Icons.lock_outline),
                       suffixIcon: IconButton(
                         icon: Icon(
-                          _controller.obscureNewPassword
+                          controller.obscureNewPassword
                               ? Icons.visibility_off_outlined
                               : Icons.visibility_outlined,
                         ),
                         onPressed: () {
                           setState(() {
-                            _controller.toggleNewPasswordVisibility();
+                            controller.toggleNewPasswordVisibility();
                           });
                         },
                       ),
@@ -161,20 +161,20 @@ class _RegisterListState extends State<RegisterList> {
 
                   // Confirm password input field
                   TextFormField(
-                    controller: _controller.confirmPasswordController,
-                    obscureText: _controller.obscureConfirmPassword,
+                    controller: controller.confirmPasswordController,
+                    obscureText: controller.obscureConfirmPassword,
                     decoration: InputDecoration(
                       labelText: "Confirm your password",
                       prefixIcon: const Icon(Icons.lock_outline),
                       suffixIcon: IconButton(
                         icon: Icon(
-                          _controller.obscureConfirmPassword
+                          controller.obscureConfirmPassword
                               ? Icons.visibility_off_outlined
                               : Icons.visibility_outlined,
                         ),
                         onPressed: () {
                           setState(() {
-                            _controller.toggleConfirmPasswordVisibility();
+                            controller.toggleConfirmPasswordVisibility();
                           });
                         },
                       ),
@@ -184,7 +184,7 @@ class _RegisterListState extends State<RegisterList> {
                     autovalidateMode: AutovalidateMode.onUserInteraction,
                     validator: (val) => Validator.validateConfirmPassword(
                       val,
-                      _controller.confirmPasswordController.text,
+                      controller.confirmPasswordController.text,
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -254,7 +254,7 @@ class _RegisterListState extends State<RegisterList> {
                           );
                           return;
                         }
-                        _controller.register(context, setState);
+                        controller.register(context, setState);
                       },
                       child: const Text("Register"),
                     ),
@@ -300,7 +300,7 @@ class _RegisterListState extends State<RegisterList> {
         ),
 
         // Fullscreen loading overlay
-        if (_controller.isLoading)
+        if (controller.isLoading)
           Positioned.fill(
             child: Container(
               color: Colors.black54,

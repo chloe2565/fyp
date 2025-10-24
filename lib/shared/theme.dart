@@ -51,7 +51,7 @@ final ThemeData customAppTheme = ThemeData(
     ),
     titleMedium: TextStyle(
       fontFamily: 'Poppins',
-      fontWeight: FontWeight.normal,
+      fontWeight: FontWeight.bold,
       fontSize: 14,
       color: Color(0xFFFD722E),
     ),
