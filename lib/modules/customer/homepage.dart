@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../controller/user.dart';
 import '../../shared/helper.dart';
-import '../../model/database_model.dart';
+import '../../model/databaseModel.dart';
 import '../../shared/navigatorBase.dart';
 import '../../controller/service.dart';
 import 'allServices.dart';
@@ -376,7 +376,7 @@ class HomepageScreenState extends State<HomepageScreen> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => ServiceDetailPage(service: service),
+                    builder: (context) => ServiceDetailScreen(service: service),
                   ),
                 );
               },

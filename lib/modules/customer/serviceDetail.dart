@@ -1,21 +1,21 @@
 import 'package:flutter/material.dart';
 import '../../shared/helper.dart';
 import '../../model/reviewDisplayViewModel.dart';
-import '../../model/database_model.dart';
+import '../../model/databaseModel.dart';
 import '../../controller/service.dart';
 import 'serviceReqLocation.dart';
 import 'allReview.dart';
 
-class ServiceDetailPage extends StatefulWidget {
+class ServiceDetailScreen extends StatefulWidget {
   final ServiceModel service;
 
-  const ServiceDetailPage({super.key, required this.service});
+  const ServiceDetailScreen({super.key, required this.service});
 
   @override
-  State<ServiceDetailPage> createState() => ServiceDetailPageState();
+  State<ServiceDetailScreen> createState() => ServiceDetailScreenState();
 }
 
-class ServiceDetailPageState extends State<ServiceDetailPage> {
+class ServiceDetailScreenState extends State<ServiceDetailScreen> {
   final PageController pageController = PageController();
   final ServiceController serviceController = ServiceController();
 
@@ -463,7 +463,7 @@ class ServiceDetailPageState extends State<ServiceDetailPage> {
                                   Navigator.push(
                                     context,
                                     MaterialPageRoute(
-                                      builder: (context) => AllReviewsPage(
+                                      builder: (context) => AllReviewsScreen(
                                         imagePaths: reviewImagePaths,
                                         reviews: reviews,
                                       ),
@@ -583,8 +583,9 @@ class ServiceDetailPageState extends State<ServiceDetailPage> {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => ServiceRequestLocationPage(
+                builder: (context) => ServiceRequestLocationScreen(
                   serviceID: widget.service.serviceID,
+                  serviceName: widget.service.serviceName,
                 ),
               ),
             );

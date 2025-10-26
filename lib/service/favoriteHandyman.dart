@@ -1,8 +1,53 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../model/database_model.dart';
+import '../model/databaseModel.dart';
 
 class FavoriteService {
   final FirebaseFirestore db = FirebaseFirestore.instance;
+
+  Future<List<FavoriteHandymanModel>> getAllFavorites(
+    String customerID,
+    DateTime startDate,
+    DateTime endDate,
+  ) async {
+    final favoriteDocs = await db
+        .collection('FavoriteHandyman')
+        .where('custID', isEqualTo: customerID)
+        .where('favoriteCreatedAt', isGreaterThanOrEqualTo: startDate)
+        .where('favoriteCreatedAt', isLessThanOrEqualTo: endDate)
+        .get();
+
+    if (favoriteDocs.docs.isEmpty) return [];
+
+    // Convert Firestore docs -> FavoriteHandymanModel list
+    return favoriteDocs.docs.map((doc) {
+      final data = doc.data();
+      return FavoriteHandymanModel.fromMap(data);
+    }).toList();
+  }
+
+  Future<Map<String, DateTime?>> getFavoriteDateRange(String customerID) async {
+    final favoriteDocs = await db
+        .collection('FavoriteHandyman')
+        .where('custID', isEqualTo: customerID)
+        .get();
+
+    if (favoriteDocs.docs.isEmpty) {
+      return {'minDate': null, 'maxDate': null};
+    }
+
+    // Sort by date to find the first and last
+    final favorites = favoriteDocs.docs
+        .map((doc) => FavoriteHandymanModel.fromMap(doc.data()))
+        .toList();
+    favorites.sort(
+      (a, b) => a.favoriteCreatedAt.compareTo(b.favoriteCreatedAt),
+    );
+
+    return {
+      'minDate': favorites.first.favoriteCreatedAt,
+      'maxDate': favorites.last.favoriteCreatedAt,
+    };
+  }
 
   // Get all favorite handymen details (filtered by date availability)
   Future<List<Map<String, dynamic>>> getFavoriteDetails(
@@ -11,42 +56,30 @@ class FavoriteService {
     DateTime endDate,
   ) async {
     try {
-      // 1. Get all favorites for this customer
-      final favoriteDocs = await db
-          .collection('FavoriteHandyman')
-          .where('customerID', isEqualTo: customerID)
-          .get();
-
-      if (favoriteDocs.docs.isEmpty) return [];
-
-      // Convert Firestore docs → FavoriteHandymanModel list
-      final favoriteList = favoriteDocs.docs.map((doc) {
-        final data = doc.data();
-        return FavoriteHandymanModel.fromMap(data);
-      }).toList();
-
-      final allFavoriteHandymanIDs =
-          favoriteList.map((fav) => fav.handymanID).toList();
-
-      // 2. Filter which of those are available in the date range
-      final availableHandymanIDs = await getAvailableHandymanIDs(
-        allFavoriteHandymanIDs,
+      // Get all favorite
+      final favoriteList = await getAllFavorites(
+        customerID,
         startDate,
         endDate,
       );
 
-      if (availableHandymanIDs.isEmpty) return [];
+      if (favoriteList.isEmpty) return [];
 
-      // 3. Fetch handyman + skill info
+      final allFavoriteHandymanIDs = favoriteList
+          .map((fav) => fav.handymanID)
+          .toSet()
+          .toList();
+
+      // Fetch handyman + skill
       final List<Future<Map<String, dynamic>?>> detailFutures = [];
 
-      for (final handymanID in availableHandymanIDs) {
+      for (final handymanID in allFavoriteHandymanIDs) {
         detailFutures.add(getHandymanAndSkill(handymanID));
       }
 
       final results = await Future.wait(detailFutures);
 
-      // 4. Filter out nulls and return
+      // Filter out nulls and return
       return results.whereType<Map<String, dynamic>>().toList();
     } catch (e) {
       print('Error fetching favorite details: $e');
@@ -84,15 +117,46 @@ class FavoriteService {
 
   Future<Map<String, dynamic>?> getHandymanAndSkill(String handymanID) async {
     try {
-      // 1. Get handyman details
-      final handymanDoc =
-          await db.collection('Handyman').doc(handymanID).get();
+      // Get handyman details
+      final handymanDoc = await db.collection('Handyman').doc(handymanID).get();
       if (!handymanDoc.exists) return null;
 
       final handymanData = handymanDoc.data()!;
       final handyman = HandymanModel.fromMap(handymanData);
+      String handymanName = 'Handyman';
+      String? userPicName;
 
-      // 2. Get their first listed skill
+      if (handyman.empID.isNotEmpty) {
+        // Get Employee doc using employeeID
+        final employeeDoc = await db
+            .collection('Employee')
+            .doc(handyman.empID)
+            .get();
+
+        if (employeeDoc.exists) {
+          final String userID = employeeDoc.data()!['userID'] ?? '';
+
+          // Get User doc using userID
+          if (userID.isNotEmpty) {
+            final userDoc = await db.collection('User').doc(userID).get();
+
+            if (userDoc.exists) {
+              handymanName = userDoc.data()!['userName'] ?? 'Handyman';
+              userPicName = userDoc.data()!['userPicName'] as String?;
+            }
+          }
+        }
+      }
+
+      final reviewCountQuery = await db
+          .collection('ServiceRequest') 
+          .where('handymanID', isEqualTo: handymanID)
+          .count()
+          .get();
+          final int reviewCount = reviewCountQuery.count ?? 0;
+
+
+      // Get first listed skill
       final skillQuery = await db
           .collection('HandymanSkill')
           .where('handymanID', isEqualTo: handymanID)
@@ -104,9 +168,11 @@ class FavoriteService {
       final skillData = skillQuery.docs.first.data();
       final handymanSkill = HandymanSkillModel.fromMap(skillData);
 
-      // 3. Get skill details
-      final skillDoc =
-          await db.collection('Skill').doc(handymanSkill.skillID).get();
+      // Get skill details
+      final skillDoc = await db
+          .collection('Skill')
+          .doc(handymanSkill.skillID)
+          .get();
       if (!skillDoc.exists) return null;
 
       final skill = SkillModel.fromMap(skillDoc.data()!);
@@ -114,6 +180,9 @@ class FavoriteService {
       return {
         'handyman': handyman,
         'skill': skill,
+        'handymanName': handymanName,
+        'reviewCount': reviewCount,
+        'userPicName': userPicName,
       };
     } catch (e) {
       print('Error fetching handyman/skill details: $e');

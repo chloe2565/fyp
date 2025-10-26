@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../controller/service.dart';
-import '../../model/database_model.dart';
+import '../../model/databaseModel.dart';
 import 'serviceDetail.dart';
 import '../../shared/helper.dart';
 
@@ -160,7 +160,7 @@ class AllServicesScreenState extends State<AllServicesScreen> {
                                 context,
                                 MaterialPageRoute(
                                   builder: (context) =>
-                                      ServiceDetailPage(service: service),
+                                      ServiceDetailScreen(service: service),
                                 ),
                               );
                             },

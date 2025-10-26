@@ -23,17 +23,16 @@ class BillingModel {
   factory BillingModel.fromMap(Map<String, dynamic> data) {
     return BillingModel(
       billingID: data['billingID'] ?? '',
-      billAmt: data['billAmt'] ?? '',
+      billAmt: (data['billAmt'] as num? ?? 0.0).toDouble(),
       billCreatedAt: (data['billCreatedAt'] is Timestamp
-          ? (data['billCreatedAt'] as Timestamp).toDate() 
+          ? (data['billCreatedAt'] as Timestamp).toDate()
           : DateTime.now()),
       billDueDate: (data['billDueDate'] is Timestamp
-          ? (data['billDueDate'] as Timestamp).toDate() 
+          ? (data['billDueDate'] as Timestamp).toDate()
           : DateTime.now()),
       billStatus: data['billStatus'] ?? '',
       reqID: data['reqID'] ?? '',
       providerID: data['providerID'] ?? '',
-      
     );
   }
 
@@ -68,7 +67,6 @@ class CancelReasonModel {
       cancelID: data['cancelID'] ?? '',
       cancelStatus: data['cancelStatus'] ?? '',
       cancelText: data['cancelText'] ?? '',
-      
     );
   }
 
@@ -145,7 +143,7 @@ class EmployeeModel {
       empSalary: data['empSalary'] ?? '',
       empType: data['empType'] ?? '',
       empHireDate: (data['empHireDate'] is Timestamp
-          ? (data['empHireDate'] as Timestamp).toDate() 
+          ? (data['empHireDate'] as Timestamp).toDate()
           : DateTime.now()),
       userID: data['userID'] ?? '',
     );
@@ -165,9 +163,9 @@ class EmployeeModel {
 }
 
 class FavoriteHandymanModel {
-  String custID;
-  String handymanID;
-  DateTime favoriteCreatedAt;
+  final String custID;
+  final String handymanID;
+  final DateTime favoriteCreatedAt;
 
   FavoriteHandymanModel({
     required this.custID,
@@ -181,15 +179,15 @@ class FavoriteHandymanModel {
       custID: data['custID'] ?? '',
       handymanID: data['handymanID'] ?? '',
       favoriteCreatedAt: (data['favoriteCreatedAt'] is Timestamp
-          ? (data['favoriteCreatedAt'] as Timestamp).toDate() 
-          : DateTime.now()),  
+          ? (data['favoriteCreatedAt'] as Timestamp).toDate()
+          : DateTime.now()),
     );
   }
 
   // Convert Dart to Firestore data
   Map<String, dynamic> toMap() {
     return {
-      'customerID': custID,
+      'custID': custID,
       'handymanID': handymanID,
       'favoriteCreatedAt': Timestamp.fromDate(favoriteCreatedAt),
     };
@@ -197,11 +195,11 @@ class FavoriteHandymanModel {
 }
 
 class HandymanModel {
-  String handymanID;
-  double handymanRating;
-  String handymanBio;
-  double currentLocation;
-  String empID;
+  final String handymanID;
+  final double handymanRating;
+  final String handymanBio;
+  final GeoPoint currentLocation;
+  final String empID;
 
   HandymanModel({
     required this.handymanID,
@@ -217,8 +215,8 @@ class HandymanModel {
       handymanID: data['handymanID'] ?? '',
       handymanRating: (data['handymanRating'] ?? 0).toDouble(),
       handymanBio: data['handymanBio'] ?? '',
-      empID: data['empID'] ?? '', 
-      currentLocation: (data['currentLocationLon'] ?? 0.0).toDouble(),
+      empID: data['empID'] ?? '',
+      currentLocation: data['currentLocation'] ?? const GeoPoint(0, 0),
     );
   }
 
@@ -235,9 +233,9 @@ class HandymanModel {
 }
 
 class HandymanSkillModel {
-  String skillID;
-  String handymanID;
-  DateTime skillAssignCreatedAt;
+  final String skillID;
+  final String handymanID;
+  final DateTime skillAssignCreatedAt;
 
   HandymanSkillModel({
     required this.skillID,
@@ -251,7 +249,7 @@ class HandymanSkillModel {
       skillID: data['skillID'] ?? '',
       handymanID: data['handymanID'] ?? '',
       skillAssignCreatedAt: (data['skillAssignCreatedAt'] is Timestamp
-          ? (data['skillAssignCreatedAt'] as Timestamp).toDate() 
+          ? (data['skillAssignCreatedAt'] as Timestamp).toDate()
           : DateTime.now()),
     );
   }
@@ -297,7 +295,7 @@ class PaymentModel {
       payAmt: data['payAmt'] ?? '',
       payMethod: data['payMethod'] ?? '',
       payCreatedAt: (data['payCreatedAt'] is Timestamp
-          ? (data['payCreatedAt'] as Timestamp).toDate() 
+          ? (data['payCreatedAt'] as Timestamp).toDate()
           : DateTime.now()),
       adminRemark: data['adminRemark'] ?? '',
       payMediaProof: data['payMediaProof'] ?? '',
@@ -344,8 +342,8 @@ class RatingReviewModel {
     return RatingReviewModel(
       rateID: data['rateID'] ?? '',
       ratingCreatedAt: (data['ratingCreatedAt'] is Timestamp
-          ? (data['ratingCreatedAt'] as Timestamp).toDate() 
-          : DateTime.now()),  
+          ? (data['ratingCreatedAt'] as Timestamp).toDate()
+          : DateTime.now()),
       ratingNum: (data['ratingNum'] as num?)?.toDouble() ?? 0.0,
       ratingText: data['ratingText'] ?? '',
       ratingPicName: (data['ratingPicName'] as List<dynamic>?)
@@ -394,13 +392,13 @@ class ReportModel {
       reportName: data['reportName'] ?? '',
       reportType: data['reportType'] ?? '',
       reportStartDate: (data['reportStartDate'] is Timestamp
-          ? (data['reportStartDate'] as Timestamp).toDate() 
+          ? (data['reportStartDate'] as Timestamp).toDate()
           : DateTime.now()),
       reportEndDate: (data['reportEndDate'] is Timestamp
-          ? (data['reportEndDate'] as Timestamp).toDate() 
+          ? (data['reportEndDate'] as Timestamp).toDate()
           : DateTime.now()),
       reportCreatedAt: (data['reportCreatedAt'] is Timestamp
-          ? (data['reportCreatedAt'] as Timestamp).toDate() 
+          ? (data['reportCreatedAt'] as Timestamp).toDate()
           : DateTime.now()),
       providerID: data['providerID'] ?? '',
     );
@@ -439,7 +437,7 @@ class ReviewReplyModel {
       replyID: data['replyID'] ?? '',
       replyText: data['replyText'] ?? '',
       replyCreatedAt: (data['replyCreatedAt'] is Timestamp
-          ? (data['replyCreatedAt'] as Timestamp).toDate() 
+          ? (data['replyCreatedAt'] as Timestamp).toDate()
           : DateTime.now()),
       rateID: data['rateID'] ?? '',
     );
@@ -485,7 +483,7 @@ class ServiceModel {
       serviceDuration: data['serviceDuration'] ?? '',
       serviceStatus: data['serviceStatus'] ?? '',
       serviceCreatedAt: (data['serviceCreatedAt'] is Timestamp
-          ? (data['serviceCreatedAt'] as Timestamp).toDate() 
+          ? (data['serviceCreatedAt'] as Timestamp).toDate()
           : DateTime.now()),
     );
   }
@@ -502,7 +500,6 @@ class ServiceModel {
       'serviceCreatedAt': Timestamp.fromDate(serviceCreatedAt),
     };
   }
-
 }
 
 class ServiceHandymanModel {
@@ -521,7 +518,7 @@ class ServiceHandymanModel {
     return ServiceHandymanModel(
       serviceID: data['serviceID'] ?? '',
       assignCreatedAt: (data['assignCreatedAt'] is Timestamp
-          ? (data['assignCreatedAt'] as Timestamp).toDate() 
+          ? (data['assignCreatedAt'] as Timestamp).toDate()
           : DateTime.now()),
       handymanID: data['handymanID'] ?? '',
     );
@@ -548,8 +545,8 @@ class ServicePictureModel {
     required this.serviceID,
     required this.picName,
     required this.isPrimary,
-  });  
-  
+  });
+
   // Convert Firestore data to Dart
   factory ServicePictureModel.fromMap(Map<String, dynamic> data) {
     return ServicePictureModel(
@@ -569,7 +566,6 @@ class ServicePictureModel {
       'isPrimary': isPrimary,
     };
   }
-
 }
 
 class ServiceProviderModel {
@@ -607,24 +603,22 @@ class ServiceRequestModel {
   final DateTime reqDateTime;
   final DateTime scheduledDateTime;
   final String reqAddress;
-  final String reqState;
   final String reqDesc;
   final List<String> reqPicName;
-  final String reqStatus; // "pending", "confirmed", "completed", "cancelled"
+  final String reqStatus; // "pending", "confirmed", "departed", "completed", "cancelled"
   final String? reqRemark;
   final DateTime? reqCancelDateTime;
   final String? reqCustomCancel;
   final String custID;
-  final String serviceID; 
+  final String serviceID;
   final String handymanID;
-  final String? cancelID; 
+  final String? cancelID;
 
   ServiceRequestModel({
     required this.reqID,
     required this.reqDateTime,
     required this.scheduledDateTime,
     required this.reqAddress,
-    required this.reqState,
     required this.reqDesc,
     required this.reqPicName,
     required this.reqStatus,
@@ -641,21 +635,22 @@ class ServiceRequestModel {
   factory ServiceRequestModel.fromMap(Map<String, dynamic> data) {
     return ServiceRequestModel(
       reqID: data['reqID'] ?? '',
-      reqDateTime: (data['reqDateTime'] as Timestamp).toDate(),
+      reqDateTime: (data['reqDateTime'] is Timestamp
+          ? (data['reqDateTime'] as Timestamp).toDate()
+          : DateTime.now()),
       scheduledDateTime: (data['scheduledDateTime'] is Timestamp
-          ? (data['scheduledDateTime'] as Timestamp).toDate() 
-          : DateTime.now()),  
+          ? (data['scheduledDateTime'] as Timestamp).toDate()
+          : DateTime.now()),
       reqAddress: data['reqAddress'] ?? '',
-      reqState: data['reqState'] ?? '',
       reqDesc: data['reqDesc'] ?? '',
-      reqPicName: (data['reqPicName'] as List<dynamic>?)
-          !.map((e) => e.toString())
-          .toList(),
+      reqPicName:
+          (data['reqPicName'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          [],
       reqStatus: data['reqStatus'] ?? 'pending',
-      reqRemark: data['reqRemark'] ?? '',
-      reqCancelDateTime: (data['reqCancelDateTime'] is Timestamp
-          ? (data['reqCancelDateTime'] as Timestamp).toDate() 
-          : DateTime.now()),  
+      reqRemark: data['reqRemark'],
+      reqCancelDateTime: (data['reqCancelDateTime'] as Timestamp?)?.toDate(),
       reqCustomCancel: data['reqCustomCancel'] ?? '',
       custID: data['custID'] ?? '',
       serviceID: data['serviceID'] ?? '',
@@ -671,12 +666,13 @@ class ServiceRequestModel {
       'reqDateTime': Timestamp.fromDate(reqDateTime),
       'scheduledDateTime': Timestamp.fromDate(scheduledDateTime),
       'reqAddress': reqAddress,
-      'reqState': reqState,
       'reqDesc': reqDesc,
       'reqPicName': reqPicName,
       'reqStatus': reqStatus,
       'reqRemark': reqRemark,
-      'reqCancelDateTime': Timestamp.fromDate(reqCancelDateTime ?? DateTime.now()),
+      'reqCancelDateTime': reqCancelDateTime != null
+          ? Timestamp.fromDate(reqCancelDateTime!)
+          : null,
       'reqCustomCancel': reqCustomCancel,
       'custID': custID,
       'serviceID': serviceID,
@@ -687,16 +683,16 @@ class ServiceRequestModel {
 }
 
 class SkillModel {
-  String skillID;
-  String skillName;
-  String skillDesc;
+  final String skillID;
+  final String skillName;
+  final String skillDesc;
 
   SkillModel({
     required this.skillID,
     required this.skillName,
     required this.skillDesc,
   });
-  
+
   // Convert Firestore data to Dart
   factory SkillModel.fromMap(Map<String, dynamic> data) {
     return SkillModel(
@@ -708,11 +704,7 @@ class SkillModel {
 
   // Convert Dart to Firestore data
   Map<String, dynamic> toMap() {
-    return {
-      'skillID': skillID,
-      'skillName': skillName,
-      'skillDesc': skillDesc,
-    };
+    return {'skillID': skillID, 'skillName': skillName, 'skillDesc': skillDesc};
   }
 }
 
@@ -749,10 +741,10 @@ class UserModel {
       userContact: data['userContact'] ?? '',
       userType: data['userType'] ?? '',
       userCreatedAt: (data['userCreatedAt'] is Timestamp
-          ? (data['userCreatedAt'] as Timestamp).toDate() 
-          : DateTime.now()),  
+          ? (data['userCreatedAt'] as Timestamp).toDate()
+          : DateTime.now()),
       authID: data['authID'] ?? '',
-      userPicName: data['userProfilePic'] ?? '',
+      userPicName: data['userProfilePic'],
     );
   }
 
@@ -773,11 +765,11 @@ class UserModel {
 }
 
 class HandymanAvailabilityModel {
-  String availabilityID;
-  DateTime availabilityStartDateTime;
-  DateTime availabilityEndDateTime;
-  DateTime availabilityCreatedAt;
-  String handymanID;
+  final String availabilityID;
+  final DateTime availabilityStartDateTime;
+  final DateTime availabilityEndDateTime;
+  final DateTime availabilityCreatedAt;
+  final String handymanID;
 
   HandymanAvailabilityModel({
     required this.availabilityID,
@@ -792,14 +784,14 @@ class HandymanAvailabilityModel {
     return HandymanAvailabilityModel(
       availabilityID: data['availabilityID'],
       availabilityStartDateTime: (data['availabilityStartDateTime'] is Timestamp
-          ? (data['availabilityStartDateTime'] as Timestamp).toDate() 
-          : DateTime.now()),  
+          ? (data['availabilityStartDateTime'] as Timestamp).toDate()
+          : DateTime.now()),
       availabilityEndDateTime: (data['availabilityEndDateTime'] is Timestamp
-          ? (data['availabilityEndDateTime'] as Timestamp).toDate() 
-          : DateTime.now()),  
+          ? (data['availabilityEndDateTime'] as Timestamp).toDate()
+          : DateTime.now()),
       availabilityCreatedAt: (data['availabilityCreatedAt'] is Timestamp
-          ? (data['availabilityCreatedAt'] as Timestamp).toDate() 
-          : DateTime.now()),  
+          ? (data['availabilityCreatedAt'] as Timestamp).toDate()
+          : DateTime.now()),
       handymanID: data['handymanID'],
     );
   }
@@ -808,16 +800,12 @@ class HandymanAvailabilityModel {
   Map<String, dynamic> toMap() {
     return {
       'availabilityID': availabilityID,
-      'availabilityStartDateTime': Timestamp.fromDate(availabilityStartDateTime),
+      'availabilityStartDateTime': Timestamp.fromDate(
+        availabilityStartDateTime,
+      ),
       'availabilityEndDateTime': Timestamp.fromDate(availabilityEndDateTime),
       'availabilityCreatedAt': Timestamp.fromDate(availabilityCreatedAt),
       'handymanID': handymanID,
     };
   }
 }
-
-
-
-
-
-

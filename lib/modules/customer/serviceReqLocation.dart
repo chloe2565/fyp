@@ -5,20 +5,27 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart' as l;
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
+import 'package:provider/provider.dart';
+import '../../controller/serviceRequest.dart';
 import 'serviceReqDetail.dart';
 
-class ServiceRequestLocationPage extends StatefulWidget {
+class ServiceRequestLocationScreen extends StatefulWidget {
   final String serviceID;
+  final String serviceName;
 
-  const ServiceRequestLocationPage({super.key, required this.serviceID});
+  const ServiceRequestLocationScreen({
+    super.key,
+    required this.serviceID,
+    required this.serviceName,
+  });
 
   @override
-  State<ServiceRequestLocationPage> createState() =>
-      ServiceRequestLocationPageState();
+  State<ServiceRequestLocationScreen> createState() =>
+      ServiceRequestLocationScreenState();
 }
 
-class ServiceRequestLocationPageState
-    extends State<ServiceRequestLocationPage> {
+class ServiceRequestLocationScreenState
+    extends State<ServiceRequestLocationScreen> {
   final TextEditingController searchController = TextEditingController();
   final MapController mapController = MapController();
 
@@ -53,7 +60,7 @@ class ServiceRequestLocationPageState
     });
   }
 
-  // Converts coordinates (LatLng) into a human-readable address
+  // Converts coordinates into address
   Future<String> getAddressFromLatLng(l.LatLng location) async {
     final url = Uri.parse(
       'https://nominatim.openstreetmap.org/reverse?format=json&lat=${location.latitude}&lon=${location.longitude}&zoom=18&addressdetails=1',
@@ -67,14 +74,18 @@ class ServiceRequestLocationPageState
 
       if (response.statusCode == 200) {
         final results = json.decode(response.body);
-        if (results != null && results['displayName'] != null) {
-          return results['displayName'];
+        if (results != null && results['display_name'] != null) {
+          return results['display_name'];
+        } else {
+          print("Nominatim response missing 'display_name': $results");
         }
+      } else {
+        print("Nominatim request failed with status: ${response.statusCode}");
       }
     } catch (e) {
       print("Error getting address: $e");
     }
-    return '${location.latitude.toStringAsFixed(5)}, ${location.longitude.toStringAsFixed(5)}';
+    return 'Could not get address. Tap map again or search.';
   }
 
   // Gets user's current location and moves the map
@@ -202,7 +213,7 @@ class ServiceRequestLocationPageState
           mapController.move(newLocation, 15.0);
           setState(() {
             selectedLocation = newLocation;
-            searchController.text = result['displayName'];
+            searchController.text = result['display_name'];
             searchResults = []; // Hide dropdown
           });
           FocusScope.of(context).unfocus(); // Hide keyboard
@@ -218,7 +229,7 @@ class ServiceRequestLocationPageState
     }
   }
 
-  // Builds the list of markers to display on the map
+  // Build marker on map
   List<Marker> buildMarkers() {
     if (selectedLocation == null) {
       return [];
@@ -241,17 +252,40 @@ class ServiceRequestLocationPageState
   void navigateToNext() {
     if (selectedLocation == null) return;
 
-    final String locationData = searchController.text.isNotEmpty
-        ? searchController.text
-        : '${selectedLocation!.latitude.toStringAsFixed(5)}, ${selectedLocation!.longitude.toStringAsFixed(5)}';
+    if (selectedLocation == null ||
+        searchController.text.isEmpty ||
+        searchController.text == "Loading address..." ||
+        searchController.text ==
+            'Could not get address. Tap map again or search.') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Please select a location or wait for address to load.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    final String locationText = searchController.text;
+    final l.LatLng locationCoord = selectedLocation!;
 
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => ServiceRequestDetailsPage(
-          selectedLocation: locationData,
-          serviceID: widget.serviceID,
-        ),
+        builder: (context) {
+          final controller = ServiceRequestController();
+          controller.initialize().then((_) {});
+          return ChangeNotifierProvider.value(
+            value: controller,
+            child: ServiceRequestDetailsScreen(
+              selectedLocationText: locationText,
+              selectedLocationCoord: locationCoord,
+              serviceID: widget.serviceID,
+              serviceName: widget.serviceName,
+            ),
+          );
+        },
       ),
     );
   }
@@ -263,8 +297,8 @@ class ServiceRequestLocationPageState
         backgroundColor: Colors.white,
         elevation: 0,
         leading: const BackButton(color: Colors.black),
-        title: const Text(
-          'Electric Service Booking',
+        title: Text(
+          '${widget.serviceName} Service Booking',
           style: TextStyle(
             color: Colors.black,
             fontWeight: FontWeight.bold,
@@ -397,7 +431,7 @@ class ServiceRequestLocationPageState
           ),
           if (searchResults.isNotEmpty)
             Positioned(
-              top: 70, // Adjust this to position below your search bar
+              top: 70, 
               left: 16.0,
               right: 16.0,
               child: Material(
@@ -417,7 +451,7 @@ class ServiceRequestLocationPageState
                       final result = searchResults[index];
                       return ListTile(
                         title: Text(
-                          result['displayName'] ?? 'Unknown location',
+                          result['display_name'] ?? 'Unknown location',
                         ),
                         dense: true,
                         onTap: () {
@@ -428,7 +462,7 @@ class ServiceRequestLocationPageState
                           mapController.move(newLocation, 15.0);
                           setState(() {
                             selectedLocation = newLocation;
-                            searchController.text = result['displayName'];
+                            searchController.text = result['display_name'];
                             searchResults = []; // Hide list
                           });
                           FocusScope.of(context).unfocus(); // Hide keyboard

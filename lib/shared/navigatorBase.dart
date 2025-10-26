@@ -11,13 +11,13 @@ class AppNavigationBar extends StatefulWidget {
   });
 
   @override
-  State<AppNavigationBar> createState() => _AppNavigationBarState();
+  State<AppNavigationBar> createState() => AppNavigationBarState();
 }
 
-class _AppNavigationBarState extends State<AppNavigationBar> {
-  final Map<int, GlobalKey> _itemKeys = {4: GlobalKey()};
+class AppNavigationBarState extends State<AppNavigationBar> {
+  final Map<int, GlobalKey> itemKeys = {4: GlobalKey()};
 
-  Future<void> _showMoreMenu(BuildContext context) async {
+  Future<void> showMoreMenu(BuildContext context) async {
     final renderBox = context.findRenderObject() as RenderBox?;
     if (renderBox == null) return; // safety check
 
@@ -35,7 +35,7 @@ class _AppNavigationBarState extends State<AppNavigationBar> {
       items: const [
         PopupMenuItem(value: 'profile', child: Text('Profile')),
         PopupMenuItem(value: 'settings', child: Text('Settings')),
-        PopupMenuItem(value: 'about', child: Text('About')),
+        PopupMenuItem(value: 'billPayment', child: Text('Bill and Payment')),
       ],
     );
 
@@ -48,8 +48,8 @@ class _AppNavigationBarState extends State<AppNavigationBar> {
       case 'settings':
         Navigator.pushNamed(context, '/settings');
         break;
-      case 'about':
-        Navigator.pushNamed(context, '/about');
+      case 'billPayment':
+        Navigator.pushNamed(context, '/billPayment');
         break;
     }
   }
@@ -60,10 +60,10 @@ class _AppNavigationBarState extends State<AppNavigationBar> {
       currentIndex: widget.currentIndex,
       onTap: (index) {
         if (index == 4) {
-          final key = _itemKeys[index];
+          final key = itemKeys[index];
           final itemContext = key?.currentContext;
           if (itemContext != null) {
-            _showMoreMenu(itemContext);
+            showMoreMenu(itemContext);
           }
         } else {
           widget.onTap(index);
@@ -95,7 +95,7 @@ class _AppNavigationBarState extends State<AppNavigationBar> {
             builder: (context) {
               // assign key here so we can later access its position
               return SizedBox(
-                key: _itemKeys[4],
+                key: itemKeys[4],
                 height: 25,
                 child: const Icon(Icons.more_horiz),
               );

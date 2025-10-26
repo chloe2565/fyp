@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fyp/modules/customer/editProfile.dart';
 import '../../controller/user.dart';
-import '../../model/database_model.dart';
+import '../../model/databaseModel.dart';
 import '../../shared/helper.dart';
 import '../../login.dart';
 
@@ -120,9 +120,12 @@ class ProfileScreenState extends State<ProfileScreen> {
                     const SizedBox(height: 24),
                     ProfileInfoTile(
                       label: 'Contact Number',
-                      value: Formatter.formatPhoneNumber(userModel!.userContact),
+                      value: Formatter.formatPhoneNumber(
+                        userModel!.userContact,
+                      ),
                     ),
                     const SizedBox(height: 50),
+
                     // Action Buttons
                     Row(
                       children: [
@@ -149,7 +152,9 @@ class ProfileScreenState extends State<ProfileScreen> {
                                   }
                                 : null,
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFFFD722E),
+                              backgroundColor: Theme.of(
+                                context,
+                              ).colorScheme.primary,
                               padding: const EdgeInsets.symmetric(vertical: 14),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12),
@@ -163,6 +168,7 @@ class ProfileScreenState extends State<ProfileScreen> {
                           ),
                         ),
                         const SizedBox(width: 16),
+
                         Expanded(
                           child: ElevatedButton(
                             onPressed: userModel != null
@@ -181,8 +187,7 @@ class ProfileScreenState extends State<ProfileScreen> {
                                               .trim(),
                                           setState: setState,
                                         );
-                                        if (userController.isLoading ==
-                                                false &&
+                                        if (userController.isLoading == false &&
                                             context.mounted) {
                                           Navigator.pushReplacement(
                                             context,
@@ -281,12 +286,19 @@ class ProfileInfoTile extends StatelessWidget {
       children: [
         Text(
           label,
-          style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w500,
+            color: Colors.black,
+            fontSize: 18,
+          ),
         ),
         const SizedBox(height: 8),
         Text(
           value,
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w400,
+            color: Colors.grey.shade600,
+          ),
         ),
       ],
     );

@@ -3,11 +3,11 @@ import '../../model/reviewDisplayViewModel.dart';
 import '../../shared/helper.dart';
 import '../../shared/fullScreenImage.dart';
 
-class AllReviewsPage extends StatelessWidget {
+class AllReviewsScreen extends StatelessWidget {
   final List<String> imagePaths;
   final List<ReviewDisplayData> reviews;
 
-  const AllReviewsPage({
+  const AllReviewsScreen({
     super.key,
     required this.imagePaths,
     required this.reviews,
@@ -19,6 +19,7 @@ class AllReviewsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    const String basePath = 'assets/reviews';
     return Scaffold(
       appBar: AppBar(
         title: const Text('All Reviews'),
@@ -69,8 +70,10 @@ class AllReviewsPage extends StatelessWidget {
                           separatorBuilder: (context, _) =>
                               const SizedBox(width: 8),
                           itemBuilder: (context, imageIndex) {
-                            final picName = reviewImages[imageIndex];
-                            final assetPath = buildAssetPath(picName);
+                            final picName = reviewImages[imageIndex]
+                                .trim()
+                                .toLowerCase();
+                            final imagePath = '$basePath/$picName';
                             final int initialGalleryIndex = imagePaths.indexOf(
                               picName,
                             );
@@ -83,9 +86,9 @@ class AllReviewsPage extends StatelessWidget {
                                     MaterialPageRoute(
                                       builder: (context) =>
                                           FullScreenGalleryViewer(
-                                            imagePaths:
-                                                imagePaths, 
+                                            imagePaths: imagePaths,
                                             initialIndex: initialGalleryIndex,
+                                            basePath: basePath,
                                           ),
                                     ),
                                   );
@@ -94,7 +97,7 @@ class AllReviewsPage extends StatelessWidget {
                               child: ClipRRect(
                                 borderRadius: BorderRadius.circular(8.0),
                                 child: Image.asset(
-                                  assetPath,
+                                  imagePath,
                                   width: 100,
                                   height: 100,
                                   fit: BoxFit.cover,

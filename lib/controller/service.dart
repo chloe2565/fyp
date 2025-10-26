@@ -1,6 +1,6 @@
 import '../model/reviewDisplayViewModel.dart' show ReviewDisplayData;
 import '../service/service.dart';
-import '../../model/database_model.dart';
+import '../model/databaseModel.dart';
 import '../service/ratingReview.dart';
 import '../service/servicePicture.dart';
 

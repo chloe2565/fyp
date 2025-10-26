@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'shared/helper.dart';
-import 'forget_password.dart';
+import 'forgetPassword.dart';
 import 'modules/customer/register.dart';
 import 'controller/user.dart';
 

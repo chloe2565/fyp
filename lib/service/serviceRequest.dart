@@ -1,11 +1,45 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../model/database_model.dart';
+import '../model/databaseModel.dart';
 import 'firestore_service.dart';
+import 'handyman.dart';
 
 class ServiceRequestService {
   final FirebaseFirestore db = FirestoreService.instance.db;
+  final HandymanService handyman = HandymanService();
   final CollectionReference servicesCollection = FirebaseFirestore.instance
       .collection('Service');
+
+  Future<String> generateNextID() async {
+    const String prefix = 'SR';
+    const int padding = 4;
+
+    final query = await db
+        .collection('ServiceRequest')
+        .where('reqID', isGreaterThanOrEqualTo: prefix)
+        .where('reqID', isLessThan: '${prefix}Z')
+        .orderBy('reqID', descending: true)
+        .limit(1)
+        .get();
+
+    // Start from 1 if no service request record
+    if (query.docs.isEmpty) {
+      return '$prefix${'1'.padLeft(padding, '0')}';
+    }
+
+    // Find recent service request record ID
+    final lastID = query.docs.first.id;
+
+    try {
+      final numericPart = lastID.substring(prefix.length);
+      final lastNumber = int.parse(numericPart);
+      final nextNumber = lastNumber + 1;
+
+      return '$prefix${nextNumber.toString().padLeft(padding, '0')}';
+    } catch (e) {
+      print("Error parsing last request ID '$lastID': $e");
+      return '$prefix${'1'.padLeft(padding, '0')}';
+    }
+  }
 
   Future<List<ServiceModel>> getAllServices() async {
     try {
@@ -26,7 +60,7 @@ class ServiceRequestService {
   }
 
   Future<List<Map<String, dynamic>>> getUpcomingRequests(String custID) async {
-    return fetchRequests(custID, ['pending', 'confirmed']);
+    return fetchRequests(custID, ['pending', 'confirmed', 'departed']);
   }
 
   Future<List<Map<String, dynamic>>> getHistoryRequests(String custID) async {
@@ -67,12 +101,34 @@ class ServiceRequestService {
     print('Reschedule requested for $reqID');
   }
 
+  Future<Map<String, BillingModel>> fetchBillingInfo(
+    List<String> reqIds,
+  ) async {
+    if (reqIds.isEmpty) return {};
+    try {
+      final query = await db
+          .collection('Billing')
+          .where('reqID', whereIn: reqIds)
+          .get();
+
+      final Map<String, BillingModel> billingMap = {};
+      for (var doc in query.docs) {
+        final billing = BillingModel.fromMap(doc.data());
+        billingMap[billing.reqID] = billing;
+      }
+      return billingMap;
+    } catch (e) {
+      print('Error fetching billing info: $e');
+      return {};
+    }
+  }
+
   Future<List<Map<String, dynamic>>> fetchRequests(
     String custID,
     List<String> statuses,
   ) async {
     try {
-      // 1. Fetch all service requests
+      // Fetch all service requests
       final requestQuery = await db
           .collection('ServiceRequest')
           .where('custID', isEqualTo: custID)
@@ -87,24 +143,27 @@ class ServiceRequestService {
           .map((doc) => ServiceRequestModel.fromMap(doc.data()))
           .toList();
 
-      // 2. Get unique IDs to fetch
+      // Get unique IDs to fetch
       final serviceIds = requests.map((req) => req.serviceID).toSet().toList();
       final handymanIds = requests
           .map((req) => req.handymanID)
           .toSet()
           .toList();
+      final reqIds = requests.map((req) => req.reqID).toSet().toList();
 
-      // 3. Fetch related services and handymen
+      // Fetch related services and handymen
       final serviceMap = await batchFetchServices(serviceIds);
-      final handymanNameMap = await fetchHandymanNames(
+      final handymanNameMap = await handyman.fetchHandymanNames(
         requests.map((req) => req.handymanID).toSet().toList(),
       );
+      final billingMap = await fetchBillingInfo(reqIds);
 
-      // 4. Combine all the data into a List of Maps
+      // Combine all the data into a List of Maps
       final List<Map<String, dynamic>> detailsList = [];
       for (final req in requests) {
         final service = serviceMap[req.serviceID];
         final handymanName = handymanNameMap[req.handymanID];
+        final billing = billingMap[req.reqID];
 
         // Only add if all data exists
         if (service != null && handymanName != null) {
@@ -112,6 +171,7 @@ class ServiceRequestService {
             'request': req,
             'service': service,
             'handymanName': handymanName,
+            'billing': billing,
           });
         }
       }
@@ -133,64 +193,17 @@ class ServiceRequestService {
     };
   }
 
-  // Fetches Handyman docs by their document ID
-  Future<Map<String, String>> fetchHandymanNames(
-    List<String> handymanIds,
-  ) async {
-    if (handymanIds.isEmpty) return {};
-
-    // 1. Handyman IDs -> Employee IDs
-    final handymanQuery = await db
-        .collection('Handyman')
-        .where(FieldPath.documentId, whereIn: handymanIds)
-        .get();
-
-    // Map<HandymanID, EmployeeID>
-    final Map<String, String> handymanToEmployeeMap = {};
-    for (var doc in handymanQuery.docs) {
-      handymanToEmployeeMap[doc.id] = doc.data()['empID'] as String? ?? '';
-    }
-
-    final employeeIds = handymanToEmployeeMap.values.toSet().toList();
-    if (employeeIds.isEmpty) return {};
-
-    // 2. Employee IDs -> User IDs
-    final employeeQuery = await db
-        .collection('Employee')
-        .where(FieldPath.documentId, whereIn: employeeIds)
-        .get();
-
-    // Map<EmployeeID, UserID>
-    final Map<String, String> employeeToUserMap = {};
-    for (var doc in employeeQuery.docs) {
-      employeeToUserMap[doc.id] = doc.data()['userID'] as String? ?? '';
-    }
-
-    final userIds = employeeToUserMap.values.toSet().toList();
-    if (userIds.isEmpty) return {};
-
-    // 3. User IDs -> User Names
-    final userQuery = await db
-        .collection('User')
-        .where(FieldPath.documentId, whereIn: userIds)
-        .get();
-
-    // Map<UserID, UserName>
-    final Map<String, String> userToNameMap = {};
-    for (var doc in userQuery.docs) {
-      userToNameMap[doc.id] = doc.data()['userName'] as String? ?? 'No Name';
-    }
-
-    // Map<HandymanID, UserName>
-    final Map<String, String> finalHandymanNameMap = {};
-    handymanToEmployeeMap.forEach((handymanId, employeeId) {
-      final userId = employeeToUserMap[employeeId];
-      final userName = userToNameMap[userId];
-      if (userName != null) {
-        finalHandymanNameMap[handymanId] = userName;
+  Stream<ServiceRequestModel> getRequestStream(String reqID) {
+    return db
+        .collection('ServiceRequest')
+        .doc(reqID)
+        .snapshots()
+        .map((snapshot) {
+      if (snapshot.exists && snapshot.data() != null) {
+        return ServiceRequestModel.fromMap(snapshot.data()!);
+      } else {
+        throw Exception("Service request not found");
       }
     });
-
-    return finalHandymanNameMap;
   }
 }

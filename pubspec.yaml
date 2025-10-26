@@ -51,6 +51,9 @@ dependencies:
   provider: ^6.1.5+1
   image_picker: ^1.2.0
   path: ^1.9.1
+  nominatim_geocoding: ^0.0.6
+  geocoding: ^4.0.0
+  osm_nominatim: ^4.0.1
 
 dev_dependencies:
   flutter_test:

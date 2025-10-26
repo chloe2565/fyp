@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:fyp/modules/customer/billPaymentHistory.dart';
 import 'modules/customer/favoriteHandyman.dart';
 import 'modules/customer/profile.dart';
-import 'modules/customer/requestHistory.dart';
+import 'modules/customer/reqHistory.dart';
+import 'modules/customer/register.dart';
+import 'modules/customer/homepage.dart';
+import 'service/firebase_options.dart';
 import 'shared/theme.dart';
 import 'login.dart';
-import 'modules/customer/register.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'firebase_options.dart';
-import 'modules/customer/homepage.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -35,7 +36,8 @@ class MyApp extends StatelessWidget {
         '/profile': (context) => const ProfileScreen(),
         '/request': (context) => const RequestHistoryScreen(),
         '/favorite': (context) => const FavoriteScreen(),
-        // '/rating': (context) => const RatingScreen(),0
+        // '/rating': (context) => const RatingScreen(),
+        '/billPayment': (context) => const BillPaymentHistoryScreen(),
       },
     );
   }

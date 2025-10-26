@@ -1,29 +1,36 @@
 import 'dart:io';
+import 'package:provider/provider.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
-import 'package:provider/provider.dart';
+import 'package:latlong2/latlong.dart' as l;
 import 'package:path/path.dart' as p;
 import '../../controller/serviceRequest.dart';
 import '../../shared/helper.dart';
+import 'homepage.dart';
 
-class ServiceRequestDetailsPage extends StatefulWidget {
-  final String selectedLocation;
+class ServiceRequestDetailsScreen extends StatefulWidget {
+  final String selectedLocationText;
+  final l.LatLng selectedLocationCoord;
   final String serviceID;
+  final String serviceName;
 
-  const ServiceRequestDetailsPage({
+  const ServiceRequestDetailsScreen({
     super.key,
-    this.selectedLocation = '18, Jalan Lembah Permai, Tanjung Bungah',
+    required this.selectedLocationText,
+    required this.selectedLocationCoord,
     required this.serviceID,
+    required this.serviceName,
   });
 
   @override
-  State<ServiceRequestDetailsPage> createState() =>
-      ServiceRequestDetailsPageState();
+  State<ServiceRequestDetailsScreen> createState() =>
+      ServiceRequestDetailsScreenState();
 }
 
-class ServiceRequestDetailsPageState extends State<ServiceRequestDetailsPage> {
+class ServiceRequestDetailsScreenState extends State<ServiceRequestDetailsScreen> {
+  final formKey = GlobalKey<FormState>();
   final TextEditingController locationController = TextEditingController();
   final TextEditingController dateController = TextEditingController();
   final TextEditingController timeController = TextEditingController();
@@ -35,11 +42,19 @@ class ServiceRequestDetailsPageState extends State<ServiceRequestDetailsPage> {
 
   List<File> uploadedImages = [];
   final ImagePicker picker = ImagePicker();
+  String? photoErrorText;
+  bool isPickingImages = false;
 
   @override
   void initState() {
     super.initState();
-    locationController.text = widget.selectedLocation;
+    locationController.text = widget.selectedLocationText;
+
+    final controller = Provider.of<ServiceRequestController>(
+      context,
+      listen: false,
+    );
+    controller.initialize();
   }
 
   @override
@@ -86,6 +101,9 @@ class ServiceRequestDetailsPageState extends State<ServiceRequestDetailsPage> {
         selectedDate = picked;
         dateController.text = DateFormat('dd MMM yyyy').format(selectedDate!);
       });
+    }
+    if (mounted) {
+      formKey.currentState?.validate();
     }
   }
 
@@ -163,6 +181,9 @@ class ServiceRequestDetailsPageState extends State<ServiceRequestDetailsPage> {
         timeController.text = DateFormat('hh:mm a').format(tempDate);
       });
     }
+    if (mounted) {
+      formKey.currentState?.validate();
+    }
   }
 
   Future<void> handleUploadPhoto() async {
@@ -172,29 +193,29 @@ class ServiceRequestDetailsPageState extends State<ServiceRequestDetailsPage> {
         uploadedImages.addAll(pickedFiles.map((file) => File(file.path)));
       });
     }
+    photoErrorText = null;
   }
 
   void removePhoto(int index) {
     setState(() {
       uploadedImages.removeAt(index);
+      if (uploadedImages.isEmpty) {
+        photoErrorText = 'Please upload at least one photo.';
+      }
     });
   }
 
   Future<void> handleSubmit() async {
-    if (selectedDate == null) {
-      showErrorDialog(context, "Please select a preferred date.");
-      return;
-    }
-    if (selectedTime == null) {
-      showErrorDialog(context, "Please select a preferred time.");
-      return;
-    }
-    if (descriptionController.text.isEmpty) {
-      showErrorDialog(context, "Please enter a service description.");
-      return;
-    }
-    if (uploadedImages.isEmpty) {
-      showErrorDialog(context, "Please upload at least one photo.");
+    setState(() {
+      if (uploadedImages.isEmpty) {
+        photoErrorText = 'Please upload at least one photo.';
+      } else {
+        photoErrorText = null;
+      }
+    });
+
+    final bool isFormValid = formKey.currentState?.validate() ?? false;
+    if (!isFormValid || photoErrorText != null) {
       return;
     }
 
@@ -206,8 +227,9 @@ class ServiceRequestDetailsPageState extends State<ServiceRequestDetailsPage> {
       selectedTime!.minute,
     );
 
-    final List<String> photoFilenames =
-        uploadedImages.map((file) => p.basename(file.path)).toList();
+    final List<String> photoFilenames = uploadedImages
+        .map((file) => p.basename(file.path))
+        .toList();
 
     showLoadingDialog(context, "Submitting...");
 
@@ -218,7 +240,7 @@ class ServiceRequestDetailsPageState extends State<ServiceRequestDetailsPage> {
       );
 
       final bool success = await controller.addNewRequest(
-        location: locationController.text,
+        locationAddress: widget.selectedLocationText,
         scheduledDateTime: scheduledDateTime,
         description: descriptionController.text,
         reqPicFileName: photoFilenames,
@@ -231,27 +253,45 @@ class ServiceRequestDetailsPageState extends State<ServiceRequestDetailsPage> {
       if (success) {
         showSuccessDialog(
           context,
-          'Success!',
-          'Your service request has been submitted.',
-          () {
-            Navigator.of(context).pop(); // Close success dialog
-            int popCount = 2;
-            Navigator.of(context).popUntil((_) => popCount-- == 0);
+          title: 'Success!',
+          message: 'Your service request has been submitted.',
+          primaryButtonText: 'Back to Home',
+          onPrimary: () {
+            Navigator.of(context).pushAndRemoveUntil(
+              MaterialPageRoute(builder: (context) => const CustHomepage()),
+              (route) => false,
+            );
           },
         );
       } else {
-        showErrorDialog(context, "Failed to submit request. Please try again.");
+        showErrorDialog(
+          context,
+          title: 'Error',
+          message: "Failed to submit request. Please try again.",
+        );
       }
     } catch (e) {
       Navigator.of(context).pop();
-      showErrorDialog(context, "An error occurred: $e");
+      showErrorDialog(
+        context,
+        title: 'Error',
+        message: "An error occurred: $e",
+      );
     }
   }
 
   void handleCancel() {
-    // TODO: Implement cancel logic or simply pop the page
     print('Cancel button pressed!');
-    Navigator.pop(context);
+    showConfirmDialog(
+      context,
+      title: 'Are you sure?',
+      message: 'Do you confirm to cancel service request?',
+      affirmativeText: 'Yes',
+      negativeText: 'No',
+      onAffirmative: () {
+        Navigator.of(context).pop();
+      },
+    );
   }
 
   @override
@@ -261,8 +301,8 @@ class ServiceRequestDetailsPageState extends State<ServiceRequestDetailsPage> {
         backgroundColor: Colors.white,
         elevation: 0,
         leading: const BackButton(color: Colors.black),
-        title: const Text(
-          'Electric Service Booking',
+        title: Text(
+          '${widget.serviceName} Service Booking',
           style: TextStyle(
             color: Colors.black,
             fontWeight: FontWeight.bold,
@@ -271,316 +311,299 @@ class ServiceRequestDetailsPageState extends State<ServiceRequestDetailsPage> {
         ),
         centerTitle: true,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Service Request Location',
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-              ),
-            ),
-            const SizedBox(height: 8),
-            TextFormField(
-              controller: locationController,
-              readOnly: true,
-              style: Theme.of(context).textTheme.bodySmall,
-              decoration: InputDecoration(
-                filled: true,
-                fillColor: Colors.white,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: Colors.grey.shade300),
-                ),
-                contentPadding: const EdgeInsets.symmetric(
-                  vertical: 14,
-                  horizontal: 16,
+      body: Form(
+        key: formKey,
+        autovalidateMode: AutovalidateMode.onUserInteraction,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Service Request Location',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
                 ),
               ),
-            ),
-            const SizedBox(height: 20),
-
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                const Text(
-                  'Select Preferred Date',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () => selectDate(context),
-                    child: AbsorbPointer(
-                      child: TextFormField(
-                        controller: dateController,
-                        style: Theme.of(context).textTheme.bodySmall,
-                        decoration: InputDecoration(
-                          hintText: 'Select Date',
-                          hintStyle: TextStyle(
-                            color: Colors.grey.shade500,
-                            fontSize: 14,
-                          ),
-                          suffixIcon: const Icon(Icons.calendar_today),
-                          filled: true,
-                          fillColor: Colors.white,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            borderSide: BorderSide(color: Colors.grey.shade300),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            borderSide: BorderSide(color: Colors.grey.shade300),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            borderSide: BorderSide(
-                              color: const Color(0xFFFF7643).withOpacity(0.5),
-                              width: 1.0,
-                            ),
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            vertical: 14,
-                            horizontal: 16,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                const Text(
-                  'Select Preferred Time',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () => selectTime(context),
-                    child: AbsorbPointer(
-                      child: TextFormField(
-                        controller: timeController,
-                        style: Theme.of(context).textTheme.bodySmall,
-                        decoration: InputDecoration(
-                          hintText: 'Select Time',
-                          hintStyle: TextStyle(
-                            color: Colors.grey.shade500,
-                            fontSize: 14,
-                          ),
-                          suffixIcon: const Icon(Icons.access_time),
-                          filled: true,
-                          fillColor: Colors.white,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            borderSide: BorderSide(color: Colors.grey.shade300),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            borderSide: BorderSide(color: Colors.grey.shade300),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            borderSide: BorderSide(
-                              color: const Color(0xFFFF7643).withOpacity(0.5),
-                              width: 1.0,
-                            ),
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            vertical: 14,
-                            horizontal: 16,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-
-            const Text(
-              'Service Description',
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-              ),
-            ),
-            const SizedBox(height: 8),
-            TextFormField(
-              controller: descriptionController,
-              style: Theme.of(context).textTheme.bodySmall,
-              maxLines: 5,
-              decoration: InputDecoration(
-                hintText: 'Enter the details of the service request...',
-                hintStyle: TextStyle(color: Colors.grey.shade500, fontSize: 14),
-                filled: true,
-                fillColor: Colors.white,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: Colors.grey.shade300),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: Colors.grey.shade300),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(
-                    color: const Color(0xFFFF7643).withOpacity(0.5),
-                    width: 1.0,
-                  ),
-                ),
-                contentPadding: const EdgeInsets.symmetric(
-                  vertical: 14,
-                  horizontal: 16,
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            const Text(
-              'Service Request Photos',
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-              ),
-            ),
-            const SizedBox(height: 8),
-            TextButton.icon(
-              onPressed: handleUploadPhoto,
-              icon: const Icon(Icons.upload_file, color: Colors.black),
-              label: Text(
-                uploadedImages.isEmpty ? 'Upload photo' : 'Add another photo',
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: locationController,
+                readOnly: true,
                 style: Theme.of(context).textTheme.bodySmall,
-              ),
-              style: TextButton.styleFrom(
-                backgroundColor: Colors.white,
-                side: BorderSide(color: Colors.grey.shade300),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                padding: const EdgeInsets.symmetric(
-                  vertical: 12,
-                  horizontal: 20,
-                ),
-              ),
-            ),
-            PhotoPreviewList(
-              images: uploadedImages,
-              onRemove: removePhoto,
-            ),
-            const SizedBox(height: 20),
-
-            const Text(
-              'Additional Remark',
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-              ),
-            ),
-            const SizedBox(height: 8),
-            TextFormField(
-              controller: remarkController,
-              style: Theme.of(context).textTheme.bodySmall,
-              maxLines: 5,
-              decoration: InputDecoration(
-                hintText: 'Enter the additional of the service request...',
-                hintStyle: TextStyle(color: Colors.grey.shade500, fontSize: 14),
-                filled: true,
-                fillColor: Colors.white,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: Colors.grey.shade300),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: Colors.grey.shade300),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(
-                    color: const Color(0xFFFF7643).withOpacity(0.5),
-                    width: 1.0,
+                decoration: InputDecoration(
+                  filled: true,
+                  fillColor: Colors.white,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    vertical: 14,
+                    horizontal: 16,
                   ),
                 ),
-                contentPadding: const EdgeInsets.symmetric(
-                  vertical: 14,
-                  horizontal: 16,
-                ),
               ),
-            ),
-            const SizedBox(height: 20),
+              const SizedBox(height: 20),
 
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: handleSubmit,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFFF7643),
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Select Preferred Date',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
                     ),
-                    child: const Text(
-                      'Submit',
-                      style: TextStyle(
-                        fontSize: 18,
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => selectDate(context),
+                      child: AbsorbPointer(
+                        child: TextFormField(
+                          controller: dateController,
+                          readOnly: true,
+                          style: Theme.of(context).textTheme.bodySmall,
+                          decoration: InputDecoration(
+                            hintText: 'Select Date',
+                            hintStyle: TextStyle(
+                              color: Colors.grey.shade500,
+                              fontSize: 14,
+                            ),
+                            suffixIcon: const Icon(Icons.calendar_today),
+                            filled: true,
+                            fillColor: Colors.white,
+                            contentPadding: const EdgeInsets.symmetric(
+                              vertical: 14,
+                              horizontal: 16,
+                            ),
+                          ),
+                          validator: (value) =>
+                              Validator.validateNotEmpty(value, 'Date'),
+                        ),
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 16),
+                ],
+              ),
+              const SizedBox(height: 20),
 
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: handleCancel,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.grey.shade300,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      elevation: 0,
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Select Preferred Time',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
                     ),
-                    child: const Text(
-                      'Cancel',
-                      style: TextStyle(
-                        fontSize: 18,
-                        color: Colors.black87,
-                        fontWeight: FontWeight.bold,
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => selectTime(context),
+                      child: AbsorbPointer(
+                        child: TextFormField(
+                          controller: timeController,
+                          readOnly: true,
+                          style: Theme.of(context).textTheme.bodySmall,
+                          decoration: InputDecoration(
+                            hintText: 'Select Time',
+                            hintStyle: TextStyle(
+                              color: Colors.grey.shade500,
+                              fontSize: 14,
+                            ),
+                            suffixIcon: const Icon(Icons.access_time),
+                            filled: true,
+                            fillColor: Colors.white,
+                            contentPadding: const EdgeInsets.symmetric(
+                              vertical: 14,
+                              horizontal: 16,
+                            ),
+                          ),
+                          validator: (value) =>
+                              Validator.validateNotEmpty(value, 'Time'),
+                        ),
                       ),
                     ),
                   ),
+                ],
+              ),
+              const SizedBox(height: 20),
+
+              const Text(
+                'Service Request Description',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
                 ),
-              ],
-            ),
-            const SizedBox(height: 16),
-          ],
+              ),
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: descriptionController,
+                style: Theme.of(context).textTheme.bodySmall,
+                maxLines: 5,
+                decoration: InputDecoration(
+                  hintText: 'Enter the details of the service request...',
+                  hintStyle: TextStyle(
+                    color: Colors.grey.shade500,
+                    fontSize: 14,
+                  ),
+                  filled: true,
+                  fillColor: Colors.white,
+                  contentPadding: const EdgeInsets.symmetric(
+                    vertical: 14,
+                    horizontal: 16,
+                  ),
+                ),
+                validator: (value) => Validator.validateNotEmpty(
+                  value,
+                  'Service request description',
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              const Text(
+                'Service Request Photos',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextButton.icon(
+                onPressed: isPickingImages ? null : handleUploadPhoto,
+                icon: const Icon(Icons.upload_file, color: Colors.black),
+                label: Text(
+                  uploadedImages.isEmpty ? 'Upload photo' : 'Add another photo',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                style: TextButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  side: BorderSide(color: Colors.grey.shade300),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 12,
+                    horizontal: 20,
+                  ),
+                ),
+              ),
+              if (photoErrorText != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 5),
+                  child: Text(
+                    photoErrorText!,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+              PhotoPreviewList(images: uploadedImages, onRemove: removePhoto),
+              const SizedBox(height: 20),
+
+              const Text(
+                'Additional Remark',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: remarkController,
+                style: Theme.of(context).textTheme.bodySmall,
+                maxLines: 5,
+                decoration: InputDecoration(
+                  hintText: 'Enter the additional of the service request...',
+                  hintStyle: TextStyle(
+                    color: Colors.grey.shade500,
+                    fontSize: 14,
+                  ),
+                  filled: true,
+                  fillColor: Colors.white,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(
+                      color: const Color(0xFFFF7643).withOpacity(0.5),
+                      width: 1.0,
+                    ),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    vertical: 14,
+                    horizontal: 16,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: handleSubmit,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFFF7643),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text(
+                        'Submit',
+                        style: TextStyle(
+                          fontSize: 18,
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: handleCancel,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.grey.shade300,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: const Text(
+                        'Cancel',
+                        style: TextStyle(
+                          fontSize: 18,
+                          color: Colors.black87,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
         ),
       ),
     );

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../../model/database_model.dart';
+import '../../model/databaseModel.dart';
 import '../../controller/favoriteHandyman.dart';
 import '../../shared/navigatorBase.dart';
 
@@ -89,12 +89,14 @@ class FavoriteScreenState extends State<FavoriteScreen> {
             elevation: 1,
             centerTitle: true,
           ),
-          body: Column(
-            children: [
-              buildDatePickers(context),
-              Expanded(child: buildFavoritesList()),
-            ],
-          ),
+          body: !controller.isInitialized
+              ? const Center(child: CircularProgressIndicator())
+              : Column(
+                  children: [
+                    buildDatePickers(context),
+                    Expanded(child: buildFavoritesList()),
+                  ],
+                ),
           bottomNavigationBar: AppNavigationBar(
             currentIndex: currentIndex,
             onTap: onNavBarTap,
@@ -129,11 +131,7 @@ class FavoriteScreenState extends State<FavoriteScreen> {
     );
   }
 
-  Widget buildDatePickerInput(
-    BuildContext context,
-    String text,
-    bool isStart,
-  ) {
+  Widget buildDatePickerInput(BuildContext context, String text, bool isStart) {
     return Expanded(
       child: InkWell(
         onTap: () => controller.selectDate(context, isStart),
@@ -204,6 +202,10 @@ class FavoriteItemCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final HandymanModel handyman = detailsMap['handyman'] as HandymanModel;
     final SkillModel skill = detailsMap['skill'] as SkillModel;
+    final String? userPicName = detailsMap['userPicName'] as String?;
+    final String handymanName =
+        detailsMap['handymanName'] as String;
+    final int reviewCount = detailsMap['reviewCount'] as int;
 
     return Card(
       elevation: 2,
@@ -214,11 +216,21 @@ class FavoriteItemCard extends StatelessWidget {
         child: Row(
           children: [
             // Avatar
-            CircleAvatar(
-              radius: 30,
-              backgroundColor: Colors.pink[50],
-              child: Icon(Icons.person, size: 30, color: Colors.blueGrey[300]),
+            Container(
+              width: 70,
+              height: 70,
+              decoration: BoxDecoration(
+                color: Colors.pink[50],
+                borderRadius: BorderRadius.circular(8),
+                image: DecorationImage(
+                  image: (userPicName != null && userPicName.isNotEmpty)
+                      ? AssetImage('assets/images/$userPicName')
+                      : const AssetImage('assets/images/profile.jpg'),
+                  fit: BoxFit.cover,
+                ),
+              ),
             ),
+
             const SizedBox(width: 16),
             // Details
             Expanded(
@@ -230,7 +242,7 @@ class FavoriteItemCard extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        skill.skillDesc,
+                        skill.skillName,
                         style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -242,7 +254,7 @@ class FavoriteItemCard extends StatelessWidget {
                   const SizedBox(height: 4),
                   // Row 2: Handyman Name
                   Text(
-                    handyman.handymanID,
+                    handymanName,
                     style: TextStyle(fontSize: 16, color: Colors.grey[700]),
                   ),
                   const SizedBox(height: 8),
@@ -260,7 +272,7 @@ class FavoriteItemCard extends StatelessWidget {
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        '| ${handyman.handymanRating} reviews',
+                        '| ${reviewCount} reviews',
                         style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                       ),
                     ],

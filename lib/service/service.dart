@@ -1,5 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../model/database_model.dart';
+import '../model/databaseModel.dart';
 import '../../model/reviewDisplayViewModel.dart';
 import '../service/ratingReview.dart';
 import '../service/firestore_service.dart';

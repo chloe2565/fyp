@@ -1,10 +1,16 @@
 import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../model/reviewDisplayViewModel.dart';
 
 class Validator {
+  static String? validateNotEmpty(String? value, String fieldName) {
+    if (value == null || value.trim().isEmpty) {
+      return '$fieldName cannot be empty';
+    }
+    return null;
+  }
+
   static String? validateName(String? value) {
     final name = value?.trim() ?? '';
     if (name.isEmpty) {
@@ -162,7 +168,7 @@ void showChangePasswordDialog({
                         ],
                       ),
                       const SizedBox(height: 20),
-                      _buildPasswordField(
+                      buildPasswordField(
                         context: context,
                         label: 'Current Password',
                         hint: 'Enter current password',
@@ -180,7 +186,7 @@ void showChangePasswordDialog({
                         },
                       ),
                       const SizedBox(height: 15),
-                      _buildPasswordField(
+                      buildPasswordField(
                         context: context,
                         label: 'New Password',
                         hint: 'Enter new password',
@@ -195,7 +201,7 @@ void showChangePasswordDialog({
                         },
                       ),
                       const SizedBox(height: 15),
-                      _buildPasswordField(
+                      buildPasswordField(
                         context: context,
                         label: 'Confirm New Password',
                         hint: 'Confirm new password',
@@ -293,7 +299,7 @@ void showDeleteAccountDialog({
                         ),
                       ),
                       const SizedBox(height: 20),
-                      _buildEmailField(
+                      buildEmailField(
                         context: context,
                         label: 'Email',
                         hint: 'Enter registered email address',
@@ -333,7 +339,7 @@ void showDeleteAccountDialog({
   );
 }
 
-Widget _buildPasswordField({
+Widget buildPasswordField({
   required BuildContext context,
   required String label,
   required String hint,
@@ -385,7 +391,7 @@ Widget _buildPasswordField({
   );
 }
 
-Widget _buildEmailField({
+Widget buildEmailField({
   required BuildContext context,
   required String label,
   required String hint,
@@ -580,10 +586,12 @@ Widget buildSearchField({
   required BuildContext context,
   String hintText = 'Search here...',
   VoidCallback? onFilterPressed,
+  TextEditingController? controller,
 }) {
   return Container(
     padding: const EdgeInsets.fromLTRB(16.0, 8.0, 16.0, 16.0),
     child: TextFormField(
+      controller: controller,
       decoration: InputDecoration(
         hintText: hintText,
         hintStyle: const TextStyle(color: Colors.grey),
@@ -710,7 +718,24 @@ class InfoCard extends StatelessWidget {
   }
 
   Widget buildDetailRow(BuildContext context, String title, String value) {
-    final bool isStatusRow = title.toLowerCase() == 'status';
+    final String lowerTitle = title.toLowerCase();
+    final bool isStatusRow =
+        lowerTitle == 'status' || lowerTitle == 'payment status';
+    final bool isAmountRow = lowerTitle == 'amount to pay';
+
+    TextStyle amountStyle =
+        Theme.of(context).textTheme.titleLarge?.copyWith(
+          fontWeight: FontWeight.w600,
+          fontSize: 18,
+          color: Theme.of(context).colorScheme.primary,
+        ) ??
+        const TextStyle();
+
+    final TextStyle defaultStyle = TextStyle(
+      fontSize: 12,
+      fontWeight: FontWeight.w600,
+      color: isStatusRow ? getStatusColor(value) : Colors.black87,
+    );
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
@@ -730,11 +755,7 @@ class InfoCard extends StatelessWidget {
             child: Text(
               value,
               textAlign: TextAlign.right,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: isStatusRow ? getStatusColor(value) : Colors.black87,
-              ),
+              style: isAmountRow ? amountStyle : defaultStyle,
             ),
           ),
         ],
@@ -753,6 +774,8 @@ Color getStatusColor(String status) {
     case 'pending':
       return Colors.amber;
     case 'confirmed':
+      return Color(0xFFFD722E);
+    case 'departed':
       return Colors.blue;
     case 'completed':
       return Colors.green;
@@ -763,20 +786,119 @@ Color getStatusColor(String status) {
   }
 }
 
-void showErrorDialog(BuildContext context, String message) {
+void showDownloadDialog(
+  BuildContext context, {
+  required String title,
+  required String subtitle,
+  required double progress,
+  VoidCallback? onCancel,
+}) {
   showDialog(
     context: context,
-    builder: (ctx) => AlertDialog(
-      title: const Text('Error'),
-      content: Text(message),
-      actions: [
-        TextButton(
-          child: const Text('Okay'),
-          onPressed: () => Navigator.of(ctx).pop(),
-        ),
-      ],
+    barrierDismissible: false,
+    builder: (ctx) => DownloadDialog(
+      title: title,
+      subtitle: subtitle,
+      progress: progress,
+      onCancel: onCancel,
     ),
   );
+}
+
+class DownloadDialog extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final double progress;
+  final VoidCallback? onCancel;
+
+  const DownloadDialog({
+    required this.title,
+    required this.subtitle,
+    required this.progress,
+    this.onCancel,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Arrow-down icon
+            Container(
+              width: 80,
+              height: 80,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                color: Color(0xFF4285F4),
+              ),
+              child: const Icon(
+                Icons.arrow_downward,
+                size: 48,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // Title
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+            ),
+            const SizedBox(height: 8),
+
+            // Subtitle (file name)
+            Text(
+              subtitle,
+              style: const TextStyle(fontSize: 14, color: Colors.black54),
+            ),
+            const SizedBox(height: 24),
+
+            // Progress bar
+            LinearProgressIndicator(
+              value: progress,
+              backgroundColor: Colors.grey.shade300,
+              valueColor: const AlwaysStoppedAnimation<Color>(
+                Color(0xFF4285F4),
+              ),
+            ),
+            const SizedBox(height: 8),
+
+            // Percentage text
+            Text(
+              '${(progress * 100).toInt()}% completed',
+              style: const TextStyle(fontSize: 14, color: Colors.black54),
+            ),
+            const SizedBox(height: 24),
+
+            // Cancel button
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFF4285F4),
+                  side: const BorderSide(color: Color(0xFF4285F4)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+                onPressed: onCancel ?? () => Navigator.of(context).pop(),
+                child: const Text('Cancel', style: TextStyle(fontSize: 16)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 void showLoadingDialog(BuildContext context, [String message = 'Loading...']) {
@@ -799,59 +921,366 @@ void showLoadingDialog(BuildContext context, [String message = 'Loading...']) {
   );
 }
 
-void showSuccessDialog(
-  BuildContext context,
-  String title,
-  String message,
-  VoidCallback onPressed,
-) {
+void showErrorDialog(
+  BuildContext context, {
+  required String title,
+  required String message,
+  String buttonText = 'OK',
+  VoidCallback? onPressed,
+}) {
   showDialog(
     context: context,
-    barrierDismissible: false, // User must press ok to proceed
-    builder: (ctx) => AlertDialog(
-      title: Text(title),
-      content: Text(message),
-      actions: [
-        TextButton(
-          onPressed: onPressed,
-          child: const Text('Okay'),
-        ),
-      ],
+    builder: (ctx) => ErrorDialog(
+      title: title,
+      message: message,
+      buttonText: buttonText,
+      onPressed: onPressed,
     ),
   );
 }
 
-String parseStateFromAddress(String fullAddress) {
-    const states = [
-      'Johor',
-      'Kedah',
-      'Kelantan',
-      'Melaka',
-      'Negeri Sembilan',
-      'Pahang',
-      'Perak',
-      'Perlis',
-      'Pulau Pinang',
-      'Sabah',
-      'Sarawak',
-      'Selangor',
-      'Terengganu',
-      'Kuala Lumpur',
-      'Labuan',
-      'Putrajaya',
-    ];
+class ErrorDialog extends StatelessWidget {
+  final String title;
+  final String message;
+  final String buttonText;
+  final VoidCallback? onPressed;
 
-    final parts = fullAddress.split(',').map((s) => s.trim()).toList();
+  const ErrorDialog({
+    required this.title,
+    required this.message,
+    required this.buttonText,
+    this.onPressed,
+  });
 
-    for (final part in parts.reversed) {
-      for (final state in states) {
-        if (part.contains(state)) {
-          return state; 
-        }
-      }
-    }
-    return "Unknown"; 
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Red X circle
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Theme.of(context).colorScheme.error,
+              ),
+              child: const Icon(Icons.close, size: 48, color: Colors.white),
+            ),
+            const SizedBox(height: 24),
+
+            // Title
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // Message
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w500,
+                color: Colors.black,
+              ),
+            ),
+            const SizedBox(height: 32),
+
+            // OK Button
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFFEA4335),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+                onPressed: onPressed ?? () => Navigator.of(context).pop(),
+                child: Text(
+                  buttonText,
+                  style: const TextStyle(fontSize: 16, color: Colors.white),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
+}
+
+void showSuccessDialog(
+  BuildContext context, {
+  required String title,
+  required String message,
+  String primaryButtonText = 'Back to Home',
+  String? secondaryButtonText,
+  VoidCallback? onPrimary,
+  VoidCallback? onSecondary,
+}) {
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (ctx) => SuccessDialog(
+      title: title,
+      message: message,
+      primaryButtonText: primaryButtonText,
+      secondaryButtonText: secondaryButtonText,
+      onPrimary: onPrimary,
+      onSecondary: onSecondary,
+    ),
+  );
+}
+
+class SuccessDialog extends StatelessWidget {
+  final String title;
+  final String message;
+  final String primaryButtonText;
+  final String? secondaryButtonText;
+  final VoidCallback? onPrimary;
+  final VoidCallback? onSecondary;
+
+  const SuccessDialog({
+    required this.title,
+    required this.message,
+    required this.primaryButtonText,
+    this.secondaryButtonText,
+    this.onPrimary,
+    this.onSecondary,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Green check-circle
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Theme.of(context).colorScheme.tertiary,
+              ),
+              child: const Icon(Icons.check, size: 48, color: Colors.white),
+            ),
+            const SizedBox(height: 24),
+
+            // Title
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Theme.of(context).colorScheme.tertiary,
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // Message
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w500,
+                color: Colors.black,
+              ),
+            ),
+            const SizedBox(height: 32),
+
+            // Buttons row
+            Row(
+              children: [
+                if (secondaryButtonText != null)
+                  Expanded(
+                    child: OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.black54,
+                        side: const BorderSide(color: Colors.black12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                      onPressed:
+                          onSecondary ?? () => Navigator.of(context).pop(),
+                      child: Text(
+                        secondaryButtonText!,
+                        style: const TextStyle(fontSize: 16),
+                      ),
+                    ),
+                  ),
+                if (secondaryButtonText != null) const SizedBox(width: 12),
+
+                Expanded(
+                  child: FilledButton(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    onPressed: onPrimary ?? () => Navigator.of(context).pop(),
+                    child: Text(
+                      primaryButtonText,
+                      style: const TextStyle(fontSize: 16, color: Colors.white),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+void showConfirmDialog(
+  BuildContext context, {
+  required String title,
+  required String message,
+  String affirmativeText = 'Yes',
+  String negativeText = 'No',
+  required VoidCallback onAffirmative,
+  VoidCallback? onNegative,
+}) {
+  showDialog(
+    context: context,
+    builder: (ctx) => ConfirmDialog(
+      title: title,
+      message: message,
+      affirmativeText: affirmativeText,
+      negativeText: negativeText,
+      onAffirmative: onAffirmative,
+      onNegative: onNegative,
+    ),
+  );
+}
+
+class ConfirmDialog extends StatelessWidget {
+  final String title;
+  final String message;
+  final String affirmativeText;
+  final String negativeText;
+  final VoidCallback onAffirmative;
+  final VoidCallback? onNegative;
+
+  const ConfirmDialog({
+    required this.title,
+    required this.message,
+    required this.affirmativeText,
+    required this.negativeText,
+    required this.onAffirmative,
+    this.onNegative,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Red cross-circle
+            Container(
+              width: 80,
+              height: 80,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                color: Color(0xFFEA4335),
+              ),
+              child: const Icon(Icons.close, size: 48, color: Colors.white),
+            ),
+            const SizedBox(height: 24),
+
+            // Title
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // Message
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w500,
+                color: Colors.black,
+              ),
+            ),
+            const SizedBox(height: 32),
+
+            Row(
+              children: [
+                Expanded(
+                  child: FilledButton(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Theme.of(context).colorScheme.error,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                      onAffirmative();
+                    },
+                    child: Text(
+                      affirmativeText,
+                      style: const TextStyle(fontSize: 16, color: Colors.white),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+
+                Expanded(
+                  child: FilledButton(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Theme.of(context).colorScheme.secondary,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    onPressed: onNegative ?? () => Navigator.of(context).pop(),
+                    child: Text(
+                      negativeText,
+                      style: const TextStyle(fontSize: 16, color: Colors.white),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
 class PhotoPreviewList extends StatelessWidget {
   final List<File> images;
@@ -866,7 +1295,7 @@ class PhotoPreviewList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (images.isEmpty) {
-      return const SizedBox.shrink(); 
+      return const SizedBox.shrink();
     }
     return Container(
       height: 100,
@@ -915,6 +1344,13 @@ class PhotoPreviewList extends StatelessWidget {
     );
   }
 }
+
+
+
+
+
+
+
 
 
 

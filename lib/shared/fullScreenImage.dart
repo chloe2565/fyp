@@ -3,11 +3,13 @@ import 'package:flutter/material.dart';
 class FullScreenGalleryViewer extends StatefulWidget {
   final List<String> imagePaths; // Filenames
   final int initialIndex;
+  final String basePath;
 
   const FullScreenGalleryViewer({
     super.key,
     required this.imagePaths,
     required this.initialIndex,
+    required this.basePath,
   });
 
   @override
@@ -34,7 +36,7 @@ class _FullScreenGalleryViewerState extends State<FullScreenGalleryViewer> {
 
   // Helper to build the correct asset path
   String _buildAssetPath(String picName) {
-    return 'assets/reviews/${picName.trim().toLowerCase()}';
+    return '${widget.basePath}/${picName.trim().toLowerCase()}';
   }
 
   @override

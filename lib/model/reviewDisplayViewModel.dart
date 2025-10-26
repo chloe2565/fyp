@@ -1,5 +1,5 @@
 
-import 'database_model.dart';
+import 'databaseModel.dart';
 
 class ReviewDisplayData {
   final RatingReviewModel review;
