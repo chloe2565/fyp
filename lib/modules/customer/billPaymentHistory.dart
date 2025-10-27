@@ -1,34 +1,40 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../../controller/serviceRequest.dart';
+import 'package:provider/provider.dart';
+import '../../controller/bill.dart';
+import '../../controller/payment.dart';
+import '../../model/databaseModel.dart';
 import '../../shared/helper.dart';
-import '../../shared/navigatorBase.dart';
+import 'billDetail.dart';
 
 class BillPaymentHistoryScreen extends StatefulWidget {
   const BillPaymentHistoryScreen({super.key});
 
   @override
-  State<BillPaymentHistoryScreen> createState() => BillPaymentHistoryScreenState();
+  State<BillPaymentHistoryScreen> createState() =>
+      BillPaymentHistoryScreenState();
 }
 
 class BillPaymentHistoryScreenState extends State<BillPaymentHistoryScreen> {
-  int currentIndex = 1;
   bool isInitialized = false;
-  late ServiceRequestController controller;
+  late BillController billingController;
+  late PaymentController paymentController;
   final TextEditingController searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    controller = ServiceRequestController();
+    billingController = BillController();
+    paymentController = PaymentController();
     initializeController();
-    searchController.addListener(() {
-      controller.onSearchChanged(searchController.text);
-    });
+    searchController.addListener(onSearchChanged);
   }
 
   Future<void> initializeController() async {
-    await controller.initialize();
+    await Future.wait([
+      billingController.initialize(),
+      paymentController.initialize(),
+    ]);
     if (mounted) {
       setState(() {
         isInitialized = true;
@@ -36,44 +42,19 @@ class BillPaymentHistoryScreenState extends State<BillPaymentHistoryScreen> {
     }
   }
 
-  @override
-  void dispose() {
-    controller.dispose();
-    searchController.dispose();
-    super.dispose();
+  void onSearchChanged() {
+    final query = searchController.text;
+    billingController.onSearchChanged(query);
+    paymentController.onSearchChanged(query);
   }
 
-  void onNavBarTap(int index) async {
-    if (index == currentIndex) {
-      return;
-    }
-
-    String? routeToPush;
-
-    switch (index) {
-      case 0:
-        Navigator.pop(context);
-        return;
-      case 1:
-        break;
-      case 2:
-        routeToPush = '/favorite';
-        break;
-      case 3: //rating
-        routeToPush = '/home';
-        break;
-      // More menu (index 4) is handled in the navigation bar itself
-    }
-
-    if (routeToPush != null) {
-      await Navigator.pushNamed(context, routeToPush);
-
-      if (mounted) {
-        setState(() {
-          currentIndex = 1;
-        });
-      }
-    }
+  @override
+  void dispose() {
+    billingController.dispose();
+    paymentController.dispose();
+    searchController.removeListener(onSearchChanged);
+    searchController.dispose();
+    super.dispose();
   }
 
   @override
@@ -81,7 +62,7 @@ class BillPaymentHistoryScreenState extends State<BillPaymentHistoryScreen> {
     return DefaultTabController(
       length: 2,
       child: ListenableBuilder(
-        listenable: controller,
+        listenable: Listenable.merge([billingController, paymentController]),
         builder: (context, child) {
           return Scaffold(
             appBar: AppBar(
@@ -109,7 +90,8 @@ class BillPaymentHistoryScreenState extends State<BillPaymentHistoryScreen> {
             ),
             body: !isInitialized
                 ? const Center(child: CircularProgressIndicator())
-                : controller.isFiltering
+                : (billingController.isFiltering ||
+                      paymentController.isFiltering)
                 ? const Center(
                     child: CircularProgressIndicator(
                       valueColor: AlwaysStoppedAnimation<Color>(Colors.orange),
@@ -127,15 +109,11 @@ class BillPaymentHistoryScreenState extends State<BillPaymentHistoryScreen> {
                       ),
                       Expanded(
                         child: TabBarView(
-                          children: [buildUpcomingList(), buildHistoryList()],
+                          children: [buildBillingList(), buildPaymentList()],
                         ),
                       ),
                     ],
                   ),
-            bottomNavigationBar: AppNavigationBar(
-              currentIndex: currentIndex,
-              onTap: onNavBarTap,
-            ),
           );
         },
       ),
@@ -143,17 +121,17 @@ class BillPaymentHistoryScreenState extends State<BillPaymentHistoryScreen> {
   }
 
   // build billing list
-  Widget buildUpcomingList() {
-    if (controller.isLoadingCustomer) {
+  Widget buildBillingList() {
+    if (billingController.isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
 
-    final viewModels = controller.filteredUpcomingRequests;
+    final bills = billingController.filteredBills;
 
-    if (viewModels.isEmpty) {
+    if (bills.isEmpty) {
       return const Center(
         child: Text(
-          'No upcoming requests match your filters.',
+          'No billing records found.',
           style: TextStyle(color: Colors.grey, fontSize: 16),
         ),
       );
@@ -161,84 +139,261 @@ class BillPaymentHistoryScreenState extends State<BillPaymentHistoryScreen> {
 
     return ListView.builder(
       padding: const EdgeInsets.all(12),
-      itemCount: viewModels.length,
+      itemCount: bills.length,
       itemBuilder: (context, index) {
-        final requestViewModel = viewModels[index];
-        final upcomingDetails = List.of(requestViewModel.details);
-        upcomingDetails.add(MapEntry('Status', requestViewModel.reqStatus));
-
-        return InfoCard(
-          icon: requestViewModel.icon,
-          title: requestViewModel.title,
-          details: upcomingDetails,
-          actions: [
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pushNamed(context, '/billPayment', arguments: requestViewModel.reqID);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Theme.of(context).colorScheme.primary,
-                foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
+        final bill = bills[index];
+        return BillingCard(
+          bill: bill,
+          onPayPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => ChangeNotifierProvider.value(
+                  value: billingController, 
+                  child: BillDetailScreen(bill),
                 ),
               ),
-              child: const Text('Pay'),
-            ),
-          ],
+            );
+          },
         );
       },
     );
   }
 
   // build payment list
-  Widget buildHistoryList() {
-    if (controller.isLoadingCustomer) {
+  Widget buildPaymentList() {
+    if (paymentController.isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
 
-    final viewModels = controller.filteredHistoryRequests;
+    final payments = paymentController.filteredPayments;
 
-    if (viewModels.isEmpty) {
+    if (payments.isEmpty) {
       return const Center(
         child: Text(
-          'No past service requests match your filters.',
+          'No payment records found.',
           style: TextStyle(color: Colors.grey, fontSize: 16),
         ),
       );
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.all(16.0),
-      itemCount: viewModels.length,
+      padding: const EdgeInsets.all(12.0),
+      itemCount: payments.length,
       itemBuilder: (context, index) {
-        final requestViewModel = viewModels[index];
-        final historyDetails = List.of(requestViewModel.details);
-        historyDetails.add(MapEntry('Status', requestViewModel.reqStatus));
-
-        if (requestViewModel.amountToPay != null) {
-          historyDetails.add(
-            MapEntry('Amount to Pay', requestViewModel.amountToPay!),
-          );
-        }
-        if (requestViewModel.payDueDate != null) {
-          historyDetails.add(
-            MapEntry('Pay Due Date', requestViewModel.payDueDate!),
-          );
-        }
-        if (requestViewModel.paymentStatus != null) {
-          historyDetails.add(
-            MapEntry('Payment Status', requestViewModel.paymentStatus!),
-          );
-        }
-
-        return InfoCard(
-          icon: requestViewModel.icon,
-          title: requestViewModel.title,
-          details: historyDetails,
-          actions: [/* No actions for history, or "Book Again" */],
-        );
+        final payment = payments[index];
+        return PaymentCard(payment: payment);
       },
+    );
+  }
+}
+
+// Billing card widget
+class BillingCard extends StatelessWidget {
+  final BillingModel bill;
+  final VoidCallback onPayPressed;
+
+  const BillingCard({required this.bill, required this.onPayPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    final String status = bill.billStatus.toLowerCase();
+    final bool isPaid = status == 'paid';
+    final bool isCancelled = status == 'cancelled';
+    final bool isCompleted = status == 'completed';
+    final bool showPayButton = !isPaid && !isCancelled && !isCompleted;
+    final currencyFormat = NumberFormat.currency(
+      locale: 'ms_MY',
+      symbol: 'RM ',
+    );
+    final dateFormat = DateFormat.yMMMd();
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12.0),
+      elevation: 2.0,
+      shadowColor: Colors.black26,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Billing ID: ${bill.billingID}',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+            const SizedBox(height: 12),
+            buildInfoRow(
+              Icons.attach_money,
+              'Amount: ${currencyFormat.format(bill.billAmt)}',
+            ),
+            const SizedBox(height: 6),
+            buildInfoRow(
+              Icons.calendar_today,
+              'Due Date: ${dateFormat.format(bill.billDueDate)}',
+            ),
+            const SizedBox(height: 6),
+            buildInfoRow(
+              isPaid || isCompleted
+                  ? Icons.check_circle
+                  : (isCancelled ? Icons.cancel : Icons.info_outline),
+              'Status: ${bill.billStatus}',
+              color: (isPaid || isCompleted)
+                  ? Colors.green
+                  : (isCancelled ? Colors.red[700] : Colors.orange[700]),
+            ),
+            
+            if (showPayButton) ...[
+              const SizedBox(height: 16),
+              Align(
+                alignment: Alignment.centerRight,
+                child: ElevatedButton(
+                  onPressed: onPayPressed, 
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Theme.of(context).primaryColor,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8.0),
+                    ),
+                  ),
+                  child: const Text('Pay Now'),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget buildInfoRow(IconData icon, String text, {Color? color}) {
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: color ?? Colors.grey[700]),
+        const SizedBox(width: 8),
+        Text(
+          text,
+          style: TextStyle(color: color ?? Colors.black87, fontSize: 14),
+        ),
+      ],
+    );
+  }
+}
+
+class PaymentCard extends StatelessWidget {
+  final PaymentModel payment;
+
+  const PaymentCard({required this.payment});
+
+  Widget buildStatusBadge(String status) {
+    Color backgroundColor;
+    Color foregroundColor;
+    switch (status.toLowerCase()) {
+      case 'success':
+        backgroundColor = Colors.green[50]!;
+        foregroundColor = Colors.green[700]!;
+        break;
+      case 'pending':
+        backgroundColor = Colors.orange[50]!;
+        foregroundColor = Colors.orange[700]!;
+        break;
+      default:
+        backgroundColor = Colors.red[50]!;
+        foregroundColor = Colors.red[700]!;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(5.0),
+      ),
+      child: Text(
+        status,
+        style: TextStyle(
+          color: foregroundColor,
+          fontWeight: FontWeight.bold,
+          fontSize: 12,
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final currencyFormat = NumberFormat.currency(
+      locale: 'ms_MY',
+      symbol: 'RM ',
+    );
+    final dateFormat = DateFormat('d MMM yyyy'); // e.g., 17 Sep 2024
+    final timeFormat = DateFormat.jm(); // e.g., 11:21 AM
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 10.0),
+      elevation: 1.5,
+      shadowColor: Colors.black.withOpacity(0.1),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12.0),
+              decoration: BoxDecoration(
+                color: Colors.blueGrey[50],
+                borderRadius: BorderRadius.circular(10.0),
+              ),
+              child: Icon(
+                Icons.camera_alt_outlined,
+                color: Colors.blueGrey[400],
+                size: 28,
+              ),
+            ),
+            const SizedBox(width: 16.0),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    payment.payMethod,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Billing ID ${payment.billingID}',
+                    style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '${dateFormat.format(payment.payCreatedAt)}   ${timeFormat.format(payment.payCreatedAt)}',
+                    style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8.0),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              mainAxisAlignment: MainAxisAlignment.start,
+              children: [
+                Text(
+                  currencyFormat.format(payment.payAmt),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                buildStatusBadge(payment.payStatus),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

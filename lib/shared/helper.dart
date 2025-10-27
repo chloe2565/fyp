@@ -778,6 +778,7 @@ Color getStatusColor(String status) {
     case 'departed':
       return Colors.blue;
     case 'completed':
+    case 'paid':
       return Colors.green;
     case 'cancelled':
       return Colors.red;
@@ -1150,6 +1151,82 @@ class SuccessDialog extends StatelessWidget {
       ),
     );
   }
+}
+
+void showPendingDialog(
+  BuildContext context, {
+  required String title,
+  required String message,
+  String primaryButtonText = 'Back to Home',
+  VoidCallback? onPrimary,
+}) {
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (ctx) => Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 80,
+              height: 80,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.orange,
+              ),
+              child: const Icon(Icons.hourglass_top_rounded,
+                  size: 48, color: Colors.white),
+            ),
+            const SizedBox(height: 24),
+
+            // Title
+            const Text(
+              "Payment Pending",
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.orange,
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // Message
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w500,
+                color: Colors.black,
+              ),
+            ),
+            const SizedBox(height: 32),
+
+            // OK Button
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                style: FilledButton.styleFrom(
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+                onPressed: onPrimary ?? () => Navigator.of(context).pop(),
+                child: Text(
+                  primaryButtonText,
+                  style: const TextStyle(fontSize: 16, color: Colors.white),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
 }
 
 void showConfirmDialog(

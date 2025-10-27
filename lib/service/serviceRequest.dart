@@ -59,6 +59,25 @@ class ServiceRequestService {
     }
   }
 
+  Future<List<ServiceRequestModel>> getCompletedRequestsForCustomer(
+    String custID,
+  ) async {
+    try {
+      final querySnapshot = await db
+          .collection('ServiceRequest')
+          .where('custID', isEqualTo: custID)
+          .where('reqStatus', isEqualTo: 'completed')
+          .get();
+
+      return querySnapshot.docs
+          .map((doc) => ServiceRequestModel.fromMap(doc.data()))
+          .toList();
+    } catch (e) {
+      print('Error in getCompletedRequestsForCustomer: $e');
+      return [];
+    }
+  }
+
   Future<List<Map<String, dynamic>>> getUpcomingRequests(String custID) async {
     return fetchRequests(custID, ['pending', 'confirmed', 'departed']);
   }
@@ -194,11 +213,9 @@ class ServiceRequestService {
   }
 
   Stream<ServiceRequestModel> getRequestStream(String reqID) {
-    return db
-        .collection('ServiceRequest')
-        .doc(reqID)
-        .snapshots()
-        .map((snapshot) {
+    return db.collection('ServiceRequest').doc(reqID).snapshots().map((
+      snapshot,
+    ) {
       if (snapshot.exists && snapshot.data() != null) {
         return ServiceRequestModel.fromMap(snapshot.data()!);
       } else {

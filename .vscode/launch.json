@@ -1,0 +1,16 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Flutter (lib/main.dart)", 
+            "request": "launch",
+            "type": "dart",
+            "program": "lib/main.dart",
+            "flutterMode": "debug",
+            "args": [
+                "--dart-define=SUPABASE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFheXRydnJsd2ltY3ZndXFyb2d3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE1MDUwOTMsImV4cCI6MjA3NzA4MTA5M30.I1Mbbvrxuob3-njG--jny3fI1xiFSEBqeoJvX7GryDo",
+                "--dart-define=STRIPE_PUBLISHABLE_KEY=pk_test_51SMYjj2c9ccrJTuqGY2rAd5lLbKQUIOuUFjLlBNMwX2qa4oObSNBfk6ZBjWSryPPfa4WR78NmTQWAyVYv15LS3gJ002yPujHLI"
+            ]
+        }
+    ]
+}

@@ -91,14 +91,34 @@ class ServiceService {
     }
   }
 
+  Future<Map<String, String>> fetchServiceNames(List<String> serviceIds) async {
+    if (serviceIds.isEmpty) return {};
+
+    final Map<String, String> serviceNameMap = {};
+
+    for (var i = 0; i < serviceIds.length; i += 30) {
+      final sublist = serviceIds.sublist(
+        i,
+        i + 30 > serviceIds.length ? serviceIds.length : i + 30,
+      );
+      final querySnapshot = await db
+          .collection('Service')
+          .where(FieldPath.documentId, whereIn: sublist)
+          .get();
+      for (var doc in querySnapshot.docs) {
+        serviceNameMap[doc.id] = doc.data()['serviceName'] as String? ?? 'N/A';
+      }
+    }
+    return serviceNameMap;
+  }
+
   Future<List<ReviewDisplayData>> getReviewsForService(String serviceID) async {
     try {
       // 1. Find all ServiceRequest documents
-      final requestSnap =
-          await db 
-              .collection('ServiceRequest')
-              .where('serviceID', isEqualTo: serviceID)
-              .get();
+      final requestSnap = await db
+          .collection('ServiceRequest')
+          .where('serviceID', isEqualTo: serviceID)
+          .get();
 
       if (requestSnap.docs.isEmpty) {
         return [];
@@ -141,11 +161,10 @@ class ServiceService {
 
       // 5. Fetch Customer documents
       final Map<String, String> custIdToUserIdMap = {};
-      final customerSnap =
-          await db 
-              .collection('Customer')
-              .where(FieldPath.documentId, whereIn: custIDs.toList())
-              .get();
+      final customerSnap = await db
+          .collection('Customer')
+          .where(FieldPath.documentId, whereIn: custIDs.toList())
+          .get();
 
       for (var doc in customerSnap.docs) {
         final data = doc.data();
@@ -162,11 +181,10 @@ class ServiceService {
 
       // 6. Fetch user details
       final Map<String, Map<String, dynamic>> userDataMap = {};
-      final userSnap =
-          await db 
-              .collection('User')
-              .where(FieldPath.documentId, whereIn: userIDs.toList())
-              .get();
+      final userSnap = await db
+          .collection('User')
+          .where(FieldPath.documentId, whereIn: userIDs.toList())
+          .get();
 
       for (var doc in userSnap.docs) {
         userDataMap[doc.id] = doc.data();

@@ -1,0 +1,8 @@
+{
+  "dependencies": {
+    "stripe": "^8.222.0"
+  },
+  "devDependencies": {
+    "supabase": "^2.53.6"
+  }
+}

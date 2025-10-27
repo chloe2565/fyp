@@ -5,7 +5,7 @@ class BillingModel {
   final double billAmt;
   final DateTime billCreatedAt;
   final DateTime billDueDate;
-  final String billStatus;
+  final String billStatus; // "cancelled", "paid", "pending"
   final String reqID;
   final String providerID;
 
@@ -140,7 +140,7 @@ class EmployeeModel {
     return EmployeeModel(
       empID: data['empID'] ?? '',
       empStatus: data['empStatus'] ?? '',
-      empSalary: data['empSalary'] ?? '',
+      empSalary: (data['empSalary'] as num? ?? 0.0).toDouble(),
       empType: data['empType'] ?? '',
       empHireDate: (data['empHireDate'] is Timestamp
           ? (data['empHireDate'] as Timestamp).toDate()
@@ -292,7 +292,7 @@ class PaymentModel {
     return PaymentModel(
       payID: data['payID'] ?? '',
       payStatus: data['payStatus'] ?? '',
-      payAmt: data['payAmt'] ?? '',
+      payAmt: (data['payAmt'] as num? ?? 0.0).toDouble(),
       payMethod: data['payMethod'] ?? '',
       payCreatedAt: (data['payCreatedAt'] is Timestamp
           ? (data['payCreatedAt'] as Timestamp).toDate()
@@ -308,7 +308,7 @@ class PaymentModel {
   Map<String, dynamic> toMap() {
     return {
       "payID": payID,
-      "payStatus": payStatus,
+      "payStatus": payStatus, // "cancelled", "paid", "failed"
       "payAmt": payAmt,
       "payMethod": payMethod,
       "payCreatedAt": Timestamp.fromDate(payCreatedAt),

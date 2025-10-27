@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:fyp/modules/customer/billPaymentHistory.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter_stripe/flutter_stripe.dart';
 import 'modules/customer/favoriteHandyman.dart';
 import 'modules/customer/profile.dart';
 import 'modules/customer/reqHistory.dart';
@@ -12,9 +14,14 @@ import 'login.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  const supabaseUrl = 'https://aaytrvrlwimcvguqrogw.supabase.co';
+  const supabaseKey = String.fromEnvironment('SUPABASE_KEY');
+  const stripePublishableKey = String.fromEnvironment('STRIPE_PUBLISHABLE_KEY');
+
+  await Supabase.initialize(url: supabaseUrl, anonKey: supabaseKey);
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  Stripe.publishableKey = stripePublishableKey;
+  await Stripe.instance.applySettings();
   runApp(const MyApp());
 }
 
@@ -36,7 +43,7 @@ class MyApp extends StatelessWidget {
         '/profile': (context) => const ProfileScreen(),
         '/request': (context) => const RequestHistoryScreen(),
         '/favorite': (context) => const FavoriteScreen(),
-        // '/rating': (context) => const RatingScreen(),
+        // '/rating': (context) => const RateReviewHistoryScreen(),
         '/billPayment': (context) => const BillPaymentHistoryScreen(),
       },
     );
@@ -54,9 +61,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Welcome'),
-      ),
+      appBar: AppBar(title: const Text('Welcome')),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(24.0),
