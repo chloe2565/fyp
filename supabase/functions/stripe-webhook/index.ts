@@ -3,13 +3,14 @@
 // This enables autocomplete, go to definition, etc.
 
 // Setup type definitions for built-in Supabase Runtime APIs
+// Follow this setup guide to integrate the Deno language server with your editor:
+// https://deno.land/manual/getting_started/setup_your_environment
+// This enables autocomplete, go to definition, etc.
+
+// Setup type definitions for built-in Supabase Runtime APIs
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import Stripe from "npm:stripe@^14";
-
-import { initializeApp, cert, getApps, App } from "firebase-admin/app";
-import { getFirestore, Firestore, Timestamp, Transaction } from "firebase-admin/firestore";
-console.log("Attempting Firebase Admin modular imports...");
 
 // --- 1. INITIALIZE STRIPE ---
 const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY")!, {
@@ -17,85 +18,232 @@ const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY")!, {
   httpClient: Stripe.createFetchHttpClient(),
 });
 
-// --- 2. INITIALIZE FIREBASE ADMIN ---
-let db: Firestore;
-let firebaseApp: App;
+// --- 2. FIREBASE CONFIGURATION ---
+const serviceAccountString = Deno.env.get("FIREBASE_SERVICE_ACCOUNT_JSON");
+if (!serviceAccountString) {
+  throw new Error("FIREBASE_SERVICE_ACCOUNT_JSON is required");
+}
+const serviceAccount = JSON.parse(serviceAccountString);
+const FIREBASE_PROJECT_ID = serviceAccount.project_id;
 
-try {
-  console.log("Attempting to parse FIREBASE_SERVICE_ACCOUNT_JSON...");
-  const serviceAccountString = Deno.env.get("FIREBASE_SERVICE_ACCOUNT_JSON");
-  if (!serviceAccountString) {
-    throw new Error("FIREBASE_SERVICE_ACCOUNT_JSON secret is not set.");
-  }
-  const serviceAccount = JSON.parse(serviceAccountString);
-  console.log("Service Account JSON parsed successfully.");
+// Cache for access token
+let cachedAccessToken: string | null = null;
+let tokenExpiry: number = 0;
 
-  // Check if Firebase Admin SDK needs initialization using getApps()
-  if (getApps().length === 0) {
-    console.log("Initializing Firebase Admin SDK...");
-    firebaseApp = initializeApp({
-      credential: cert(serviceAccount),
-    });
-    console.log("Firebase Admin SDK initialized.");
-  } else {
-    firebaseApp = getApps()[0]; // Get existing app instance
-    console.log(`Firebase Admin SDK already initialized. Using existing app.`);
+// Get Firebase access token using service account
+async function getAccessToken(): Promise<string> {
+  // Return cached token if still valid
+  if (cachedAccessToken && Date.now() < tokenExpiry) {
+    return cachedAccessToken;
   }
 
-  // Get Firestore instance from the app
-  db = getFirestore(firebaseApp);
-  console.log("Firestore instance obtained.");
+  // Create JWT
+  const header = { alg: "RS256", typ: "JWT" };
+  const now = Math.floor(Date.now() / 1000);
+  const expiry = now + 3600; // 1 hour
+  
+  const payload = {
+    iss: serviceAccount.client_email,
+    sub: serviceAccount.client_email,
+    aud: "https://oauth2.googleapis.com/token",
+    iat: now,
+    exp: expiry,
+    scope: "https://www.googleapis.com/auth/datastore"
+  };
 
-} catch (initError) {
-   console.error("CRITICAL ERROR during Firebase Admin initialization:", initError);
+  // Encode header and payload
+  const encoder = new TextEncoder();
+  const headerBase64 = btoa(String.fromCharCode(...encoder.encode(JSON.stringify(header))))
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+  const payloadBase64 = btoa(String.fromCharCode(...encoder.encode(JSON.stringify(payload))))
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+  
+  const unsignedToken = `${headerBase64}.${payloadBase64}`;
+  
+  // Sign with private key
+  const privateKey = serviceAccount.private_key;
+  const pemHeader = "-----BEGIN PRIVATE KEY-----";
+  const pemFooter = "-----END PRIVATE KEY-----";
+  
+  // Extract the base64 content between header and footer
+  const pemContents = privateKey
+    .replace(pemHeader, '')
+    .replace(pemFooter, '')
+    .replace(/\n/g, '')
+    .replace(/\r/g, '')
+    .replace(/\s/g, '')
+    .trim();
+  
+  // Decode base64 to binary
+  const binaryDerString = atob(pemContents);
+  const binaryDer = new Uint8Array(binaryDerString.length);
+  for (let i = 0; i < binaryDerString.length; i++) {
+    binaryDer[i] = binaryDerString.charCodeAt(i);
+  }
+  
+  const cryptoKey = await crypto.subtle.importKey(
+    "pkcs8",
+    binaryDer,
+    {
+      name: "RSASSA-PKCS1-v1_5",
+      hash: "SHA-256",
+    },
+    false,
+    ["sign"]
+  );
+  
+  const signature = await crypto.subtle.sign(
+    "RSASSA-PKCS1-v1_5",
+    cryptoKey,
+    encoder.encode(unsignedToken)
+  );
+  
+  const signatureArray = new Uint8Array(signature);
+  let signatureBinary = '';
+  for (let i = 0; i < signatureArray.length; i++) {
+    signatureBinary += String.fromCharCode(signatureArray[i]);
+  }
+  const signatureBase64 = btoa(signatureBinary)
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=/g, '');
+  
+  const jwt = `${unsignedToken}.${signatureBase64}`;
+  
+  // Exchange JWT for access token
+  const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${jwt}`
+  });
+  
+  const tokenData = await tokenResponse.json();
+  
+  if (!tokenData.access_token) {
+    console.error("Token error:", tokenData);
+    throw new Error("Failed to get access token: " + JSON.stringify(tokenData));
+  }
+  
+  cachedAccessToken = tokenData.access_token;
+  tokenExpiry = Date.now() + (tokenData.expires_in * 1000) - 60000; // Refresh 1 min before expiry
+  
+  return cachedAccessToken;
 }
 
-async function generateNextPaymentID(
-  transaction: Transaction
-): Promise<string> {
-  if (!db) {
-    throw new Error("Firestore instance (db) is not available for generateNextPaymentID");
-  }
+interface FirestoreDocument {
+  fields: {
+    [key: string]: {
+      stringValue?: string;
+      integerValue?: string;
+      doubleValue?: number;
+      timestampValue?: string;
+      booleanValue?: boolean;
+    };
+  };
+}
 
+// Helper function to convert Firestore REST API response to readable object
+function firestoreDocToObject(doc: FirestoreDocument): any {
+  const obj: any = {};
+  for (const [key, value] of Object.entries(doc.fields)) {
+    if (value.stringValue !== undefined) obj[key] = value.stringValue;
+    else if (value.integerValue !== undefined) obj[key] = parseInt(value.integerValue);
+    else if (value.doubleValue !== undefined) obj[key] = value.doubleValue;
+    else if (value.timestampValue !== undefined) obj[key] = value.timestampValue;
+    else if (value.booleanValue !== undefined) obj[key] = value.booleanValue;
+  }
+  return obj;
+}
+
+// Helper function to convert object to Firestore REST API format
+function objectToFirestoreDoc(obj: any): FirestoreDocument {
+  const fields: any = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (typeof value === "string") {
+      fields[key] = { stringValue: value };
+    } else if (typeof value === "number") {
+      if (Number.isInteger(value)) {
+        fields[key] = { integerValue: value.toString() };
+      } else {
+        fields[key] = { doubleValue: value };
+      }
+    } else if (typeof value === "boolean") {
+      fields[key] = { booleanValue: value };
+    } else if (value instanceof Date) {
+      fields[key] = { timestampValue: value.toISOString() };
+    }
+  }
+  return { fields };
+}
+
+async function generateNextPaymentID(): Promise<string> {
   const prefix = 'PY';
   const padding = 4;
-  const paymentCollection = db.collection('Payment');
-
-  // Query for the last ID, ordered by 'payID'
-  const lastPaymentQuery = paymentCollection
-    .where('payID', '>=', prefix)
-    .where('payID', '<', prefix + 'Z')
-    .orderBy('payID', 'desc')
-    .limit(1);
-
-  // Get the documents *within the transaction*
-  const snapshot = await transaction.get(lastPaymentQuery);
-
-  if (snapshot.empty) {
-    return `${prefix}${'1'.padLeft(padding, '0')}`; // PY0001
-  }
-
-  const lastID = snapshot.docs[0].data().payID as string;
 
   try {
+    const token = await getAccessToken();
+    const queryUrl = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents:runQuery`;
+    
+    const response = await fetch(queryUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        structuredQuery: {
+          from: [{ collectionId: 'Payment' }],
+          where: {
+            compositeFilter: {
+              op: 'AND',
+              filters: [
+                {
+                  fieldFilter: {
+                    field: { fieldPath: 'payID' },
+                    op: 'GREATER_THAN_OR_EQUAL',
+                    value: { stringValue: prefix }
+                  }
+                },
+                {
+                  fieldFilter: {
+                    field: { fieldPath: 'payID' },
+                    op: 'LESS_THAN',
+                    value: { stringValue: prefix + 'Z' }
+                  }
+                }
+              ]
+            }
+          },
+          orderBy: [{ field: { fieldPath: 'payID' }, direction: 'DESCENDING' }],
+          limit: 1
+        }
+      })
+    });
+
+    const data = await response.json();
+    
+    if (!data[0]?.document) {
+      return `${prefix}${'1'.padStart(padding, '0')}`; // PY0001
+    }
+
+    const lastDoc = firestoreDocToObject(data[0].document);
+    const lastID = lastDoc.payID;
     const numericPart = lastID.substring(prefix.length);
     const lastNumber = parseInt(numericPart, 10);
     const nextNumber = lastNumber + 1;
-    return `${prefix}${nextNumber.toString().padLeft(padding, '0')}`;
+    return `${prefix}${nextNumber.toString().padStart(padding, '0')}`;
+    
   } catch (e) {
-    console.error(`Error parsing last payID '${lastID}':`, e);
-    // Fallback in case of parsing error
-    return `${prefix}${'1'.padLeft(padding, '0')}`;
+    console.error(`Error generating payment ID:`, e);
+    return `${prefix}${'1'.padStart(padding, '0')}`;
   }
 }
 
+// Store processed webhook IDs to prevent duplicate processing
+const processedWebhooks = new Set<string>();
+
 // --- 3. SERVE THE WEBHOOK FUNCTION ---
 serve(async (req: Request) => {
-  if (!db) {
-    console.error("Firestore instance (db) is not available. Aborting webhook processing.");
-    return new Response("Internal Server Error: Firestore not initialized", { status: 500 });
-  }
-
   console.log("Stripe webhook function invoked!");
   const signature = req.headers.get("Stripe-Signature");
   const body = await req.text();
@@ -112,10 +260,16 @@ serve(async (req: Request) => {
       undefined,
       Stripe.createSubtleCryptoProvider()
     );
-    console.log(`Webhook signature verified. Event type: ${event.type}`);
+    console.log(`Webhook signature verified. Event type: ${event.type}, Event ID: ${event.id}`);
   } catch (err) {
     console.error(`Webhook signature verification failed: ${err.message}`);
     return new Response(err.message, { status: 400 });
+  }
+
+  // --- IDEMPOTENCY CHECK: Prevent duplicate processing ---
+  if (processedWebhooks.has(event.id)) {
+    console.log(`Event ${event.id} already processed. Returning 200 OK.`);
+    return new Response(JSON.stringify({ received: true, note: "Already processed" }), { status: 200 });
   }
 
   // --- 5. HANDLE THE "payment_intent.succeeded" EVENT ---
@@ -127,45 +281,142 @@ serve(async (req: Request) => {
 
     if (!billingID) {
       console.error("Webhook Error: billingID was missing from metadata.");
+      processedWebhooks.add(event.id);
       return new Response("Webhook Error: Missing billingID", { status: 200 });
     }
 
     try {
-      // --- 5. RUN THE DATABASE UPDATE AS A TRANSACTION ---
-      await db.runTransaction(async (transaction) => {
-        // a. Generate the new custom payment ID
-        const newPaymentID = await generateNextPaymentID(transaction);
-
-        // b. Get the providerID from the billing document
-        const billingRef = db.collection("Billing").doc(billingID);
-        const billingDoc = await transaction.get(billingRef);
-        if (!billingDoc.exists) {
-          throw new Error(`Billing doc ${billingID} not found.`);
-        }
-        const providerID = billingDoc.data()?.providerID ?? "";
-
-        // c. Create the new Payment document using the new ID
-        const newPaymentRef = db.collection("Payment").doc(newPaymentID);
-        const newPayment = {
-          payID: newPaymentID,
-          payStatus: "paid",
-          payAmt: paymentIntent.amount / 100, // Convert from cents
-          payMethod: paymentMethod,
-          payCreatedAt: Timestamp.now(),
-          adminRemark: "Paid via Stripe",
-          payMediaProof: "",
-          providerID: providerID,
-          billingID: billingID,
-        };
-        
-        // d. Add the new payment and update the bill *atomically*
-        transaction.set(newPaymentRef, newPayment);
-        transaction.update(billingRef, { 'billStatus': 'paid' });
+      console.log(`Processing payment for billingID: ${billingID}`);
+      const token = await getAccessToken();
+      
+      // Check if payment already exists for this billing ID
+      const checkUrl = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents:runQuery`;
+      const checkResponse = await fetch(checkUrl, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          structuredQuery: {
+            from: [{ collectionId: 'Payment' }],
+            where: {
+              compositeFilter: {
+                op: 'AND',
+                filters: [
+                  {
+                    fieldFilter: {
+                      field: { fieldPath: 'billingID' },
+                      op: 'EQUAL',
+                      value: { stringValue: billingID }
+                    }
+                  },
+                  {
+                    fieldFilter: {
+                      field: { fieldPath: 'payStatus' },
+                      op: 'EQUAL',
+                      value: { stringValue: 'paid' }
+                    }
+                  }
+                ]
+              }
+            },
+            limit: 1
+          }
+        })
       });
+
+      const checkData = await checkResponse.json();
+      if (checkData[0]?.document) {
+        console.log(`Payment already exists for billingID: ${billingID}. Skipping.`);
+        processedWebhooks.add(event.id);
+        return new Response(JSON.stringify({ received: true, note: "Payment already recorded" }), { status: 200 });
+      }
+
+      // Generate new payment ID
+      const newPaymentID = await generateNextPaymentID();
+      console.log(`Generated Payment ID: ${newPaymentID}`);
+
+      // Get billing document
+      const billingUrl = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents/Billing/${billingID}`;
+      const billingResponse = await fetch(billingUrl, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (!billingResponse.ok) {
+        const errorText = await billingResponse.text();
+        console.error(`Billing fetch error: ${errorText}`);
+        throw new Error(`Billing document ${billingID} not found`);
+      }
+
+      const billingDoc = await billingResponse.json();
+      const billingData = firestoreDocToObject(billingDoc);
+      const providerID = billingData.providerID || "";
+      console.log(`Retrieved providerID: ${providerID}`);
+
+      // Create new payment document
+      const newPayment = {
+        payID: newPaymentID,
+        payStatus: "paid",
+        payAmt: paymentIntent.amount / 100,
+        payMethod: paymentMethod,
+        payCreatedAt: new Date(),
+        adminRemark: "Paid via Stripe",
+        payMediaProof: "",
+        providerID: providerID,
+        billingID: billingID,
+      };
+
+      const paymentUrl = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents/Payment?documentId=${newPaymentID}`;
+      const createPaymentResponse = await fetch(paymentUrl, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(objectToFirestoreDoc(newPayment))
+      });
+
+      if (!createPaymentResponse.ok) {
+        const errorText = await createPaymentResponse.text();
+        console.error(`Payment creation error: ${errorText}`);
+        throw new Error(`Failed to create payment document`);
+      }
+
+      console.log(`Payment document created: ${newPaymentID}`);
+
+      // Update billing status
+      const updateBillingUrl = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents/Billing/${billingID}?updateMask.fieldPaths=billStatus`;
+      const updateResponse = await fetch(updateBillingUrl, {
+        method: 'PATCH',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          fields: {
+            billStatus: { stringValue: 'paid' }
+          }
+        })
+      });
+
+      if (!updateResponse.ok) {
+        const errorText = await updateResponse.text();
+        console.error(`Billing update error: ${errorText}`);
+        throw new Error(`Failed to update billing status`);
+      }
+
       console.log(`Successfully processed payment for billingID: ${billingID}`);
+      processedWebhooks.add(event.id);
+      
     } catch (error) {
-      console.error("Firestore transaction failed:", error);
-      return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+      console.error("Payment processing failed:", error);
+      return new Response(JSON.stringify({
+          message: "Internal Server Error during payment processing.",
+          error: error instanceof Error ? error.message : String(error), 
+      }), { status: 500 });
     }
   } else if (event.type === "payment_intent.payment_failed") {
     console.log("Handling payment_intent.payment_failed...");
@@ -175,41 +426,61 @@ serve(async (req: Request) => {
 
     if (!billingID) {
       console.error("Webhook Error: billingID was missing from metadata.");
+      processedWebhooks.add(event.id);
       return new Response("Webhook Error: Missing billingID", { status: 200 });
     }
 
     try {
-      await db.runTransaction(async (transaction) => {
-        const newPaymentID = await generateNextPaymentID(transaction);
-        const billingRef = db.collection("Billing").doc(billingID);
-        const billingDoc = await transaction.get(billingRef);
+      const token = await getAccessToken();
+      
+      // Generate new payment ID
+      const newPaymentID = await generateNextPaymentID();
 
-        if (!billingDoc.exists) throw new Error(`Billing doc ${billingID} not found.`);
-
-        const providerID = billingDoc.data()?.providerID ?? "";
-        const newPaymentRef = db.collection("Payment").doc(newPaymentID);
-
-        const newPayment = {
-          payID: newPaymentID,
-          payStatus: "failed", // Set status to "failed"
-          payAmt: paymentIntent.amount / 100,
-          payMethod: paymentMethod,
-          payCreatedAt: Timestamp.now(),
-          adminRemark: paymentIntent.last_payment_error?.message ?? "Payment failed",
-          payMediaProof: "",
-          providerID: providerID,
-          billingID: billingID,
-        };
-
-        transaction.set(newPaymentRef, newPayment);
+      // Get billing document for providerID
+      const billingUrl = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents/Billing/${billingID}`;
+      const billingResponse = await fetch(billingUrl, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
       });
+      
+      const billingDoc = await billingResponse.json();
+      const billingData = firestoreDocToObject(billingDoc);
+      const providerID = billingData.providerID || "";
+
+      // Create failed payment record
+      const newPayment = {
+        payID: newPaymentID,
+        payStatus: "failed",
+        payAmt: paymentIntent.amount / 100,
+        payMethod: paymentMethod,
+        payCreatedAt: new Date(),
+        adminRemark: paymentIntent.last_payment_error?.message ?? "Payment failed",
+        payMediaProof: "",
+        providerID: providerID,
+        billingID: billingID,
+      };
+
+      const paymentUrl = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents/Payment?documentId=${newPaymentID}`;
+      await fetch(paymentUrl, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(objectToFirestoreDoc(newPayment))
+      });
+
       console.log(`Successfully logged failed payment for billingID: ${billingID}`);
+      processedWebhooks.add(event.id);
+      
     } catch (error) {
-      console.error("Firestore transaction failed (for failed payment):", error);
+      console.error("Failed payment logging error:", error);
       return new Response(JSON.stringify({ error: error.message }), { status: 500 });
     }
   } else {
     console.log(`Unhandled event type: ${event.type}`);
+    processedWebhooks.add(event.id);
   }
 
   // Return a 200 OK to Stripe
