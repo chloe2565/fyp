@@ -43,8 +43,8 @@ class FavoriteScreenState extends State<FavoriteScreen> {
         break;
       case 2:
         break;
-      case 3: //rating
-        routeToPush = '/home';
+      case 3: 
+        routeToPush = '/rating';
         break;
       // More menu (index 4) is handled in the navigation bar itself
     }

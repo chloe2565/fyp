@@ -8,16 +8,16 @@ class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  State<LoginScreen> createState() => LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
-  late final UserController _controller;
+class LoginScreenState extends State<LoginScreen> {
+  late final UserController controller;
 
   @override
   void initState() {
     super.initState();
-    _controller = UserController(
+    controller = UserController(
       showErrorSnackBar: (message) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -33,7 +33,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   void dispose() {
-    _controller.dispose();
+    controller.dispose();
     super.dispose();
   }
 
@@ -47,11 +47,11 @@ class _LoginScreenState extends State<LoginScreen> {
             iconTheme: const IconThemeData(color: Colors.black),
           ),
           body: LoginList(
-            controller: _controller,
+            controller: controller,
             parentSetState: setState,
           ),
         ),
-        if (_controller.isLoading)
+        if (controller.isLoading)
           Positioned.fill(
             child: Container(
               color: Colors.black54,
@@ -74,10 +74,10 @@ class LoginList extends StatefulWidget {
   });
 
   @override
-  State<LoginList> createState() => _LoginListState();
+  State<LoginList> createState() => LoginListState();
 }
 
-class _LoginListState extends State<LoginList> {
+class LoginListState extends State<LoginList> {
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(

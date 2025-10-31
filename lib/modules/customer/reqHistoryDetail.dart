@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:provider/provider.dart';
 import '../../controller/serviceRequest.dart';
 import '../../model/serviceRequestViewModel.dart';
 import '../../shared/fullScreenImage.dart';

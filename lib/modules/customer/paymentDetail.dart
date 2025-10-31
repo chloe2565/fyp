@@ -1,28 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import '../../controller/bill.dart';
-import '../../model/billDetailViewModel.dart';
+import '../../controller/payment.dart';
 import '../../model/databaseModel.dart';
+import '../../model/paymentDetailViewModel.dart';
 import '../../shared/helper.dart';
 
-class BillDetailScreen extends StatefulWidget {
-  final BillingModel bill;
-  const BillDetailScreen(this.bill, {super.key});
+class PaymentDetailScreen extends StatefulWidget {
+  final PaymentModel payment;
+  const PaymentDetailScreen(this.payment, {super.key});
 
   @override
-  State<BillDetailScreen> createState() => BillDetailScreenState();
+  State<PaymentDetailScreen> createState() => PaymentDetailScreenState();
 }
 
-class BillDetailScreenState extends State<BillDetailScreen> {
+class PaymentDetailScreenState extends State<PaymentDetailScreen> {
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<BillController>(
+      Provider.of<PaymentController>(
         context,
         listen: false,
-      ).loadBillDetails(widget.bill);
+      ).loadPaymentDetails(widget.payment);
     });
   }
 
@@ -31,7 +31,7 @@ class BillDetailScreenState extends State<BillDetailScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text(
-          'Billing Details',
+          'Payment Record Details',
           style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
         ),
         backgroundColor: Colors.white,
@@ -42,7 +42,7 @@ class BillDetailScreenState extends State<BillDetailScreen> {
         ),
         centerTitle: true,
       ),
-      body: Consumer<BillController>(
+      body: Consumer<PaymentController>(
         builder: (context, controller, child) {
           if (controller.detailIsLoading) {
             return const Center(child: CircularProgressIndicator());
@@ -50,13 +50,13 @@ class BillDetailScreenState extends State<BillDetailScreen> {
           if (controller.detailError != null) {
             return Center(child: Text(controller.detailError!));
           }
-          if (controller.detailViewModel == null) {
+          if (controller.detailModel == null) {
             return const Center(child: Text('No details found.'));
           }
 
-          return buildBillDetails(
+          return buildPaymentDetails(
             context,
-            controller.detailViewModel!,
+            controller.detailModel!,
             controller,
           );
         },
@@ -64,10 +64,10 @@ class BillDetailScreenState extends State<BillDetailScreen> {
     );
   }
 
-  Widget buildBillDetails(
+  Widget buildPaymentDetails(
     BuildContext context,
-    BillDetailViewModel viewModel,
-    BillController controller,
+    PaymentDetailViewModel viewModel,
+    PaymentController controller,
   ) {
     final currencyFormat = NumberFormat.currency(
       locale: 'ms_MY',
@@ -83,7 +83,11 @@ class BillDetailScreenState extends State<BillDetailScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Address Section
+                // Payment status
+                buildPaymentStatusCard(viewModel),
+                const SizedBox(height: 15),
+
+                // Address
                 buildAddressCard(viewModel),
                 const SizedBox(height: 15),
 
@@ -91,7 +95,7 @@ class BillDetailScreenState extends State<BillDetailScreen> {
                 const SizedBox(height: 15),
 
                 // Price and time breakdown
-                buildBillingSummaryCard(
+                buildPaymentSummaryCard(
                   context,
                   viewModel,
                   currencyFormat,
@@ -101,14 +105,57 @@ class BillDetailScreenState extends State<BillDetailScreen> {
             ),
           ),
         ),
-        // Pay Now Button
-        if (viewModel.isPaymentPending) buildPayNowButton(context),
       ],
     );
   }
 }
 
-Widget buildAddressCard(BillDetailViewModel viewModel) {
+Widget buildPaymentStatusCard(PaymentDetailViewModel viewModel) {
+  final String status = viewModel.payStatus.toLowerCase();
+  final Color foregroundColor = getStatusColor(status);
+  String text;
+
+  switch (status) {
+    case 'paid':
+      text = 'Payment Successful';
+      break;
+    case 'failed':
+      text = 'Payment Failed';
+      break;
+    case 'cancelled':
+      text = 'Payment Cancelled';
+      break;
+    case 'pending':
+      text = 'Payment Pending';
+      break;
+    default:
+      text = capitalizeFirst(status);
+  }
+
+  return Container(
+    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(5),
+    ),
+    child: Row(
+      children: [
+        Icon(Icons.wallet, color: foregroundColor, size: 20),
+        const SizedBox(width: 8),
+        Text(
+          text,
+          style: TextStyle(
+            color: foregroundColor,
+            fontWeight: FontWeight.bold,
+            fontSize: 14,
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+Widget buildAddressCard(PaymentDetailViewModel viewModel) {
   return Container(
     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
     decoration: BoxDecoration(
@@ -152,37 +199,10 @@ Widget buildAddressCard(BillDetailViewModel viewModel) {
   );
 }
 
-Widget buildPayNowButton(BuildContext context) {
-  final controller = Provider.of<BillController>(context, listen: false);
-
-  return Container(
-    padding: const EdgeInsets.all(16.0),
-    width: double.infinity,
-    child: ElevatedButton(
-      onPressed: () => controller.navigateToPayment(context),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.deepOrange[400],
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-      child: const Text(
-        'Pay Now',
-        style: TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.bold,
-          color: Colors.white,
-        ),
-      ),
-    ),
-  );
-}
-
 Widget buildServiceRequestCard(
   BuildContext context,
-  BillDetailViewModel viewModel,
+  PaymentDetailViewModel viewModel,
 ) {
-  final bookingDateFormat = DateFormat('MMMM dd, yyyy');
-  final bookingTimeFormat = DateFormat('hh:mm a');
   final icon = ServiceHelper.getIconForService(viewModel.serviceName);
   final bgColor = ServiceHelper.getColorForService(viewModel.serviceName);
 
@@ -234,19 +254,7 @@ Widget buildServiceRequestCard(
                   const SizedBox(height: 4),
 
                   Text(
-                    'Handyman',
-                    style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                  ),
-                  const SizedBox(height: 4),
-
-                  Text(
-                    'Booking Date',
-                    style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                  ),
-                  const SizedBox(height: 4),
-
-                  Text(
-                    'Booking Time',
+                    'Handyman: ${viewModel.handymanName}',
                     style: TextStyle(color: Colors.grey[600], fontSize: 12),
                   ),
                 ],
@@ -260,25 +268,6 @@ Widget buildServiceRequestCard(
                     'RM ${viewModel.serviceBasePrice?.toStringAsFixed(2) ?? 0.00} / hour',
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                   ),
-                  const SizedBox(height: 4),
-
-                  Text(
-                    viewModel.handymanName,
-                    style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                  ),
-                  const SizedBox(height: 4),
-
-                  Text(
-                    bookingDateFormat.format(viewModel.serviceCompleteTimestamp),
-                    style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                  ),
-                  const SizedBox(height: 4),
-
-                  Text(
-                    bookingTimeFormat.format(viewModel.serviceCompleteTimestamp),
-                    style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                  ),
-                  const SizedBox(height: 4),
                 ],
               ),
             ),
@@ -289,9 +278,9 @@ Widget buildServiceRequestCard(
   );
 }
 
-Widget buildBillingSummaryCard(
+Widget buildPaymentSummaryCard(
   BuildContext context,
-  BillDetailViewModel viewModel,
+  PaymentDetailViewModel viewModel,
   NumberFormat currencyFormat,
   DateFormat dateFormat,
 ) {
@@ -312,6 +301,22 @@ Widget buildBillingSummaryCard(
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Billing ID',
+              style: TextStyle(color: Colors.grey[600], fontSize: 12),
+            ),
+
+            Text(
+              viewModel.billingID,
+              style: TextStyle(color: Colors.grey[600], fontSize: 12),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+
         // Price Breakdown
         buildPriceRow(
           context,
@@ -346,6 +351,7 @@ Widget buildBillingSummaryCard(
           'Service Completed Time',
           dateFormat.format(viewModel.serviceCompleteTimestamp),
         ),
+
         if (viewModel.paymentTimestamp != null) ...[
           const SizedBox(height: 12),
           buildTimeRow(

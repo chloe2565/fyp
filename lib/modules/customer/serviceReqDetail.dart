@@ -542,7 +542,7 @@ class ServiceRequestDetailsScreenState extends State<ServiceRequestDetailsScreen
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
                     borderSide: BorderSide(
-                      color: const Color(0xFFFF7643).withOpacity(0.5),
+                      color: const Color(0xFFFF7643).withValues(alpha: 0.5),
                       width: 1.0,
                     ),
                   ),

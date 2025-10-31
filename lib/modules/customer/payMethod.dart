@@ -1,6 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../model/billDetailViewModel.dart';
 import '../../model/databaseModel.dart';
 import 'stripeCheckoutScreen.dart';
@@ -20,7 +19,7 @@ class PaymentMethodScreen extends StatefulWidget {
 }
 
 class PaymentMethodScreenState extends State<PaymentMethodScreen> {
-  String _selectedMethod = 'Credit Card';
+  String selectedMethod = 'Credit Card';
 
   @override
   Widget build(BuildContext context) {
@@ -49,72 +48,43 @@ class PaymentMethodScreenState extends State<PaymentMethodScreen> {
         centerTitle: true,
       ),
       body: Padding(
-        padding: const EdgeInsets.all(20.0),
+        padding: const EdgeInsets.all(25.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              "Select Payment method",
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              "Select payment method",
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 15),
 
             buildPaymentOption(
               title: "Credit Card",
               icon: Icons.credit_card,
               value: "Credit Card",
             ),
-            const SizedBox(height: 16),
-
-            buildPaymentOption(
-              title: "Touch n Go",
-              icon: Icons.nfc,
-              value: "Touch n Go",
-            ),
-            const SizedBox(height: 16),
-
-            buildPaymentOption(
-              title: "PayPal",
-              icon: Icons.payment,
-              value: "PayPal",
-            ),
+            const SizedBox(height: 12),
 
             const Spacer(),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: () {
-                  print("Selected method: $_selectedMethod");
+                  print("Selected method: $selectedMethod");
                   final currentUser = FirebaseAuth.instance.currentUser;
                   final firebaseAuthId = currentUser?.uid;
-                  print("Current Firebase User ID on PayMethodScreen: $firebaseAuthId");
+                  print(
+                    "Current Firebase User ID on PayMethodScreen: $firebaseAuthId",
+                  );
 
                   Widget nextPage;
-                  switch (_selectedMethod) {
+                  switch (selectedMethod) {
                     case "Credit Card":
                       nextPage = StripeCheckoutScreen(
                         billingModel: widget.billingModel,
                         billDetailViewModel: widget.billDetailViewModel,
                         paymentMethodType: 'card',
                         paymentMethodName: 'Credit Card',
-                        firebaseAuthId: firebaseAuthId!,
-                      );
-                      break;
-                    case "Touch n Go":
-                      nextPage = StripeCheckoutScreen(
-                        billingModel: widget.billingModel,
-                        billDetailViewModel: widget.billDetailViewModel,
-                        paymentMethodType: 'tng_ewallet',
-                        paymentMethodName: 'Touch \'n Go',
-                        firebaseAuthId: firebaseAuthId!,
-                      );
-                      break;
-                    case "PayPal":
-                      nextPage = StripeCheckoutScreen(
-                        billingModel: widget.billingModel,
-                        billDetailViewModel: widget.billDetailViewModel,
-                        paymentMethodType: 'paypal',
-                        paymentMethodName: 'PayPal',
                         firebaseAuthId: firebaseAuthId!,
                       );
                       break;
@@ -153,7 +123,7 @@ class PaymentMethodScreenState extends State<PaymentMethodScreen> {
     IconData? icon,
     Widget? iconWidget,
   }) {
-    final bool isSelected = _selectedMethod == value;
+    final bool isSelected = selectedMethod == value;
     final Color iconColor = const Color(0xFF004AAD);
     final Color selectedBgColor = const Color(0xFFEBF3FF);
     final Color selectedBorderColor = const Color(0xFF004AAD);
@@ -162,7 +132,7 @@ class PaymentMethodScreenState extends State<PaymentMethodScreen> {
     return GestureDetector(
       onTap: () {
         setState(() {
-          _selectedMethod = value;
+          selectedMethod = value;
         });
       },
       child: Container(
@@ -184,7 +154,7 @@ class PaymentMethodScreenState extends State<PaymentMethodScreen> {
                 title,
                 style: const TextStyle(
                   fontSize: 17,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w500,
                   color: Colors.black87,
                 ),
               ),

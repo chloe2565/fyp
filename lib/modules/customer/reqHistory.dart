@@ -61,8 +61,8 @@ class RequestHistoryScreenState extends State<RequestHistoryScreen> {
       case 2:
         routeToPush = '/favorite';
         break;
-      case 3: //rating
-        routeToPush = '/home';
+      case 3: 
+        routeToPush = '/rating';
         break;
       // More menu (index 4) is handled in the navigation bar itself
     }

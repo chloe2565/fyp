@@ -1,6 +1,3 @@
-import 'package:flutter/material.dart';
-import 'databaseModel.dart';
-
 class BillDetailViewModel {
   // From BillingModel
   final double totalPrice;
@@ -9,8 +6,8 @@ class BillDetailViewModel {
 
   // From ServiceRequestModel
   final String customerAddress;
-  final DateTime bookingTimestamp; // reqDateTime
-  final DateTime serviceTimestamp; // scheduledDateTime
+  final DateTime bookingTimestamp; // scheduledDateTime
+  final DateTime serviceCompleteTimestamp; // reqCompleteTime
 
   // From Customer + User
   final String customerName;
@@ -18,8 +15,7 @@ class BillDetailViewModel {
 
   // From ServiceModel
   final String serviceName;
-  final String serviceRate; // e.g., "RM 25 / hour"
-  final double serviceBasePrice;
+  final double? serviceBasePrice;
 
   // From Handyman + Employee + User
   final String handymanName;
@@ -36,15 +32,14 @@ class BillDetailViewModel {
     required this.billingID,
     required this.customerAddress,
     required this.bookingTimestamp,
-    required this.serviceTimestamp,
+    required this.serviceCompleteTimestamp,
     required this.customerName,
     required this.customerContact,
     required this.serviceName,
-    required this.serviceRate,
-    required this.serviceBasePrice,
+    this.serviceBasePrice,
     required this.handymanName,
     this.paymentTimestamp,
-  }) : outstationFee = totalPrice - serviceBasePrice;
+  }) : outstationFee = 15;
 
   bool get isPaymentPending {
     final status = billStatus.toLowerCase();

@@ -5,13 +5,13 @@ import 'payment.dart';
 import 'user.dart';
 
 class BillService {
-  final FirebaseFirestore _db = FirebaseFirestore.instance;
-  final UserService _userService = UserService();
+  final FirebaseFirestore db = FirebaseFirestore.instance;
+  final UserService userService = UserService();
   final PaymentService paymentService = PaymentService();
 
   Future<List<BillingModel>> getBills() async {
     try {
-      final String? custID = await _userService.getCurrentCustomerID();
+      final String? custID = await userService.getCurrentCustomerID();
       if (custID == null) {
         print(
           "No customer ID found. User might not be logged in or have a customer profile.",
@@ -19,7 +19,7 @@ class BillService {
         return [];
       }
 
-      final requestQuery = await _db
+      final requestQuery = await db
           .collection('ServiceRequest')
           .where('custID', isEqualTo: custID)
           .get();
@@ -32,7 +32,7 @@ class BillService {
           .map((doc) => doc.id)
           .toList();
 
-      final billingQuery = await _db
+      final billingQuery = await db
           .collection('Billing')
           .where('reqID', whereIn: reqIDs)
           .get();
@@ -49,7 +49,7 @@ class BillService {
   Future<BillDetailViewModel> getBillDetails(BillingModel bill) async {
     try {
       // Get ServiceRequest
-      final reqDoc = await _db
+      final reqDoc = await db
           .collection('ServiceRequest')
           .doc(bill.reqID)
           .get();
@@ -57,7 +57,7 @@ class BillService {
       final request = ServiceRequestModel.fromMap(reqDoc.data()!);
 
       // Get Service
-      final serviceDoc = await _db
+      final serviceDoc = await db
           .collection('Service')
           .doc(request.serviceID)
           .get();
@@ -65,14 +65,14 @@ class BillService {
       final service = ServiceModel.fromMap(serviceDoc.data()!);
 
       // Get Customer User Details
-      final customerDoc = await _db
+      final customerDoc = await db
           .collection('Customer')
           .doc(request.custID)
           .get();
       if (!customerDoc.exists) throw Exception("Customer not found");
       final customer = CustomerModel.fromMap(customerDoc.data()!);
 
-      final customerUserDoc = await _db
+      final customerUserDoc = await db
           .collection('User')
           .doc(customer.userID)
           .get();
@@ -80,21 +80,21 @@ class BillService {
       final customerUser = UserModel.fromMap(customerUserDoc.data()!);
 
       // Get Handyman User Details
-      final handymanDoc = await _db
+      final handymanDoc = await db
           .collection('Handyman')
           .doc(request.handymanID)
           .get();
       if (!handymanDoc.exists) throw Exception("Handyman not found");
       final handyman = HandymanModel.fromMap(handymanDoc.data()!);
 
-      final employeeDoc = await _db
+      final employeeDoc = await db
           .collection('Employee')
           .doc(handyman.empID)
           .get();
       if (!employeeDoc.exists) throw Exception("Employee not found");
       final employee = EmployeeModel.fromMap(employeeDoc.data()!);
 
-      final handymanUserDoc = await _db
+      final handymanUserDoc = await db
           .collection('User')
           .doc(employee.userID)
           .get();
@@ -104,21 +104,16 @@ class BillService {
       // Get Payment (if it exists)
       final payment = await paymentService.getPaymentForBill(bill.billingID);
 
-      // Assemble View Model
-      final String serviceRate =
-          "RM ${service.servicePrice?.toStringAsFixed(2) ?? '0.00'} / ${service.serviceDuration}";
-
       return BillDetailViewModel(
         totalPrice: bill.billAmt,
         billStatus: bill.billStatus,
         billingID: bill.billingID,
         customerAddress: request.reqAddress,
-        bookingTimestamp: request.reqDateTime,
-        serviceTimestamp: request.scheduledDateTime,
+        bookingTimestamp: request.scheduledDateTime,
+        serviceCompleteTimestamp: request.reqCompleteTime!,
         customerName: customerUser.userName,
         customerContact: customerUser.userContact,
         serviceName: service.serviceName,
-        serviceRate: serviceRate,
         serviceBasePrice: service.servicePrice ?? 0.0,
         handymanName: handymanUser.userName,
         paymentTimestamp: payment?.payCreatedAt,

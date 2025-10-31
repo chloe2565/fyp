@@ -22,23 +22,23 @@ class StripeCheckoutScreen extends StatefulWidget {
   });
 
   @override
-  State<StripeCheckoutScreen> createState() => _StripeCheckoutScreenState();
+  State<StripeCheckoutScreen> createState() => StripeCheckoutScreenState();
 }
 
-class _StripeCheckoutScreenState extends State<StripeCheckoutScreen> {
+class StripeCheckoutScreenState extends State<StripeCheckoutScreen> {
   final supabase = Supabase.instance.client;
-  
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
-        _initiatePayment();
+        initiatePayment();
       }
     });
   }
 
-  Future<void> _initiatePayment() async {
+  Future<void> initiatePayment() async {
     bool isLoadingDialogShowing = false;
     showLoadingDialog(context, "Connecting to payment gateway...");
 
@@ -154,16 +154,7 @@ class _StripeCheckoutScreenState extends State<StripeCheckoutScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text("Pay with ${widget.paymentMethodName}")),
-      body: const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            CircularProgressIndicator(),
-            SizedBox(height: 16),
-            Text("Preparing payment..."),
-          ],
-        ),
-      ),
+      body: const Center(),
     );
   }
 }

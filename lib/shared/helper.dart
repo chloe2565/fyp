@@ -1,6 +1,8 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../controller/ratingReview.dart';
+import '../model/databaseModel.dart';
 import '../model/reviewDisplayViewModel.dart';
 
 class Validator {
@@ -663,7 +665,7 @@ class InfoCard extends StatelessWidget {
     return Card(
       elevation: 1,
       color: Colors.white,
-      shadowColor: Colors.black.withOpacity(0.1),
+      shadowColor: Colors.black.withValues(alpha: 0.1),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       child: Padding(
         padding: const EdgeInsets.all(12),
@@ -678,7 +680,7 @@ class InfoCard extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: Theme.of(
                       context,
-                    ).colorScheme.primary.withOpacity(0.1),
+                    ).colorScheme.primary.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(
@@ -781,6 +783,7 @@ Color getStatusColor(String status) {
     case 'paid':
       return Colors.green;
     case 'cancelled':
+    case 'failed':
       return Colors.red;
     default:
       return Colors.grey;
@@ -906,19 +909,40 @@ void showLoadingDialog(BuildContext context, [String message = 'Loading...']) {
   showDialog(
     context: context,
     barrierDismissible: false,
-    builder: (ctx) => Dialog(
-      child: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const CircularProgressIndicator(),
-            const SizedBox(width: 20),
-            Text(message),
-          ],
+    builder: (ctx) {
+      final size = MediaQuery.of(ctx).size;
+
+      return Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        insetPadding: const EdgeInsets.symmetric(horizontal: 40, vertical: 24),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: size.width * 0.8, // 80% of screen width
+            maxHeight: size.height * 0.3, // 30% of screen height
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const CircularProgressIndicator(),
+                const SizedBox(height: 20),
+                Flexible(
+                  child: Text(
+                    message,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 16),
+                    overflow: TextOverflow.fade,
+                    softWrap: true,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
-      ),
-    ),
+      );
+    },
   );
 }
 
@@ -1177,8 +1201,11 @@ void showPendingDialog(
                 shape: BoxShape.circle,
                 color: Colors.orange,
               ),
-              child: const Icon(Icons.hourglass_top_rounded,
-                  size: 48, color: Colors.white),
+              child: const Icon(
+                Icons.hourglass_top_rounded,
+                size: 48,
+                color: Colors.white,
+              ),
             ),
             const SizedBox(height: 24),
 
@@ -1374,33 +1401,51 @@ class PhotoPreviewList extends StatelessWidget {
     if (images.isEmpty) {
       return const SizedBox.shrink();
     }
+
     return Container(
-      height: 100,
-      margin: const EdgeInsets.only(top: 16),
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        itemCount: images.length,
-        itemBuilder: (context, index) {
-          return Padding(
-            padding: const EdgeInsets.only(right: 8.0),
+      margin: const EdgeInsets.only(top: 8),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: List.generate(images.length, (index) {
+          final file = images[index];
+          if (!file.existsSync()) return const SizedBox.shrink();
+
+          return SizedBox(
+            width: 100,
+            height: 100,
             child: Stack(
-              clipBehavior: Clip.none,
               children: [
                 ClipRRect(
                   borderRadius: BorderRadius.circular(8),
                   child: Image.file(
-                    images[index],
+                    file,
                     width: 100,
                     height: 100,
                     fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        width: 100,
+                        height: 100,
+                        color: Colors.grey[300],
+                        child: const Icon(
+                          Icons.broken_image,
+                          color: Colors.red,
+                        ),
+                      );
+                    },
                   ),
                 ),
+
                 Positioned(
-                  top: -8,
-                  right: -8,
+                  top: 4,
+                  right: 4,
                   child: GestureDetector(
-                    onTap: () => onRemove(index),
+                    onTap: () {
+                      onRemove(index);
+                    },
                     child: Container(
+                      padding: const EdgeInsets.all(4),
                       decoration: const BoxDecoration(
                         color: Colors.red,
                         shape: BoxShape.circle,
@@ -1408,7 +1453,7 @@ class PhotoPreviewList extends StatelessWidget {
                       child: const Icon(
                         Icons.close,
                         color: Colors.white,
-                        size: 18,
+                        size: 16,
                       ),
                     ),
                   ),
@@ -1416,11 +1461,237 @@ class PhotoPreviewList extends StatelessWidget {
               ],
             ),
           );
-        },
+        }),
       ),
     );
   }
 }
+
+Widget buildStatusBadge(String status) {
+  final baseColor = getStatusColor(status);
+  final backgroundColor = baseColor.withValues(alpha: 0.1);
+  final foregroundColor = baseColor;
+
+  return Container(
+    padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+    decoration: BoxDecoration(
+      color: backgroundColor,
+      borderRadius: BorderRadius.circular(5.0),
+    ),
+    child: Text(
+      status,
+      style: TextStyle(
+        color: foregroundColor,
+        fontWeight: FontWeight.bold,
+        fontSize: 12,
+      ),
+    ),
+  );
+}
+
+Widget buildPriceRow(
+  BuildContext context,
+  String label,
+  String amount, {
+  bool isTotal = false,
+}) {
+  return Row(
+    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    children: [
+      Text(
+        label,
+        style: TextStyle(
+          color: isTotal ? Colors.black : Colors.grey[600],
+          fontSize: isTotal ? 15 : 12,
+          fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
+        ),
+      ),
+      Text(
+        amount,
+        style: TextStyle(
+          color: isTotal ? Theme.of(context).primaryColor : Colors.black,
+          fontSize: isTotal ? 18 : 14,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    ],
+  );
+}
+
+Widget buildTimeRow(String label, String time) {
+  return Row(
+    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    children: [
+      Text(label, style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+      Text(time, style: const TextStyle(fontSize: 14)),
+    ],
+  );
+}
+
+// For add review and edit review
+Widget buildHeaderCard(Map<String, dynamic> headerData) {
+  try {
+    final request = headerData['request'] as ServiceRequestModel;
+    final service = headerData['service'] as ServiceModel?;
+    final handyman = headerData['handymanUser'] as UserModel?;
+
+    String formatDate(DateTime? date) {
+      if (date == null) return 'Not scheduled';
+      return DateFormat('MMMM dd, yyyy').format(date);
+    }
+
+    String formatTime(DateTime? date) {
+      if (date == null) return 'Not set';
+      return DateFormat('hh:mm a').format(date);
+    }
+
+    final serviceName = service?.serviceName ?? 'Unknown Service';
+    final serviceIcon = ServiceHelper.getIconForService(serviceName);
+    final serviceIconBg = ServiceHelper.getColorForService(serviceName);
+    final handymanName = handyman?.userName ?? 'Unknown Handyman';
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(5),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 45,
+                height: 45,
+                decoration: BoxDecoration(
+                  color: serviceIconBg,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(serviceIcon, size: 25, color: Colors.black),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                serviceName,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+            ],
+          ),
+          Divider(color: Colors.grey.shade300, height: 24),
+          buildInfoRow('Location', request.reqAddress),
+          const SizedBox(height: 12),
+          buildInfoRow('Booking date', formatDate(request.scheduledDateTime)),
+          const SizedBox(height: 12),
+          buildInfoRow('Booking time', formatTime(request.scheduledDateTime)),
+          const SizedBox(height: 12),
+          buildInfoRow('Handyman name', handymanName),
+        ],
+      ),
+    );
+  } catch (e, stack) {
+    rethrow;
+  }
+}
+
+Widget buildInfoRow(String label, String value) {
+  return Row(
+    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(label, style: TextStyle(color: Colors.grey[600], fontSize: 13)),
+      const SizedBox(width: 16),
+      Expanded(
+        child: Text(
+          value.isEmpty ? '—' : value,
+          style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
+          textAlign: TextAlign.right,
+          overflow: TextOverflow.ellipsis,
+          maxLines: 5,
+        ),
+      ),
+    ],
+  );
+}
+
+Widget buildStarRatingInput(RatingReviewController controller) {
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.center,
+    children: [
+      const Text(
+        'How was your experience?',
+        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+      ),
+      const SizedBox(height: 16),
+      Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: List.generate(5, (index) {
+          bool noRating = controller.currentRating == 0;
+
+          return IconButton(
+            icon: Icon(
+              controller.currentRating > index ? Icons.star : Icons.star_border,
+              color: noRating ? Colors.black : Colors.amber,
+              size: 40,
+            ),
+            onPressed: () {
+              controller.setRating(index + 1.0);
+            },
+          );
+        }),
+      ),
+    ],
+  );
+}
+
+Widget buildReviewTextField(RatingReviewController controller) {
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      const Text(
+        'Review',
+        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+      ),
+      const SizedBox(height: 8),
+      TextField(
+        controller: controller.reviewController,
+        maxLines: 8,
+        style: const TextStyle(
+          fontWeight: FontWeight.normal,
+          fontSize: 14,
+          color: Colors.black,
+        ),
+        decoration: InputDecoration(
+          hintText: 'Enter your review text here',
+          hintStyle: TextStyle(
+            color: Colors.grey.shade400,
+            fontWeight: FontWeight.normal,
+            fontSize: 14,
+          ),
+          filled: true,
+          fillColor: Colors.white,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: BorderSide(color: Colors.grey.shade300),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: BorderSide(color: Colors.grey.shade300),
+          ),
+        ),
+      ),
+    ],
+  );
+}
+
+
 
 
 

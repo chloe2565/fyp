@@ -19,7 +19,7 @@ class AppNavigationBarState extends State<AppNavigationBar> {
 
   Future<void> showMoreMenu(BuildContext context) async {
     final renderBox = context.findRenderObject() as RenderBox?;
-    if (renderBox == null) return; // safety check
+    if (renderBox == null) return;
 
     final offset = renderBox.localToGlobal(Offset.zero);
     final size = renderBox.size;
@@ -93,7 +93,6 @@ class AppNavigationBarState extends State<AppNavigationBar> {
         BottomNavigationBarItem(
           icon: Builder(
             builder: (context) {
-              // assign key here so we can later access its position
               return SizedBox(
                 key: itemKeys[4],
                 height: 25,

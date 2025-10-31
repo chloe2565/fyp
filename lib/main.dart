@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 import 'modules/customer/favoriteHandyman.dart';
 import 'modules/customer/profile.dart';
+import 'modules/customer/rateReviewHistory.dart';
 import 'modules/customer/reqHistory.dart';
 import 'modules/customer/register.dart';
 import 'modules/customer/homepage.dart';
@@ -34,16 +35,16 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'Smart Handyman Service Optimization System',
       theme: customAppTheme,
-      initialRoute: '/',
+      initialRoute: '/login',
       routes: {
-        '/': (context) => const WelcomeScreen(),
+        // '/': (context) => const WelcomeScreen(),
         '/login': (context) => const LoginScreen(),
         '/register': (context) => const RegisterScreen(),
         '/home': (context) => const CustHomepage(),
         '/profile': (context) => const ProfileScreen(),
         '/request': (context) => const RequestHistoryScreen(),
         '/favorite': (context) => const FavoriteScreen(),
-        // '/rating': (context) => const RateReviewHistoryScreen(),
+        '/rating': (context) => const RateReviewHistoryScreen(),
         '/billPayment': (context) => const BillPaymentHistoryScreen(),
       },
     );
@@ -54,10 +55,10 @@ class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
 
   @override
-  State<WelcomeScreen> createState() => _WelcomeScreenState();
+  State<WelcomeScreen> createState() => WelcomeScreenState();
 }
 
-class _WelcomeScreenState extends State<WelcomeScreen> {
+class WelcomeScreenState extends State<WelcomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(

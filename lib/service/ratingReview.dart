@@ -1,11 +1,167 @@
+import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:path/path.dart' as p;
 import '../model/databaseModel.dart';
+import '../model/rateReviewHistoryDetailViewModel.dart';
+import '../shared/helper.dart';
+import 'user.dart';
+import 'serviceRequest.dart';
 
 class RatingReviewService {
-  final CollectionReference ratingReviewCollection = FirebaseFirestore.instance.collection('RatingReview');
+  final FirebaseFirestore db = FirebaseFirestore.instance;
+  final CollectionReference ratingReviewCollection = FirebaseFirestore.instance
+      .collection('RatingReview');
+  final UserService userService = UserService();
+  final ServiceRequestService serviceRequestService = ServiceRequestService();
+
+  Future<Map<String, List<Map<String, dynamic>>>>
+  getRatingReviewPageData() async {
+    final String? custID = await userService.getCurrentCustomerID();
+    if (custID == null) throw Exception("User not logged in.");
+
+    List<Map<String, dynamic>> pendingList = [];
+    List<Map<String, dynamic>> historyList = [];
+
+    try {
+      final requests = await serviceRequestService
+          .getCompletedRequestsForCustomer(custID);
+      if (requests.isEmpty) {
+        return {'pending': [], 'history': []};
+      }
+      final reqIDs = requests.map((r) => r.reqID).toList();
+      final serviceIDs = requests.map((r) => r.serviceID).toSet().toList();
+      final handymanIDs = requests.map((r) => r.handymanID).toSet().toList();
+      final reviewData = getReviewsForServiceRequests(reqIDs);
+      final serviceData = batchFetch<ServiceModel>(
+        ids: serviceIDs,
+        collection: 'Service',
+        fromMap: (data) => ServiceModel.fromMap(data),
+      );
+      final handymanData = fetchHandymanUserModels(handymanIDs);
+      final results = await Future.wait([
+        reviewData,
+        serviceData,
+        handymanData,
+      ]);
+
+      final reviewMap = {
+        for (var r in results[0] as List<RatingReviewModel>) r.reqID: r,
+      };
+      final serviceMap = results[1] as Map<String, ServiceModel>;
+      final handymanUserMap = results[2] as Map<String, UserModel>;
+
+      for (final req in requests) {
+        final review = reviewMap[req.reqID];
+        final service = serviceMap[req.serviceID];
+        final user = handymanUserMap[req.handymanID];
+
+        final itemData = {
+          'request': req,
+          'service': service,
+          'handymanUser': user,
+          'review': review,
+        };
+
+        if (review == null) {
+          pendingList.add(itemData);
+        } else {
+          historyList.add(itemData);
+        }
+      }
+
+      pendingList.sort(
+        (a, b) => (b['request'] as ServiceRequestModel).scheduledDateTime
+            .compareTo((a['request'] as ServiceRequestModel).scheduledDateTime),
+      );
+      historyList.sort(
+        (a, b) => (b['request'] as ServiceRequestModel).scheduledDateTime
+            .compareTo((a['request'] as ServiceRequestModel).scheduledDateTime),
+      );
+
+      return {'pending': pendingList, 'history': historyList};
+    } catch (e) {
+      print("Error in getRatingReviewPageData: $e");
+      rethrow;
+    }
+  }
+
+  Future<Map<String, UserModel>> fetchHandymanUserModels(
+    List<String> handymanIDs,
+  ) async {
+    if (handymanIDs.isEmpty) return {};
+
+    try {
+      // Get Handymen
+      final handymanMap = await batchFetch<HandymanModel>(
+        ids: handymanIDs,
+        collection: 'Handyman',
+        fromMap: (data) => HandymanModel.fromMap(data),
+      );
+
+      // Get Employees
+      final empIDs = handymanMap.values.map((h) => h.empID).toSet().toList();
+      final employeeMap = await batchFetch<EmployeeModel>(
+        ids: empIDs,
+        collection: 'Employee',
+        fromMap: (data) => EmployeeModel.fromMap(data),
+      );
+
+      // Get Users
+      final userIDs = employeeMap.values.map((e) => e.userID).toSet().toList();
+      final userMap = await batchFetch<UserModel>(
+        ids: userIDs,
+        collection: 'User',
+        fromMap: (data) => UserModel.fromMap(data),
+      );
+
+      // Map handymanID to final UserModel
+      final Map<String, UserModel> result = {};
+      for (final handymanID in handymanIDs) {
+        final handyman = handymanMap[handymanID];
+        final employee = employeeMap[handyman?.empID];
+        final user = userMap[employee?.userID];
+        if (user != null) {
+          result[handymanID] = user;
+        }
+      }
+      return result;
+    } catch (e) {
+      print("Error in fetchHandymanUserModels: $e");
+      rethrow;
+    }
+  }
+
+  Future<Map<String, T>> batchFetch<T>({
+    required List<String> ids,
+    required String collection,
+    required T Function(Map<String, dynamic>) fromMap,
+  }) async {
+    if (ids.isEmpty) return {};
+
+    final Map<String, T> resultMap = {};
+    final idSet = ids.toSet().toList();
+
+    for (var i = 0; i < idSet.length; i += 30) {
+      final sublist = idSet.sublist(
+        i,
+        i + 30 > idSet.length ? idSet.length : i + 30,
+      );
+
+      final querySnap = await db
+          .collection(collection)
+          .where(FieldPath.documentId, whereIn: sublist)
+          .get();
+
+      for (var doc in querySnap.docs) {
+        resultMap[doc.id] = fromMap(doc.data());
+      }
+    }
+    return resultMap;
+  }
 
   Future<List<RatingReviewModel>> getReviewsForServiceRequests(
-      List<String> reqIDs) async {
+    List<String> reqIDs,
+  ) async {
     if (reqIDs.isEmpty) {
       return [];
     }
@@ -13,9 +169,11 @@ class RatingReviewService {
     try {
       List<RatingReviewModel> allReviews = [];
       for (var i = 0; i < reqIDs.length; i += 30) {
-        final sublist =
-            reqIDs.sublist(i, i + 30 > reqIDs.length ? reqIDs.length : i + 30);
-        
+        final sublist = reqIDs.sublist(
+          i,
+          i + 30 > reqIDs.length ? reqIDs.length : i + 30,
+        );
+
         final querySnapshot = await ratingReviewCollection
             .where('reqID', whereIn: sublist)
             .get();
@@ -31,5 +189,164 @@ class RatingReviewService {
       print('Error in getReviewsForServiceRequests: $e');
       return [];
     }
+  }
+
+  Future<RatingReviewDetailViewModel> getReviewDetails(String reqID) async {
+    try {
+      final reqFuture = db.collection('ServiceRequest').doc(reqID).get();
+      final reviewFuture = ratingReviewCollection
+          .where('reqID', isEqualTo: reqID)
+          .limit(1)
+          .get();
+
+      final results = await Future.wait([reqFuture, reviewFuture]);
+
+      final reqDoc = results[0] as DocumentSnapshot;
+      if (!reqDoc.exists) throw Exception('ServiceRequest not found');
+      final request = ServiceRequestModel.fromMap(
+        reqDoc.data() as Map<String, dynamic>,
+      );
+
+      final reviewQuery = results[1] as QuerySnapshot;
+      if (reviewQuery.docs.isEmpty) throw Exception('Review not found');
+      final review = RatingReviewModel.fromMap(
+        reviewQuery.docs.first.data() as Map<String, dynamic>,
+      );
+      final serviceFuture = db
+          .collection('Service')
+          .doc(request.serviceID)
+          .get();
+      final handymanUserFuture = fetchHandymanUserModels([request.handymanID]);
+
+      final results2 = await Future.wait([serviceFuture, handymanUserFuture]);
+
+      final serviceDoc = results2[0] as DocumentSnapshot;
+      final service = serviceDoc.exists
+          ? ServiceModel.fromMap(serviceDoc.data() as Map<String, dynamic>)
+          : null;
+
+      final handymanUserMap = results2[1] as Map<String, UserModel>;
+      final handymanUser = handymanUserMap[request.handymanID];
+
+      final serviceName = service?.serviceName ?? 'Unknown Service';
+      return RatingReviewDetailViewModel(
+        reqID: reqID,
+        serviceName: serviceName,
+        serviceDate: request.scheduledDateTime,
+        serviceIcon: ServiceHelper.getIconForService(serviceName),
+        serviceIconBg: ServiceHelper.getColorForService(serviceName),
+        handymanName: handymanUser?.userName ?? 'Unknown Handyman',
+        ratingNum: review.ratingNum,
+        photos: review.ratingPicName ?? [],
+        reviewText: review.ratingText,
+        reviewCreatedAt: review.ratingCreatedAt,
+        updatedAt: review.updatedAt,
+      );
+    } catch (e) {
+      print('Error in getReviewDetails: $e');
+      rethrow;
+    }
+  }
+
+  Future<String> generateNextID() async {
+    const String prefix = 'RA';
+    const int padding = 4;
+    final query = await ratingReviewCollection
+        .orderBy('rateID', descending: true)
+        .limit(1)
+        .get();
+
+    if (query.docs.isEmpty) {
+      return '$prefix${'1'.padLeft(padding, '0')}';
+    }
+    final lastID = query.docs.first.id;
+    final numericPart = int.tryParse(lastID.substring(prefix.length)) ?? 0;
+    final nextNumber = numericPart + 1;
+    return '$prefix${nextNumber.toString().padLeft(padding, '0')}';
+  }
+
+  Future<Map<String, dynamic>> getRateFormHeaderData(String reqID) async {
+    try {
+      final reqDoc = await db.collection('ServiceRequest').doc(reqID).get();
+      if (!reqDoc.exists) throw Exception('ServiceRequest not found');
+      final request = ServiceRequestModel.fromMap(
+        reqDoc.data() as Map<String, dynamic>,
+      );
+
+      final serviceFuture = db
+          .collection('Service')
+          .doc(request.serviceID)
+          .get();
+      final handymanUserFuture = fetchHandymanUserModels([request.handymanID]);
+
+      final results = await Future.wait([serviceFuture, handymanUserFuture]);
+
+      final serviceDoc = results[0] as DocumentSnapshot;
+      final service = serviceDoc.exists
+          ? ServiceModel.fromMap(serviceDoc.data() as Map<String, dynamic>)
+          : null;
+
+      final handymanUserMap = results[1] as Map<String, UserModel>;
+      final handymanUser = handymanUserMap[request.handymanID];
+
+      return {
+        'request': request,
+        'service': service,
+        'handymanUser': handymanUser,
+      };
+    } catch (e) {
+      print('Error getting form data: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> addNewRateReview({
+    required String reqID,
+    required double rating,
+    required String text,
+    required List<File> newImages,
+  }) async {
+    final photoNames = newImages.map((f) => p.basename(f.path)).toList();
+
+    final newRateID = await generateNextID();
+    final newReview = RatingReviewModel(
+      rateID: newRateID,
+      ratingCreatedAt: DateTime.now(),
+      ratingNum: rating,
+      ratingText: text,
+      ratingPicName: photoNames,
+      reqID: reqID,
+      updatedAt: null,
+    );
+
+    await ratingReviewCollection.doc(newRateID).set(newReview.toMap());
+  }
+
+  Future<void> updateRateReview({
+    required String rateID,
+    required double rating,
+    required String text,
+    required List<String> finalPhotoList,
+  }) async {
+    await ratingReviewCollection.doc(rateID).update({
+      'ratingNum': rating,
+      'ratingText': text,
+      'ratingPicName': finalPhotoList,
+      'updatedAt': Timestamp.now(), 
+    });
+  }
+
+  Future<void> deleteRateReview(String reqID) async {
+    final query = await ratingReviewCollection
+        .where('reqID', isEqualTo: reqID)
+        .limit(1)
+        .get();
+
+    if (query.docs.isEmpty) {
+      throw Exception("Review not found for deletion.");
+    }
+
+    final docId = query.docs.first.id;
+    await ratingReviewCollection.doc(docId).delete();
   }
 }

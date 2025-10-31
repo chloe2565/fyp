@@ -80,8 +80,9 @@ final ThemeData customAppTheme = ThemeData(
     ),
   ),
   appBarTheme: const AppBarTheme(
-    backgroundColor: Color(0xFFFD722E),
-    foregroundColor: Colors.white,
+    // backgroundColor: Color(0xFFFD722E),
+    backgroundColor: Colors.white,
+    foregroundColor: Colors.black,
     titleTextStyle: TextStyle(
       fontFamily: 'Plus Jakarta Sans',
       fontSize: 20,
@@ -191,7 +192,7 @@ final ThemeData customAppTheme = ThemeData(
           RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))
       ),
       padding: const WidgetStatePropertyAll(
-          EdgeInsets.fromLTRB(0, 20, 0, 20)
+          EdgeInsets.fromLTRB(0, 10, 0, 10)
       ),
       minimumSize: const WidgetStatePropertyAll(
           Size(double.infinity, double.minPositive)

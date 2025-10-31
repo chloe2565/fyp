@@ -1,414 +1,336 @@
-// import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
+import 'package:fyp/modules/customer/addReview.dart';
+import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
+import '../../controller/ratingReview.dart';
+import '../../model/databaseModel.dart';
+import '../../shared/helper.dart';
+import 'rateReviewHistoryDetail.dart';
 
-// import '../../controller/reviewHistory.dart';
+class RateReviewHistoryScreen extends StatefulWidget {
+  const RateReviewHistoryScreen({super.key});
 
-// class RateAndReviewHistoryScreen extends StatefulWidget {
-//   const RateAndReviewHistoryScreen({super.key});
+  @override
+  State<RateReviewHistoryScreen> createState() =>
+      RateReviewHistoryScreenState();
+}
 
-//   @override
-//   State<RateAndReviewHistoryScreen> createState() =>
-//       _RateAndReviewHistoryScreenState();
-// }
+class RateReviewHistoryScreenState extends State<RateReviewHistoryScreen> {
+  bool isInitialized = false;
+  late RatingReviewController ratingReviewController;
+  final TextEditingController searchController = TextEditingController();
 
-// class _RateAndReviewHistoryScreenState extends State<RateAndReviewHistoryScreen>
-//     with SingleTickerProviderStateMixin {
-//   late TabController _tabController;
-//   int _bottomNavIndex = 3; // Set 'Rating' as active
+  @override
+  void initState() {
+    super.initState();
+    ratingReviewController = RatingReviewController();
+    initializeController();
+    searchController.addListener(onSearchChanged);
+  }
 
-//   @override
-//   void initState() {
-//     super.initState();
-//     _tabController = TabController(length: 2, vsync: this);
-//     // Add a listener to switch to the 'History' tab as shown in the image
-//     WidgetsBinding.instance.addPostFrameCallback((_) {
-//       _tabController.animateTo(1); // 0 is 'Pending', 1 is 'History'
-//     });
-//   }
+  Future<void> initializeController() async {
+    await ratingReviewController.initialize();
+    if (mounted) {
+      setState(() {
+        isInitialized = true;
+      });
+    }
+  }
 
-//   @override
-//   void dispose() {
-//     _tabController.dispose();
-//     super.dispose();
-//   }
+  void onSearchChanged() {
+    final query = searchController.text;
+    ratingReviewController.onSearchChanged(query);
+  }
 
-//   @override
-//   Widget build(BuildContext context) {
-//     final controller = context.watch<RateReviewHistoryController>();
+  @override
+  void dispose() {
+    ratingReviewController.dispose();
+    searchController.removeListener(onSearchChanged);
+    searchController.dispose();
+    super.dispose();
+  }
 
-//     return Scaffold(
-//       appBar: AppBar(
-//         leading: IconButton(
-//           icon: const Icon(Icons.arrow_back, color: Colors.black),
-//           onPressed: () {
-//             // Handle back navigation
-//             if (Navigator.canPop(context)) {
-//               Navigator.pop(context);
-//             }
-//           },
-//         ),
-//         title: const Text(
-//           "Rate and Review History",
-//           style: TextStyle(
-//             color: Colors.black,
-//             fontWeight: FontWeight.bold,
-//             fontSize: 20,
-//           ),
-//         ),
-//         centerTitle: true,
-//         backgroundColor: Colors.white,
-//         elevation: 0,
-//       ),
-//       body: NestedScrollView(
-//         headerSliverBuilder: (context, innerBoxIsScrolled) {
-//           return [
-//             SliverToBoxAdapter(child: _buildSearchBar(controller)),
-//             SliverPersistentHeader(
-//               delegate: _SliverTabBarDelegate(
-//                 TabBar(
-//                   controller: _tabController,
-//                   labelColor: const Color(0xFFF37A20), // Orange color
-//                   unselectedLabelColor: Colors.grey[600],
-//                   indicatorColor: const Color(0xFFF37A20),
-//                   indicatorWeight: 3,
-//                   labelStyle: const TextStyle(
-//                     fontWeight: FontWeight.bold,
-//                     fontSize: 16,
-//                   ),
-//                   tabs: const [
-//                     Tab(text: "Pending"),
-//                     Tab(text: "History"),
-//                   ],
-//                 ),
-//               ),
-//               pinned: true,
-//             ),
-//           ];
-//         },
-//         body: controller.isLoading
-//             ? const Center(child: CircularProgressIndicator())
-//             : TabBarView(
-//                 controller: _tabController,
-//                 children: [
-//                   _buildReviewList(controller.filteredPendingItems),
-//                   _buildReviewList(controller.filteredHistoryItems),
-//                 ],
-//               ),
-//       ),
-//       bottomNavigationBar: _buildBottomNavBar(),
-//     );
-//   }
+  @override
+  Widget build(BuildContext context) {
+    return ChangeNotifierProvider.value(
+      value: ratingReviewController,
+      child: Consumer<RatingReviewController>(
+        builder: (context, controller, child) {
+          return DefaultTabController(
+            length: 2,
+            child: Scaffold(
+              appBar: AppBar(
+                title: const Text(
+                  'Rate and Review History',
+                  style: TextStyle(
+                    color: Colors.black,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                backgroundColor: Colors.white,
+                elevation: 0,
+                leading: IconButton(
+                  icon: const Icon(Icons.arrow_back, color: Colors.black),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+                centerTitle: true,
+              ),
+              body: !isInitialized
+                  ? const Center(child: CircularProgressIndicator())
+                  : Column(
+                      children: [
+                        buildSearchField(
+                          context: context,
+                          controller: searchController,
+                        ),
+                        buildPrimaryTabBar(
+                          context: context,
+                          tabs: ['Pending', 'History'],
+                        ),
+                        Expanded(
+                          child: TabBarView(
+                            children: [
+                              buildList(
+                                controller.filteredPending,
+                                isPending: true,
+                              ),
+                              buildList(
+                                controller.filteredHistory,
+                                isPending: false,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+            ),
+          );
+        },
+      ),
+    );
+  }
 
-//   Widget _buildSearchBar(RateReviewHistoryController controller) {
-//     return Container(
-//       color: Colors.white,
-//       padding: const EdgeInsets.all(16.0),
-//       child: TextField(
-//         onChanged: (value) {
-//           controller.filterList(value);
-//         },
-//         decoration: InputDecoration(
-//           hintText: "Search here..",
-//           hintStyle: TextStyle(color: Colors.grey[500]),
-//           prefixIcon: Icon(Icons.search, color: Colors.grey[500]),
-//           suffixIcon: IconButton(
-//             icon: Icon(Icons.tune_rounded, color: Colors.grey[700]),
-//             onPressed: () {
-//               // Handle filter button tap
-//             },
-//           ),
-//           filled: true,
-//           fillColor: const Color(0xFFF8F8F8),
-//           border: OutlineInputBorder(
-//             borderRadius: BorderRadius.circular(12.0),
-//             borderSide: BorderSide.none,
-//           ),
-//           contentPadding: const EdgeInsets.symmetric(vertical: 14.0),
-//         ),
-//       ),
-//     );
-//   }
+  Widget buildList(
+    List<Map<String, dynamic>> items, {
+    required bool isPending,
+  }) {
+    return items.isEmpty
+        ? Center(
+            child: Text(
+              isPending ? 'No pending reviews.' : 'No review history found.',
+              style: const TextStyle(color: Colors.grey, fontSize: 16),
+            ),
+          )
+        : ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: items.length,
+            itemBuilder: (context, index) {
+              return RatingReviewCard(
+                itemData: items[index],
+                isPending: isPending,
+              );
+            },
+          );
+  }
+}
 
-//   Widget _buildReviewList(List<dynamic> items) {
-//     if (items.isEmpty) {
-//       return Center(
-//         child: Text(
-//           "No items to show.",
-//           style: TextStyle(color: Colors.grey[600], fontSize: 16),
-//         ),
-//       );
-//     }
-    
-//     // Check item type to decide which card to build
-//     bool isHistory = items is List<HistoryReviewItem>;
+class RatingReviewCard extends StatelessWidget {
+  final Map<String, dynamic> itemData;
+  final bool isPending;
 
-//     return ListView.builder(
-//       padding: const EdgeInsets.all(16.0),
-//       itemCount: items.length,
-//       itemBuilder: (context, index) {
-//         return isHistory
-//             ? _buildHistoryCard(items[index])
-//             : _buildPendingCard(items[index]);
-//       },
-//     );
-//   }
+  const RatingReviewCard({
+    required this.itemData,
+    required this.isPending,
+    Key? key,
+  }) : super(key: key);
 
-//   Widget _buildHistoryCard(HistoryReviewItem item) {
-//     return Card(
-//       margin: const EdgeInsets.only(bottom: 16.0),
-//       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
-//       elevation: 2,
-//       shadowColor: Colors.black.withOpacity(0.1),
-//       child: Padding(
-//         padding: const EdgeInsets.all(16.0),
-//         child: Column(
-//           crossAxisAlignment: CrossAxisAlignment.start,
-//           children: [
-//             Row(
-//               children: [
-//                 CircleAvatar(
-//                   backgroundColor: const Color(0xFFEBF3FF),
-//                   child: Icon(_getIconForService(item.serviceName),
-//                       color: const Color(0xFF004AAD), size: 20),
-//                 ),
-//                 const SizedBox(width: 12),
-//                 Expanded(
-//                   child: Text(
-//                     item.serviceName,
-//                     style: const TextStyle(
-//                       fontWeight: FontWeight.bold,
-//                       fontSize: 18,
-//                     ),
-//                   ),
-//                 ),
-//                 Text(
-//                   DateFormat('dd MMM yyyy').format(item.date),
-//                   style: TextStyle(
-//                     color: Colors.grey[600],
-//                     fontSize: 14,
-//                   ),
-//                 ),
-//               ],
-//             ),
-//             const Padding(
-//               padding: EdgeInsets.symmetric(vertical: 12.0),
-//               child: Divider(),
-//             ),
-//             _buildInfoRow("Handyman name", item.handymanName),
-//             const SizedBox(height: 8),
-//             _buildInfoRow(
-//               "Rating",
-//               null, // Pass null to use the custom rating widget
-//               trailingWidget: Row(
-//                 children: [
-//                   const Icon(Icons.star, color: Colors.orange, size: 20),
-//                   const SizedBox(width: 4),
-//                   Text(
-//                     item.ratingNum.toStringAsFixed(1),
-//                     style: const TextStyle(
-//                       fontWeight: FontWeight.bold,
-//                       fontSize: 15,
-//                     ),
-//                   ),
-//                 ],
-//               ),
-//             ),
-//             const SizedBox(height: 16),
-//             Align(
-//               alignment: Alignment.centerRight,
-//               child: ElevatedButton(
-//                 onPressed: () {
-//                   // Handle "View Details" tap
-//                 },
-//                 style: ElevatedButton.styleFrom(
-//                   backgroundColor: const Color(0xFFF37A20),
-//                   foregroundColor: Colors.white,
-//                   shape: RoundedRectangleBorder(
-//                     borderRadius: BorderRadius.circular(8.0),
-//                   ),
-//                   padding:
-//                       const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-//                 ),
-//                 child: const Text(
-//                   "View Details",
-//                   style: TextStyle(fontWeight: FontWeight.bold),
-//                 ),
-//               ),
-//             ),
-//           ],
-//         ),
-//       ),
-//     );
-//   }
+  void handleRateNowPressed(BuildContext context) async {
+    try {
+      final controller = Provider.of<RatingReviewController>(
+        context,
+        listen: false,
+      );
 
-//   Widget _buildPendingCard(PendingReviewItem item) {
-//     // A different card style for pending reviews
-//     return Card(
-//       margin: const EdgeInsets.only(bottom: 16.0),
-//       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
-//       elevation: 2,
-//       shadowColor: Colors.black.withOpacity(0.1),
-//       child: Padding(
-//         padding: const EdgeInsets.all(16.0),
-//         child: Column(
-//           children: [
-//              Row(
-//               children: [
-//                 CircleAvatar(
-//                   backgroundColor: const Color(0xFFEBF3FF),
-//                   child: Icon(_getIconForService(item.serviceName),
-//                       color: const Color(0xFF004AAD), size: 20),
-//                 ),
-//                 const SizedBox(width: 12),
-//                 Expanded(
-//                   child: Text(
-//                     item.serviceName,
-//                     style: const TextStyle(
-//                       fontWeight: FontWeight.bold,
-//                       fontSize: 18,
-//                     ),
-//                   ),
-//                 ),
-//                 Text(
-//                   DateFormat('dd MMM yyyy').format(item.scheduledDate),
-//                   style: TextStyle(
-//                     color: Colors.grey[600],
-//                     fontSize: 14,
-//                   ),
-//                 ),
-//               ],
-//             ),
-//             const Padding(
-//               padding: EdgeInsets.symmetric(vertical: 12.0),
-//               child: Divider(),
-//             ),
-//             _buildInfoRow("Handyman name", item.handymanName),
-//             const SizedBox(height: 16),
-//              Align(
-//               alignment: Alignment.centerRight,
-//               child: ElevatedButton(
-//                 onPressed: () {
-//                   // Handle "Rate Now" tap
-//                 },
-//                 style: ElevatedButton.styleFrom(
-//                   backgroundColor: Colors.green, // Different color for action
-//                   foregroundColor: Colors.white,
-//                   shape: RoundedRectangleBorder(
-//                     borderRadius: BorderRadius.circular(8.0),
-//                   ),
-//                   padding:
-//                       const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-//                 ),
-//                 child: const Text(
-//                   "Rate Now",
-//                   style: TextStyle(fontWeight: FontWeight.bold),
-//                 ),
-//               ),
-//             ),
-//           ],
-//         ),
-//       ),
-//     );
-//   }
+      itemData.forEach((key, value) {
+        print("  $key: ${value.runtimeType}");
+      });
 
-//   Widget _buildInfoRow(String title, String? value,
-//       {Widget? trailingWidget}) {
-//     return Row(
-//       mainAxisAlignment: MainAxisAlignment.spaceBetween,
-//       children: [
-//         Text(
-//           title,
-//           style: TextStyle(
-//             color: Colors.grey[600],
-//             fontSize: 15,
-//           ),
-//         ),
-//         trailingWidget ??
-//             Text(
-//               value ?? '',
-//               style: const TextStyle(
-//                 fontWeight: FontWeight.bold,
-//                 fontSize: 15,
-//               ),
-//             ),
-//       ],
-//     );
-//   }
+      final request = itemData['request'] as ServiceRequestModel?;
+      if (request == null) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("Invalid request data")));
+        return;
+      }
 
-//   IconData _getIconForService(String serviceName) {
-//     // Simple logic to return an icon based on service name
-//     if (serviceName.toLowerCase().contains('carpentry')) return Icons.carpentry;
-//     if (serviceName.toLowerCase().contains('cleaning')) return Icons.cleaning_services;
-//     if (serviceName.toLowerCase().contains('electric')) return Icons.electrical_services;
-//     if (serviceName.toLowerCase().contains('painting')) return Icons.format_paint;
-//     return Icons.handyman; // Default
-//   }
+      final result = await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) {
+            return ChangeNotifierProvider.value(
+              value: controller,
+              child: AddRateReviewScreen(headerData: itemData),
+            );
+          },
+        ),
+      );
+    } catch (e, stackTrace) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("Error: $e")));
+      }
+    }
+  }
 
-//   Widget _buildBottomNavBar() {
-//     return BottomNavigationBar(
-//       currentIndex: _bottomNavIndex,
-//       onTap: (index) {
-//         setState(() {
-//           _bottomNavIndex = index;
-//           // Handle navigation
-//         });
-//       },
-//       type: BottomNavigationBarType.fixed, // Shows all labels
-//       selectedItemColor: const Color(0xFFF37A20), // Orange color
-//       unselectedItemColor: Colors.grey[600],
-//       selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold),
-//       unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.normal),
-//       items: const [
-//         BottomNavigationBarItem(
-//           icon: Icon(Icons.home_outlined),
-//           activeIcon: Icon(Icons.home),
-//           label: "Home",
-//         ),
-//         BottomNavigationBarItem(
-//           icon: Icon(Icons.description_outlined),
-//           activeIcon: Icon(Icons.description),
-//           label: "Request",
-//         ),
-//         BottomNavigationBarItem(
-//           icon: Icon(Icons.favorite_border_outlined),
-//           activeIcon: Icon(Icons.favorite),
-//           label: "Favorite",
-//         ),
-//         BottomNavigationBarItem(
-//           icon: Icon(Icons.star_border_outlined),
-//           activeIcon: Icon(Icons.star),
-//           label: "Rating",
-//         ),
-//         BottomNavigationBarItem(
-//           icon: Icon(Icons.more_horiz_outlined),
-//           activeIcon: Icon(Icons.more_horiz),
-//           label: "More",
-//         ),
-//       ],
-//     );
-//   }
-// }
+  void handleHistoryCardPressed(BuildContext context) {
+    final request = itemData['request'] as ServiceRequestModel;
+    final controller = Provider.of<RatingReviewController>(
+      context,
+      listen: false,
+    );
 
-// class _SliverTabBarDelegate extends SliverPersistentHeaderDelegate {
-//   _SliverTabBarDelegate(this._tabBar);
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ChangeNotifierProvider.value(
+          value: controller,
+          child: RateReviewHistoryDetailScreen(reqID: request.reqID),
+        ),
+      ),
+    );
+  }
 
-//   final TabBar _tabBar;
+  @override
+  Widget build(BuildContext context) {
+    final request = itemData['request'] as ServiceRequestModel;
+    final service = itemData['service'] as ServiceModel?;
+    final handyman = itemData['handymanUser'] as UserModel?;
+    final review = itemData['review'] as RatingReviewModel?;
+    final dateFormat = DateFormat('dd MMM yyyy');
 
-//   @override
-//   double get minExtent => _tabBar.preferredSize.height;
-//   @override
-//   double get maxExtent => _tabBar.preferredSize.height;
+    final DateTime? dateToShow = isPending
+        ? request.reqCompleteTime
+        : review?.ratingCreatedAt;
+    final String dateStr = dateFormat.format(dateToShow!);
+    final String serviceName = service?.serviceName ?? 'Unknown Service';
+    final String handymanName = handyman?.userName ?? 'Unknown Handyman';
+    final IconData icon = ServiceHelper.getIconForService(serviceName);
+    final Color iconBg = ServiceHelper.getColorForService(serviceName);
+    final Color primaryColor = Theme.of(context).primaryColor;
 
-//   @override
-//   Widget build(
-//       BuildContext context, double shrinkOffset, bool overlapsContent) {
-//     return Container(
-//       color: Colors.white,
-//       child: _tabBar,
-//     );
-//   }
+    return InkWell(
+      onTap: isPending ? null : () => handleHistoryCardPressed(context),
+      borderRadius: BorderRadius.circular(12),
+      child: Card(
+        elevation: 2,
+        margin: const EdgeInsets.only(bottom: 16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            children: [
+              // Icon, Service Name, Date
+              Row(
+                children: [
+                  Container(
+                    width: 45,
+                    height: 45,
+                    decoration: BoxDecoration(
+                      color: iconBg,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(icon, size: 25, color: Colors.black),
+                  ),
+                  const SizedBox(width: 12),
 
-//   @override
-//   bool shouldRebuild(_SliverTabBarDelegate oldDelegate) {
-//     return false;
-//   }
-// }
+                  Text(
+                    serviceName,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                  const Spacer(),
+
+                  if (!isPending)
+                    Text(
+                      dateStr,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Divider(color: Colors.grey[400]),
+              const SizedBox(height: 8),
+
+              // Service Request Completed Time
+              if (isPending) buildInfoRow('Service Completed', dateStr),
+              const SizedBox(height: 12),
+
+              // Handyman Name
+              buildInfoRow('Handyman name', handymanName),
+              const SizedBox(height: 12),
+
+              // Rating
+              buildInfoRow(
+                'Rating',
+                isPending ? 'Pending' : '',
+                trailing: isPending
+                    ? null
+                    : Row(
+                        children: [
+                          const Icon(Icons.star, color: Colors.amber, size: 20),
+                          const SizedBox(width: 4),
+                          Text(
+                            review?.ratingNum.toStringAsFixed(1) ?? '0.0',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
+              ),
+              const SizedBox(height: 12),
+
+              // Row 4: Button
+              if (isPending)
+                Align(
+                  alignment: Alignment.bottomRight,
+                  child: ElevatedButton(
+                    onPressed: () => handleRateNowPressed(context),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: primaryColor,
+                      foregroundColor: Colors.white,
+                      minimumSize: const Size(120, 40),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: Text('Rate Now'),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget buildInfoRow(String label, String value, {Widget? trailing}) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: TextStyle(color: Colors.grey[600], fontSize: 14)),
+        if (trailing != null)
+          trailing
+        else
+          Text(value, style: TextStyle(color: Colors.grey[600], fontSize: 14)),
+      ],
+    );
+  }
+}

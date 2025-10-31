@@ -3,14 +3,14 @@ import '../model/databaseModel.dart';
 import 'user.dart';
 
 class PaymentService {
-  final FirebaseFirestore _db = FirebaseFirestore.instance;
-  final UserService _userService = UserService();
+  final FirebaseFirestore db = FirebaseFirestore.instance;
+  final UserService userService = UserService();
 
 Future<String> generateNextID() async {
     const String prefix = 'PY';
     const int padding = 4;
 
-    final query = await _db
+    final query = await db
         .collection('Payment')
         .where('payID', isGreaterThanOrEqualTo: prefix)
         .where('payID', isLessThan: '${prefix}Z')
@@ -40,7 +40,7 @@ Future<String> generateNextID() async {
 
   Future<List<PaymentModel>> getPayments() async {
     try {
-      final String? custID = await _userService.getCurrentCustomerID();
+      final String? custID = await userService.getCurrentCustomerID();
       if (custID == null) {
         print(
           "No customer ID found. User might not be logged in or have a customer profile.",
@@ -48,7 +48,7 @@ Future<String> generateNextID() async {
         return [];
       }
 
-      final requestQuery = await _db
+      final requestQuery = await db
           .collection('ServiceRequest')
           .where('custID', isEqualTo: custID)
           .get();
@@ -61,7 +61,7 @@ Future<String> generateNextID() async {
           .map((doc) => doc.id)
           .toList();
 
-      final billingQuery = await _db
+      final billingQuery = await db
           .collection('Billing')
           .where('reqID', whereIn: reqIDs)
           .get();
@@ -74,7 +74,7 @@ Future<String> generateNextID() async {
           .map((doc) => doc.id)
           .toList();
 
-      final paymentQuery = await _db
+      final paymentQuery = await db
           .collection('Payment')
           .where('billingID', whereIn: billingIDs)
           .get();
@@ -90,7 +90,7 @@ Future<String> generateNextID() async {
 
   Future<PaymentModel?> getPaymentForBill(String billingID) async {
     try {
-      final query = await _db
+      final query = await db
           .collection('Payment')
           .where('billingID', isEqualTo: billingID)
           .orderBy('payCreatedAt', descending: true)
@@ -115,8 +115,8 @@ Future<String> generateNextID() async {
     required String providerID,
   }) async {
     try {
-      final batch = _db.batch();
-      final newPaymentRef = _db.collection('payment').doc();
+      final batch = db.batch();
+      final newPaymentRef = db.collection('payment').doc();
       final newPaymentID = newPaymentRef.id;
 
       final newPayment = PaymentModel(
@@ -133,7 +133,7 @@ Future<String> generateNextID() async {
 
       batch.set(newPaymentRef, newPayment.toMap());
 
-      final billingRef = _db.collection('billing').doc(billingID);
+      final billingRef = db.collection('billing').doc(billingID);
       batch.update(billingRef, {'billStatus': 'paid'});
 
       await batch.commit();

@@ -327,6 +327,7 @@ class RatingReviewModel {
   final String ratingText;
   final List<String>? ratingPicName;
   final String reqID;
+  final DateTime? updatedAt;
 
   RatingReviewModel({
     required this.rateID,
@@ -335,6 +336,7 @@ class RatingReviewModel {
     required this.ratingText,
     this.ratingPicName,
     required this.reqID,
+    this.updatedAt,
   });
 
   // Convert Firestore data to Dart
@@ -350,6 +352,7 @@ class RatingReviewModel {
           ?.map((e) => e.toString())
           .toList(),
       reqID: data['reqID'] ?? '',
+      updatedAt: (data['updatedAt'] as Timestamp?)?.toDate(),
     );
   }
 
@@ -362,6 +365,7 @@ class RatingReviewModel {
       'ratingText': ratingText,
       'ratingPicName': ratingPicName,
       'reqID': reqID,
+      'updatedAt': updatedAt != null ? Timestamp.fromDate(updatedAt!) : null,
     };
   }
 }
@@ -605,7 +609,9 @@ class ServiceRequestModel {
   final String reqAddress;
   final String reqDesc;
   final List<String> reqPicName;
-  final String reqStatus; // "pending", "confirmed", "departed", "completed", "cancelled"
+  final DateTime? reqCompleteTime;
+  final String
+  reqStatus; // "pending", "confirmed", "departed", "completed", "cancelled"
   final String? reqRemark;
   final DateTime? reqCancelDateTime;
   final String? reqCustomCancel;
@@ -621,6 +627,7 @@ class ServiceRequestModel {
     required this.reqAddress,
     required this.reqDesc,
     required this.reqPicName,
+    this.reqCompleteTime,
     required this.reqStatus,
     this.reqRemark,
     this.reqCancelDateTime,
@@ -648,6 +655,7 @@ class ServiceRequestModel {
               ?.map((e) => e.toString())
               .toList() ??
           [],
+      reqCompleteTime: (data['reqCompleteTime'] as Timestamp?)?.toDate(),
       reqStatus: data['reqStatus'] ?? 'pending',
       reqRemark: data['reqRemark'],
       reqCancelDateTime: (data['reqCancelDateTime'] as Timestamp?)?.toDate(),

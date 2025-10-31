@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class FullScreenGalleryViewer extends StatefulWidget {
-  final List<String> imagePaths; // Filenames
+  final List<String> imagePaths;
   final int initialIndex;
   final String basePath;
 
@@ -14,27 +14,26 @@ class FullScreenGalleryViewer extends StatefulWidget {
 
   @override
   State<FullScreenGalleryViewer> createState() =>
-      _FullScreenGalleryViewerState();
+      FullScreenGalleryViewerState();
 }
 
-class _FullScreenGalleryViewerState extends State<FullScreenGalleryViewer> {
-  late PageController _pageController;
-  late int _currentIndex;
+class FullScreenGalleryViewerState extends State<FullScreenGalleryViewer> {
+  late PageController pageController;
+  late int currentIndex;
 
   @override
   void initState() {
     super.initState();
-    _pageController = PageController(initialPage: widget.initialIndex);
-    _currentIndex = widget.initialIndex;
+    pageController = PageController(initialPage: widget.initialIndex);
+    currentIndex = widget.initialIndex;
   }
 
   @override
   void dispose() {
-    _pageController.dispose();
+    pageController.dispose();
     super.dispose();
   }
 
-  // Helper to build the correct asset path
   String _buildAssetPath(String picName) {
     return '${widget.basePath}/${picName.trim().toLowerCase()}';
   }
@@ -46,34 +45,32 @@ class _FullScreenGalleryViewerState extends State<FullScreenGalleryViewer> {
       appBar: AppBar(
         backgroundColor: Colors.black,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white), // Back button
+        iconTheme: const IconThemeData(color: Colors.white),
         title: Text(
-          // Show "Image 3 of 10"
-          '${_currentIndex + 1} of ${widget.imagePaths.length}',
+          '${currentIndex + 1} of ${widget.imagePaths.length}',
           style: const TextStyle(color: Colors.white),
         ),
         centerTitle: true,
       ),
       body: PageView.builder(
-        controller: _pageController,
+        controller: pageController,
         itemCount: widget.imagePaths.length,
         onPageChanged: (index) {
           setState(() {
-            _currentIndex = index;
+            currentIndex = index;
           });
         },
         itemBuilder: (context, index) {
           final assetPath = _buildAssetPath(widget.imagePaths[index]);
-          return InteractiveViewer( // Allows zooming and panning
+          return InteractiveViewer(
             panEnabled: true,
             minScale: 1.0,
             maxScale: 4.0,
             child: Center(
               child: Image.asset(
                 assetPath,
-                fit: BoxFit.contain, // Show the whole image
+                fit: BoxFit.contain,
                 errorBuilder: (context, error, stackTrace) {
-                  // Fallback placeholder
                   return Center(
                     child: Image.asset(
                       'assets/images/placeholder.jpg',
