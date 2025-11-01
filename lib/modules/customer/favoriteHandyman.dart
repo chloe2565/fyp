@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../model/databaseModel.dart';
 import '../../controller/favoriteHandyman.dart';
-import '../../shared/navigatorBase.dart';
+import '../../shared/custNavigatorBase.dart';
 
 class FavoriteScreen extends StatefulWidget {
   const FavoriteScreen({super.key});
@@ -73,7 +73,7 @@ class FavoriteScreenState extends State<FavoriteScreen> {
                 if (Navigator.canPop(context)) {
                   Navigator.pop(context);
                 } else {
-                  Navigator.pushReplacementNamed(context, '/home');
+                  Navigator.pushReplacementNamed(context, '/custHome');
                 }
               },
             ),
@@ -97,7 +97,7 @@ class FavoriteScreenState extends State<FavoriteScreen> {
                     Expanded(child: buildFavoritesList()),
                   ],
                 ),
-          bottomNavigationBar: AppNavigationBar(
+          bottomNavigationBar: CustNavigationBar(
             currentIndex: currentIndex,
             onTap: onNavBarTap,
           ),
@@ -201,7 +201,7 @@ class FavoriteItemCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final HandymanModel handyman = detailsMap['handyman'] as HandymanModel;
-    final SkillModel skill = detailsMap['skill'] as SkillModel;
+    // final SkillModel skill = detailsMap['skill'] as SkillModel;
     final String? userPicName = detailsMap['userPicName'] as String?;
     final String handymanName =
         detailsMap['handymanName'] as String;
@@ -238,20 +238,20 @@ class FavoriteItemCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Row 1: Skill + Bookmark
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        skill.skillName,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Icon(Icons.bookmark, color: Colors.orange[700]),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
+                  // Row(
+                  //   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  //   children: [
+                  //     Text(
+                  //       skill.skillName,
+                  //       style: const TextStyle(
+                  //         fontSize: 18,
+                  //         fontWeight: FontWeight.bold,
+                  //       ),
+                  //     ),
+                  //     Icon(Icons.bookmark, color: Colors.orange[700]),
+                  //   ],
+                  // ),
+                  // const SizedBox(height: 4),
                   // Row 2: Handyman Name
                   Text(
                     handymanName,

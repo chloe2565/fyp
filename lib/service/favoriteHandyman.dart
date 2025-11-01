@@ -166,20 +166,20 @@ class FavoriteService {
       if (skillQuery.docs.isEmpty) return null;
 
       final skillData = skillQuery.docs.first.data();
-      final handymanSkill = HandymanSkillModel.fromMap(skillData);
+      // final handymanSkill = HandymanSkillModel.fromMap(skillData);
 
       // Get skill details
-      final skillDoc = await db
-          .collection('Skill')
-          .doc(handymanSkill.skillID)
-          .get();
-      if (!skillDoc.exists) return null;
+      // final skillDoc = await db
+      //     .collection('Skill')
+      //     .doc(handymanSkill.skillID)
+      //     .get();
+      // if (!skillDoc.exists) return null;
 
-      final skill = SkillModel.fromMap(skillDoc.data()!);
+      // final skill = SkillModel.fromMap(skillDoc.data()!);
 
       return {
         'handyman': handyman,
-        'skill': skill,
+        // 'skill': skill,
         'handymanName': handymanName,
         'reviewCount': reviewCount,
         'userPicName': userPicName,

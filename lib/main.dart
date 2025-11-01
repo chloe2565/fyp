@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:fyp/modules/customer/billPaymentHistory.dart';
+import 'package:fyp/modules/employee/allService.dart';
+import 'package:fyp/modules/employee/homepage.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 import 'modules/customer/favoriteHandyman.dart';
@@ -40,12 +42,16 @@ class MyApp extends StatelessWidget {
         // '/': (context) => const WelcomeScreen(),
         '/login': (context) => const LoginScreen(),
         '/register': (context) => const RegisterScreen(),
-        '/home': (context) => const CustHomepage(),
+        '/custHome': (context) => const CustHomepage(),
         '/profile': (context) => const ProfileScreen(),
         '/request': (context) => const RequestHistoryScreen(),
         '/favorite': (context) => const FavoriteScreen(),
         '/rating': (context) => const RateReviewHistoryScreen(),
         '/billPayment': (context) => const BillPaymentHistoryScreen(),
+        '/empHome': (context) => const EmpHomepage(),
+        '/empAllService': (context) => const EmpAllServicesScreen(),
+        // '/empRequest': (context) => const EmpHomepage(),
+        // '/empEmployee': (context) => const EmpEmlpoyee(),
       },
     );
   }

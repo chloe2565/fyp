@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import '../model/reviewDisplayViewModel.dart' show ReviewDisplayData;
 import '../service/service.dart';
 import '../model/databaseModel.dart';
@@ -13,7 +15,10 @@ class ServiceController {
   bool servicesLoaded = false;
 
   ServiceController() {
-    serviceService = ServiceService(ratingReviewService: ratingReviewService);
+    serviceService = ServiceService(
+      ratingReviewService: ratingReviewService,
+      servicePictureService: pictureService,
+    );
   }
 
   Future<void> loadServices({bool refresh = false}) async {
@@ -77,5 +82,82 @@ class ServiceController {
 
   Future<List<ReviewDisplayData>> getReviewsForService(String serviceID) async {
     return await serviceService.getReviewsForService(serviceID);
+  }
+
+  // Employee side
+  Future<List<String>> getAssignedHandymanNames(String serviceID) async {
+    return await serviceService.getAssignedHandymanNames(serviceID);
+  }
+
+  Future<String> generateNextID() async {
+    return await serviceService.generateNextID();
+  }
+
+  Future<List<ServiceModel>> empGetAllServices() async {
+    return await serviceService.empGetAllServices();
+  }
+
+  Future<Map<String, String>> getAllHandymenMap() async {
+    return await serviceService.getAllHandymenMap();
+  }
+
+  Future<void> addNewService(
+    ServiceModel service,
+    List<String> handymanIDs,
+    List<File> photos,
+  ) async {
+    try {
+      final List<String> photoFileNames = [];
+
+      if (photos.isNotEmpty) {
+        final copyFutures = photos.asMap().entries.map((entry) async {
+          final i = entry.key;
+          final photo = entry.value;
+          final String extension = photo.path.split('.').last;
+          final String newName =
+              '${service.serviceID}_${DateTime.now().millisecondsSinceEpoch}_$i.$extension';
+          return newName;
+        });
+
+        photoFileNames.addAll(await Future.wait(copyFutures));
+        print('Images copied locally: $photoFileNames');
+      }
+
+      await serviceService.addNewService(service, handymanIDs, photoFileNames);
+    } catch (e) {
+      print('Error in Controller addNewService: $e');
+      rethrow;
+    }
+  }
+
+  Future<Map<String, String>> getAssignedHandymenMap(String serviceID) async {
+    return await serviceService.getAssignedHandymenMap(serviceID);
+  }
+
+  Future<void> updateService(
+    ServiceModel service,
+    List<String> handymanIDs,
+    List<File> newPhotos,
+  ) async {
+    try {
+      List<String> newPhotoNames = [];
+      for (var i = 0; i < newPhotos.length; i++) {
+        final photo = newPhotos[i];
+        final String extension = photo.path.split('.').last;
+        final String newName =
+            '${service.serviceID}_${DateTime.now().millisecondsSinceEpoch}_$i.$extension';
+        newPhotoNames.add(newName);
+      }
+      print('Simulating upload for new photos: $newPhotoNames');
+
+      await serviceService.updateService(service, handymanIDs, newPhotoNames);
+    } catch (e) {
+      print('Error in Controller updateService: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> deleteService(String serviceID) async {
+    return await serviceService.deleteService(serviceID);
   }
 }

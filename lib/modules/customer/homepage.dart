@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../controller/user.dart';
 import '../../shared/helper.dart';
 import '../../model/databaseModel.dart';
-import '../../shared/navigatorBase.dart';
+import '../../shared/custNavigatorBase.dart';
 import '../../controller/service.dart';
 import 'allServices.dart';
 import 'serviceDetail.dart';
@@ -36,17 +36,32 @@ class CustHomepageState extends State<CustHomepage> {
     userFuture = getCurrentUser();
   }
 
-  void handleLogout(BuildContext context) async {
-    print("Logout selected");
-    if (!mounted) return;
+ void handleLogout(BuildContext context) async {
+  print("Logout selected");
+  if (!mounted) return;
 
-    await ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Logging you out...'))).closed;
+  // Show loading indicator
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (context) => const Center(
+      child: CircularProgressIndicator(),
+    ),
+  );
 
-    if (!mounted) return;
-    Navigator.of(context).pop();
+  try {
+    // Call the actual logout method from controller
+    await userController.logout(context, setState);
+  } catch (e) {
+    // Dismiss loading dialog
+    if (mounted) {
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Logout failed: $e')),
+      );
+    }
   }
+}
 
   Future<UserModel?> getCurrentUser() async {
     return await userController.getCurrentUser();
@@ -84,6 +99,12 @@ class CustHomepageState extends State<CustHomepage> {
       }
     }
   }
+
+@override
+void dispose() {
+  userController.dispose();
+  super.dispose();
+}
 
   @override
   Widget build(BuildContext context) {
@@ -197,7 +218,7 @@ class CustHomepageState extends State<CustHomepage> {
         ],
       ),
       body: HomepageScreen(controller: ServiceController()),
-      bottomNavigationBar: AppNavigationBar(
+      bottomNavigationBar: CustNavigationBar(
         currentIndex: currentIndex,
         onTap: onNavBarTap,
       ),

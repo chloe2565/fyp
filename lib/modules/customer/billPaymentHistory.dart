@@ -75,7 +75,7 @@ class BillPaymentHistoryScreenState extends State<BillPaymentHistoryScreen> {
                   if (Navigator.canPop(context)) {
                     Navigator.pop(context);
                   } else {
-                    Navigator.pushReplacementNamed(context, '/home');
+                    Navigator.pushReplacementNamed(context, '/custHome');
                   }
                 },
               ),

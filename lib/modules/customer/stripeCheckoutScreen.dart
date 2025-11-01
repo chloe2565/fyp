@@ -93,7 +93,7 @@ class StripeCheckoutScreenState extends State<StripeCheckoutScreen> {
             print("DEBUG: Success dialog 'Back to Home' clicked.");
             Navigator.pushNamedAndRemoveUntil(
               context,
-              '/home',
+              '/custHome',
               (route) => false,
             );
             print("DEBUG: Success dialog shown.");

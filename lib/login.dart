@@ -29,7 +29,23 @@ class LoginScreenState extends State<LoginScreen> {
         }
       },
     );
+    loadInitialData();
   }
+
+  Future<void> loadInitialData() async {
+    setState(() {
+      controller.isLoading = true;
+    });
+    
+    await controller.loadSavedCredentials();
+    
+    if (mounted) {
+      setState(() {
+        controller.isLoading = false;
+      });
+    }
+  }
+
 
   @override
   void dispose() {
@@ -78,6 +94,11 @@ class LoginList extends StatefulWidget {
 }
 
 class LoginListState extends State<LoginList> {
+  @override
+  void initState() {
+    super.initState();
+  }
+
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
@@ -160,30 +181,60 @@ class LoginListState extends State<LoginList> {
                 ],
               ),
             ),
-            const SizedBox(height: 8),
-
-            // "Forgot Password?"
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const ForgetPasswordScreen(),
+            
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                // Remember Me Checkbox
+                Row(
+                  children: [
+                    Checkbox(
+                      value: widget.controller.rememberMe,
+                      onChanged: (bool? value) {
+                        if (value != null) {
+                          setState(() {
+                            widget.controller.rememberMe = value;
+                          });
+                        }
+                      },
                     ),
-                  );
-                },
-                child: Text(
-                  'Forgot Password?',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.primary,
-                        fontWeight: FontWeight.w600,
-                        decoration: TextDecoration.underline,
-                        decorationColor: Theme.of(context).colorScheme.primary,
+                    GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          widget.controller.rememberMe =
+                              !widget.controller.rememberMe;
+                        });
+                      },
+                      child: Text(
+                        "Remember Me",
+                        style: Theme.of(context).textTheme.bodySmall,
                       ),
+                    ),
+                  ],
                 ),
-              ),
+
+                // "Forgot Password?"
+                TextButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const ForgetPasswordScreen(),
+                      ),
+                    );
+                  },
+                  child: Text(
+                    'Forgot Password?',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.primary,
+                          fontWeight: FontWeight.w600,
+                          decoration: TextDecoration.underline,
+                          decorationColor: Theme.of(context).colorScheme.primary,
+                        ),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 8),
 

@@ -3,7 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../controller/serviceRequest.dart';
 import '../../shared/helper.dart';
-import '../../shared/navigatorBase.dart';
+import '../../shared/custNavigatorBase.dart';
 import 'reqHistoryDetail.dart';
 
 class RequestHistoryScreen extends StatefulWidget {
@@ -227,7 +227,7 @@ class RequestHistoryScreenState extends State<RequestHistoryScreen> {
                   if (Navigator.canPop(context)) {
                     Navigator.pop(context);
                   } else {
-                    Navigator.pushReplacementNamed(context, '/home');
+                    Navigator.pushReplacementNamed(context, '/custHome');
                   }
                 },
               ),
@@ -267,7 +267,7 @@ class RequestHistoryScreenState extends State<RequestHistoryScreen> {
                       ),
                     ],
                   ),
-            bottomNavigationBar: AppNavigationBar(
+            bottomNavigationBar: CustNavigationBar(
               currentIndex: currentIndex,
               onTap: onNavBarTap,
             ),

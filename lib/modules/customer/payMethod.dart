@@ -33,7 +33,7 @@ class PaymentMethodScreenState extends State<PaymentMethodScreen> {
             if (Navigator.canPop(context)) {
               Navigator.pop(context);
             } else {
-              Navigator.pushReplacementNamed(context, '/home');
+              Navigator.pushReplacementNamed(context, '/custHome');
             }
           },
         ),

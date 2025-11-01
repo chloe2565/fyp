@@ -1,12 +1,14 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter/material.dart';
 import '../model/databaseModel.dart';
+import '../modules/employee/homepage.dart';
 import '../service/auth_service.dart';
 import '../service/user.dart';
 import '../service/customer.dart';
 import '../shared/helper.dart';
-import '../shared/navigatorBase.dart';
+import '../shared/custNavigatorBase.dart';
 import '../login.dart';
 import '../modules/customer/register.dart';
 import '../modules/customer/homepage.dart';
@@ -19,9 +21,11 @@ class UserController {
   final TextEditingController nameController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
   final TextEditingController phoneController = TextEditingController();
-  final TextEditingController currentPasswordController = TextEditingController();
+  final TextEditingController currentPasswordController =
+      TextEditingController();
   final TextEditingController newPasswordController = TextEditingController();
-  final TextEditingController confirmPasswordController = TextEditingController();
+  final TextEditingController confirmPasswordController =
+      TextEditingController();
 
   Gender? gender = Gender.male;
 
@@ -29,6 +33,9 @@ class UserController {
   bool obscureCurrentPassword = true;
   bool obscureNewPassword = true;
   bool obscureConfirmPassword = true;
+
+  final storage = const FlutterSecureStorage();
+  bool rememberMe = false;
 
   // Callback function to display a SnackBar
   final Function(String) showErrorSnackBar;
@@ -45,6 +52,37 @@ class UserController {
 
   void toggleConfirmPasswordVisibility() {
     obscureConfirmPassword = !obscureConfirmPassword;
+  }
+
+  Future<void> loadSavedCredentials() async {
+    final String? rememberMeFlag = await storage.read(key: 'remember_me_flag');
+
+    if (rememberMeFlag == 'true') {
+      rememberMe = true;
+      emailController.text = await storage.read(key: 'remember_me_email') ?? '';
+      currentPasswordController.text =
+          await storage.read(key: 'remember_me_password') ?? '';
+    } else {
+      rememberMe = false;
+    }
+  }
+
+  Future<void> saveCredentials() async {
+    await storage.write(key: 'remember_me_flag', value: 'true');
+    await storage.write(
+      key: 'remember_me_email',
+      value: emailController.text.trim(),
+    );
+    await storage.write(
+      key: 'remember_me_password',
+      value: currentPasswordController.text.trim(),
+    );
+  }
+
+  Future<void> clearCredentials() async {
+    await storage.write(key: 'remember_me_flag', value: 'false');
+    await storage.delete(key: 'remember_me_email');
+    await storage.delete(key: 'remember_me_password');
   }
 
   Future<String> generateUserId() async {
@@ -94,6 +132,12 @@ class UserController {
         );
 
         if (user != null) {
+          if (rememberMe) {
+            await saveCredentials();
+          } else {
+            await clearCredentials();
+          }
+
           print('UserType from Firestore: "${user.userType}"');
 
           if (user.userType == 'customer') {
@@ -107,7 +151,7 @@ class UserController {
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
-                builder: (context) => const CustHomepage(),
+                builder: (context) => const EmpHomepage(),
               ), // Employee homepage
             );
           } else {
@@ -129,6 +173,49 @@ class UserController {
     }
   }
 
+Future<void> logout(
+  BuildContext context,
+  void Function(void Function()) setState,
+) async {
+  setState(() {
+    isLoading = true;
+  });
+
+  try {
+    // Sign out from Firebase
+    await authService.auth.signOut();
+
+    // Sign out from Google if signed in
+    try {
+      if (await authService.googleSignIn.isSignedIn()) {
+        await authService.googleSignIn.signOut();
+      }
+    } catch (e) {
+      print('Google Sign-Out failed, but continuing logout: $e');
+    }
+
+    // Navigate to login screen - use pushAndRemoveUntil to clear navigation stack
+    if (context.mounted) {
+      Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => const LoginScreen()),
+        (Route<dynamic> route) => false,
+      );
+    }
+  } catch (e) {
+    print('Error during logout: $e');
+    if (context.mounted) {
+      showErrorSnackBar('Error logging out: $e');
+    }
+  } finally {
+    // Only update state if still mounted
+    if (context.mounted) {
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
+}
+
   Future<void> signInWithGoogle(
     BuildContext context,
     void Function(void Function()) setState,
@@ -144,10 +231,9 @@ class UserController {
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
-              builder: (context) => AppNavigationBar(
-                currentIndex: 0, // default to Home tab
+              builder: (context) => CustNavigationBar(
+                currentIndex: 0, 
                 onTap: (index) {
-                  // handle navigation when user taps on nav bar
                   print("Tapped index: $index");
                 },
               ),

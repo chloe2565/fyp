@@ -1,4 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:fyp/service/servicePicture.dart';
+import 'package:flutter/foundation.dart';
 import '../model/databaseModel.dart';
 import '../../model/reviewDisplayViewModel.dart';
 import '../service/ratingReview.dart';
@@ -10,12 +12,78 @@ class ServiceAggregates {
   ServiceAggregates({this.averageRating = 0.0, this.completedOrders = 0});
 }
 
+class HandymanDataBundle {
+  final List<Map<String, dynamic>> handymanData;
+  final List<String> handymanIDs;
+  final List<Map<String, dynamic>> empData;
+  final List<String> empIDs;
+  final List<Map<String, dynamic>> userData;
+  final List<String> userIDs;
+
+  HandymanDataBundle({
+    required this.handymanData,
+    required this.handymanIDs,
+    required this.empData,
+    required this.empIDs,
+    required this.userData,
+    required this.userIDs,
+  });
+}
+
+Map<String, String> processHandymanMaps(HandymanDataBundle bundle) {
+  final Map<String, String> handymanIdToEmpIdMap = {};
+  for (int i = 0; i < bundle.handymanIDs.length; i++) {
+    final empID = bundle.handymanData[i]['empID'] as String?;
+    if (empID != null) {
+      handymanIdToEmpIdMap[bundle.handymanIDs[i]] = empID;
+    }
+  }
+  if (handymanIdToEmpIdMap.isEmpty) return {};
+
+  final Map<String, String> empIdToUserIdMap = {};
+  for (int i = 0; i < bundle.empIDs.length; i++) {
+    final userID = bundle.empData[i]['userID'] as String?;
+    if (userID != null) {
+      empIdToUserIdMap[bundle.empIDs[i]] = userID;
+    }
+  }
+  if (empIdToUserIdMap.isEmpty) return {};
+
+  final Map<String, String> userIdToNameMap = {};
+  for (int i = 0; i < bundle.userIDs.length; i++) {
+    final userName = bundle.userData[i]['userName'] as String?;
+    if (userName != null) {
+      userIdToNameMap[bundle.userIDs[i]] = userName;
+    }
+  }
+
+  final Map<String, String> finalHandymanMap = {};
+  handymanIdToEmpIdMap.forEach((handymanID, empID) {
+    final userID = empIdToUserIdMap[empID];
+    if (userID != null) {
+      final userName = userIdToNameMap[userID];
+      if (userName != null) {
+        finalHandymanMap[handymanID] = userName;
+      }
+    }
+  });
+
+  final sortedEntries = finalHandymanMap.entries.toList()
+    ..sort((a, b) => a.value.compareTo(b.value));
+
+  return Map<String, String>.fromEntries(sortedEntries);
+}
+
 class ServiceService {
   final FirebaseFirestore db = FirestoreService.instance.db;
   late final CollectionReference servicesCollection;
   final RatingReviewService ratingReviewService;
+  final ServicePictureService servicePictureService;
 
-  ServiceService({required this.ratingReviewService}) {
+  ServiceService({
+    required this.ratingReviewService,
+    required this.servicePictureService,
+  }) {
     servicesCollection = db.collection('Service');
   }
 
@@ -39,7 +107,6 @@ class ServiceService {
 
   Future<ServiceAggregates> getServiceAggregates(String serviceID) async {
     try {
-      // 1. Get completed service requests
       final requestSnap = await db
           .collection('ServiceRequest')
           .where('serviceID', isEqualTo: serviceID)
@@ -52,7 +119,6 @@ class ServiceService {
         return ServiceAggregates(averageRating: 0.0, completedOrders: 0);
       }
 
-      // 2. Get reqIDs from those completed requests
       final List<String> reqIDs = requestSnap.docs
           .map((doc) => doc.data()['reqID'] as String?)
           .where((id) => id != null)
@@ -66,7 +132,6 @@ class ServiceService {
         );
       }
 
-      // 3. Get reviews for reqID
       final List<RatingReviewModel> reviews = await ratingReviewService
           .getReviewsForServiceRequests(reqIDs);
 
@@ -77,7 +142,6 @@ class ServiceService {
         );
       }
 
-      // 4. Calculate average rating
       double sum = reviews.fold(0.0, (prev, e) => prev + e.ratingNum);
       double averageRating = sum / reviews.length;
 
@@ -114,7 +178,6 @@ class ServiceService {
 
   Future<List<ReviewDisplayData>> getReviewsForService(String serviceID) async {
     try {
-      // 1. Find all ServiceRequest documents
       final requestSnap = await db
           .collection('ServiceRequest')
           .where('serviceID', isEqualTo: serviceID)
@@ -124,7 +187,6 @@ class ServiceService {
         return [];
       }
 
-      // 2. Map reqIDs to userIDs
       final Map<String, String> reqIdToCustIdMap = {};
       for (var doc in requestSnap.docs) {
         final data = doc.data();
@@ -140,7 +202,6 @@ class ServiceService {
         return [];
       }
 
-      // 3. Get all RatingReview documents
       final List<RatingReviewModel> reviews = await ratingReviewService
           .getReviewsForServiceRequests(reqIDs);
 
@@ -148,7 +209,6 @@ class ServiceService {
         return [];
       }
 
-      // 4. Get unique user IDs
       final Set<String> custIDs = reviews
           .map((review) => reqIdToCustIdMap[review.reqID])
           .where((custIDs) => custIDs != null)
@@ -159,7 +219,6 @@ class ServiceService {
         return [];
       }
 
-      // 5. Fetch Customer documents
       final Map<String, String> custIdToUserIdMap = {};
       final customerSnap = await db
           .collection('Customer')
@@ -179,7 +238,6 @@ class ServiceService {
         return [];
       }
 
-      // 6. Fetch user details
       final Map<String, Map<String, dynamic>> userDataMap = {};
       final userSnap = await db
           .collection('User')
@@ -190,7 +248,6 @@ class ServiceService {
         userDataMap[doc.id] = doc.data();
       }
 
-      // 7. Combine all data
       final List<ReviewDisplayData> displayDataList = [];
       for (final review in reviews) {
         final custID = reqIdToCustIdMap[review.reqID];
@@ -219,6 +276,368 @@ class ServiceService {
     } catch (e) {
       print('Error in getReviewsForService: $e');
       return [];
+    }
+  }
+
+  // Employee side
+  Future<String> generateNextID() async {
+    const String prefix = 'S';
+    const int padding = 4;
+    final query = await servicesCollection
+        .orderBy('serviceID', descending: true)
+        .limit(1)
+        .get();
+
+    if (query.docs.isEmpty) {
+      return '$prefix${'1'.padLeft(padding, '0')}';
+    }
+    final lastID = query.docs.first.id;
+    final numericPart = int.tryParse(lastID.substring(prefix.length)) ?? 0;
+    final nextNumber = numericPart + 1;
+    return '$prefix${nextNumber.toString().padLeft(padding, '0')}';
+  }
+
+  Future<List<ServiceModel>> empGetAllServices() async {
+    try {
+      QuerySnapshot querySnapshot = await servicesCollection
+          .orderBy('serviceID', descending: false)
+          .get();
+
+      print('Firestore: Retrieved ${querySnapshot.docs.length} services');
+
+      return querySnapshot.docs.map((doc) {
+        final data = doc.data() as Map<String, dynamic>;
+        return ServiceModel.fromMap(data);
+      }).toList();
+    } catch (e) {
+      print('Firestore Error: $e');
+      rethrow;
+    }
+  }
+
+  Future<Map<String, String>> getAllHandymenMap() async {
+    try {
+      final handymanSnap = await db.collection('Handyman').get();
+      if (handymanSnap.docs.isEmpty) return {};
+
+      final List<Map<String, dynamic>> handymanData = [];
+      final List<String> handymanIDs = [];
+      final Set<String> empIdSet = {};
+
+      for (var doc in handymanSnap.docs) {
+        final data = doc.data() as Map<String, dynamic>;
+        final empID = data['empID'] as String?;
+        if (empID != null) {
+          handymanData.add(data);
+          handymanIDs.add(doc.id);
+          empIdSet.add(empID);
+        }
+      }
+      if (empIdSet.isEmpty) return {};
+
+      final empSnap = await db
+          .collection('Employee')
+          .where(FieldPath.documentId, whereIn: empIdSet.toList())
+          .get();
+
+      final List<Map<String, dynamic>> empData = [];
+      final List<String> empIDs = [];
+      final Set<String> userIdSet = {};
+
+      for (var doc in empSnap.docs) {
+        final data = doc.data() as Map<String, dynamic>;
+        final userID = data['userID'] as String?;
+        if (userID != null) {
+          empData.add(data);
+          empIDs.add(doc.id);
+          userIdSet.add(userID);
+        }
+      }
+      if (userIdSet.isEmpty) return {};
+
+      final userSnap = await db
+          .collection('User')
+          .where(FieldPath.documentId, whereIn: userIdSet.toList())
+          .get();
+
+      final List<Map<String, dynamic>> userData = [];
+      final List<String> userIDs = [];
+      for (var doc in userSnap.docs) {
+        userData.add(doc.data() as Map<String, dynamic>);
+        userIDs.add(doc.id);
+      }
+
+      final bundle = HandymanDataBundle(
+        handymanData: handymanData,
+        handymanIDs: handymanIDs,
+        empData: empData,
+        empIDs: empIDs,
+        userData: userData,
+        userIDs: userIDs,
+      );
+
+      return await compute(processHandymanMaps, bundle);
+    } catch (e) {
+      print('Error in getAllHandymenMap: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> addNewService(
+    ServiceModel service,
+    List<String> handymanIDs,
+    List<String> photoFileNames,
+  ) async {
+    final WriteBatch batch = db.batch();
+    final serviceRef = servicesCollection.doc(service.serviceID);
+    batch.set(serviceRef, service.toMap());
+    for (final handymanID in handymanIDs) {
+      final handymanServiceRef = db.collection('HandymanService').doc();
+      final newHandymanService = HandymanServiceModel(
+        handymanID: handymanID,
+        skillID: service.serviceID,
+        yearExperience: 0.0,
+      );
+      batch.set(handymanServiceRef, newHandymanService.toMap());
+    }
+
+    await batch.commit();
+    if (photoFileNames.isNotEmpty) {
+      await Future.wait(
+        photoFileNames.asMap().entries.map((entry) {
+          final index = entry.key;
+          final fileName = entry.value;
+          return servicePictureService.addNewPicture(
+            service.serviceID,
+            fileName,
+            index == 0,
+          );
+        }),
+      );
+    }
+  }
+
+  Future<List<String>> getAssignedHandymanNames(String serviceID) async {
+    try {
+      final handymanServiceSnap = await db
+          .collection('HandymanService')
+          .where('skillID', isEqualTo: serviceID)
+          .get();
+
+      if (handymanServiceSnap.docs.isEmpty) return [];
+
+      final List<String> handymanIDs = handymanServiceSnap.docs
+          .map((doc) => doc.data()['handymanID'] as String?)
+          .where((id) => id != null)
+          .cast<String>()
+          .toList();
+
+      if (handymanIDs.isEmpty) return [];
+
+      final Set<String> empIDs = {};
+      for (var i = 0; i < handymanIDs.length; i += 30) {
+        final sublist = handymanIDs.sublist(
+          i,
+          i + 30 > handymanIDs.length ? handymanIDs.length : i + 30,
+        );
+        final handymanSnap = await db
+            .collection('Handyman')
+            .where(FieldPath.documentId, whereIn: sublist)
+            .get();
+        for (var doc in handymanSnap.docs) {
+          final empID = doc.data()['empID'] as String?;
+          if (empID != null) {
+            empIDs.add(empID);
+          }
+        }
+      }
+
+      if (empIDs.isEmpty) return [];
+
+      final Set<String> userIDs = {};
+      for (var i = 0; i < empIDs.length; i += 30) {
+        final sublist = empIDs.toList().sublist(
+          i,
+          i + 30 > empIDs.length ? empIDs.length : i + 30,
+        );
+        final empSnap = await db
+            .collection('Employee')
+            .where(FieldPath.documentId, whereIn: sublist)
+            .get();
+        for (var doc in empSnap.docs) {
+          final userID = doc.data()['userID'] as String?;
+          if (userID != null) {
+            userIDs.add(userID);
+          }
+        }
+      }
+
+      if (userIDs.isEmpty) return [];
+
+      final List<String> userNames = [];
+      for (var i = 0; i < userIDs.length; i += 30) {
+        final sublist = userIDs.toList().sublist(
+          i,
+          i + 30 > userIDs.length ? userIDs.length : i + 30,
+        );
+        final userSnap = await db
+            .collection('User')
+            .where(FieldPath.documentId, whereIn: sublist)
+            .get();
+        for (var doc in userSnap.docs) {
+          final userName = doc.data()['userName'] as String?;
+          if (userName != null) {
+            userNames.add(userName);
+          }
+        }
+      }
+
+      return userNames;
+    } catch (e) {
+      print('Error in getAssignedHandymanNames: $e');
+      return [];
+    }
+  }
+
+  Future<Map<String, String>> getAssignedHandymenMap(String serviceID) async {
+    try {
+      final handymanServiceSnap = await db
+          .collection('HandymanService')
+          .where('skillID', isEqualTo: serviceID)
+          .get();
+
+      if (handymanServiceSnap.docs.isEmpty) return {};
+
+      final List<String> handymanIDs = handymanServiceSnap.docs
+          .map((doc) => doc.data()['handymanID'] as String?)
+          .where((id) => id != null)
+          .cast<String>()
+          .toList();
+
+      if (handymanIDs.isEmpty) return {};
+
+      final Map<String, String> handymanIdToEmpIdMap = {};
+      for (var i = 0; i < handymanIDs.length; i += 30) {
+        final sublist = handymanIDs.sublist(
+          i,
+          i + 30 > handymanIDs.length ? handymanIDs.length : i + 30,
+        );
+        final handymanSnap = await db
+            .collection('Handyman')
+            .where(FieldPath.documentId, whereIn: sublist)
+            .get();
+        for (var doc in handymanSnap.docs) {
+          final empID = doc.data()['empID'] as String?;
+          if (empID != null) {
+            handymanIdToEmpIdMap[doc.id] = empID;
+          }
+        }
+      }
+      if (handymanIdToEmpIdMap.isEmpty) return {};
+
+      final Map<String, String> empIdToUserIdMap = {};
+      final empIds = handymanIdToEmpIdMap.values.toSet().toList();
+      for (var i = 0; i < empIds.length; i += 30) {
+        final sublist = empIds.sublist(
+          i,
+          i + 30 > empIds.length ? empIds.length : i + 30,
+        );
+        final empSnap = await db
+            .collection('Employee')
+            .where(FieldPath.documentId, whereIn: sublist)
+            .get();
+        for (var doc in empSnap.docs) {
+          final userID = doc.data()['userID'] as String?;
+          if (userID != null) {
+            empIdToUserIdMap[doc.id] = userID;
+          }
+        }
+      }
+      if (empIdToUserIdMap.isEmpty) return {};
+
+      final Map<String, String> userIdToNameMap = {};
+      final userIds = empIdToUserIdMap.values.toSet().toList();
+      for (var i = 0; i < userIds.length; i += 30) {
+        final sublist = userIds.sublist(
+          i,
+          i + 30 > userIds.length ? userIds.length : i + 30,
+        );
+        final userSnap = await db
+            .collection('User')
+            .where(FieldPath.documentId, whereIn: sublist)
+            .get();
+        for (var doc in userSnap.docs) {
+          final userName = doc.data()['userName'] as String?;
+          if (userName != null) {
+            userIdToNameMap[doc.id] = userName;
+          }
+        }
+      }
+
+      final Map<String, String> finalHandymanMap = {};
+      handymanIdToEmpIdMap.forEach((handymanID, empID) {
+        final userID = empIdToUserIdMap[empID];
+        if (userID != null) {
+          final userName = userIdToNameMap[userID];
+          if (userName != null) {
+            finalHandymanMap[handymanID] = userName;
+          }
+        }
+      });
+
+      return finalHandymanMap;
+    } catch (e) {
+      print('Error in getAssignedHandymenMap: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> updateService(
+    ServiceModel service,
+    List<String> handymanIDs,
+    List<String> newPhotoNames,
+  ) async {
+    final WriteBatch batch = db.batch();
+
+    final serviceRef = servicesCollection.doc(service.serviceID);
+    batch.update(serviceRef, service.toMap());
+
+    final oldHandymanLinks = await db
+        .collection('HandymanService')
+        .where('skillID', isEqualTo: service.serviceID)
+        .get();
+    for (var doc in oldHandymanLinks.docs) {
+      batch.delete(doc.reference);
+    }
+
+    for (final handymanID in handymanIDs) {
+      final handymanServiceRef = db.collection('HandymanService').doc();
+      final newHandymanService = HandymanServiceModel(
+        handymanID: handymanID,
+        skillID: service.serviceID,
+        yearExperience: 0.0,
+      );
+      batch.set(handymanServiceRef, newHandymanService.toMap());
+    }
+
+    await batch.commit();
+    for (var i = 0; i < newPhotoNames.length; i++) {
+      await servicePictureService.addNewPicture(
+        service.serviceID,
+        newPhotoNames[i],
+        false,
+      );
+    }
+  }
+
+  Future<void> deleteService(String serviceID) async {
+    try {
+      await servicesCollection.doc(serviceID).update({
+        'serviceStatus': 'inactive',
+      });
+    } catch (e) {
+      print('Error in deleteService: $e');
+      rethrow;
     }
   }
 }

@@ -232,34 +232,32 @@ class HandymanModel {
   }
 }
 
-class HandymanSkillModel {
-  final String skillID;
+class HandymanServiceModel {
   final String handymanID;
-  final DateTime skillAssignCreatedAt;
+  final String skillID;
+  final double yearExperience;
 
-  HandymanSkillModel({
-    required this.skillID,
+  HandymanServiceModel({
     required this.handymanID,
-    required this.skillAssignCreatedAt,
+    required this.skillID,
+    required this.yearExperience,
   });
 
   // Convert Firestore data to Dart
-  factory HandymanSkillModel.fromMap(Map<String, dynamic> data) {
-    return HandymanSkillModel(
-      skillID: data['skillID'] ?? '',
+  factory HandymanServiceModel.fromMap(Map<String, dynamic> data) {
+    return HandymanServiceModel(
       handymanID: data['handymanID'] ?? '',
-      skillAssignCreatedAt: (data['skillAssignCreatedAt'] is Timestamp
-          ? (data['skillAssignCreatedAt'] as Timestamp).toDate()
-          : DateTime.now()),
+      skillID: data['skillID'] ?? '',
+      yearExperience: data['yearExperience'] ?? '',
     );
   }
 
   // Convert Dart to Firestore data
   Map<String, dynamic> toMap() {
     return {
-      'skillID': skillID,
       'handymanID': handymanID,
-      'skillAssignCreatedAt': Timestamp.fromDate(skillAssignCreatedAt),
+      'skillID': skillID,
+      'yearExperience': yearExperience,
     };
   }
 }
@@ -506,38 +504,6 @@ class ServiceModel {
   }
 }
 
-class ServiceHandymanModel {
-  final String serviceID;
-  final DateTime assignCreatedAt;
-  final String handymanID;
-
-  ServiceHandymanModel({
-    required this.serviceID,
-    required this.assignCreatedAt,
-    required this.handymanID,
-  });
-
-  // Convert Firestore data to Dart
-  factory ServiceHandymanModel.fromMap(Map<String, dynamic> data) {
-    return ServiceHandymanModel(
-      serviceID: data['serviceID'] ?? '',
-      assignCreatedAt: (data['assignCreatedAt'] is Timestamp
-          ? (data['assignCreatedAt'] as Timestamp).toDate()
-          : DateTime.now()),
-      handymanID: data['handymanID'] ?? '',
-    );
-  }
-
-  // Convert Dart to Firestore data
-  Map<String, dynamic> toMap() {
-    return {
-      "serviceID": serviceID,
-      "empHireDate": Timestamp.fromDate(assignCreatedAt),
-      "handymanID": handymanID,
-    };
-  }
-}
-
 class ServicePictureModel {
   final String picID;
   final String serviceID;
@@ -687,32 +653,6 @@ class ServiceRequestModel {
       'handymanID': handymanID,
       'cancelID': cancelID,
     };
-  }
-}
-
-class SkillModel {
-  final String skillID;
-  final String skillName;
-  final String skillDesc;
-
-  SkillModel({
-    required this.skillID,
-    required this.skillName,
-    required this.skillDesc,
-  });
-
-  // Convert Firestore data to Dart
-  factory SkillModel.fromMap(Map<String, dynamic> data) {
-    return SkillModel(
-      skillID: data['skillID'] ?? '',
-      skillName: data['skillName'] ?? '',
-      skillDesc: data['skillDesc'] ?? '',
-    );
-  }
-
-  // Convert Dart to Firestore data
-  Map<String, dynamic> toMap() {
-    return {'skillID': skillID, 'skillName': skillName, 'skillDesc': skillDesc};
   }
 }
 

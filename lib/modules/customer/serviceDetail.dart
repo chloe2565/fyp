@@ -135,7 +135,6 @@ class ServiceDetailScreenState extends State<ServiceDetailScreen> {
     super.dispose();
   }
 
-  // Helper method to build the dot indicator row
   Widget buildDotIndicator() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
@@ -148,7 +147,7 @@ class ServiceDetailScreenState extends State<ServiceDetailScreen> {
           width: currentPage == index ? 24.0 : 8.0,
           decoration: BoxDecoration(
             color: currentPage == index
-                ? const Color(0xFFFF7643) // Orange color from image
+                ? const Color(0xFFFF7643) 
                 : Colors.grey.shade300,
             borderRadius: BorderRadius.circular(5),
           ),
@@ -180,9 +179,9 @@ class ServiceDetailScreenState extends State<ServiceDetailScreen> {
     }
 
     return Scaffold(
-      backgroundColor: Colors.grey[50], // Light grey background
+      backgroundColor: Colors.grey[50], 
       appBar: AppBar(
-        backgroundColor: Colors.white, // Solid white app bar
+        backgroundColor: Colors.white, 
         elevation: 0,
         leading: const BackButton(color: Colors.black),
         title: Text(
@@ -201,7 +200,7 @@ class ServiceDetailScreenState extends State<ServiceDetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // --- 1. Image Slider ---
+                  // --- Image Slider ---
                   SizedBox(
                     height: MediaQuery.of(context).size.height * 0.3,
                     width: double.infinity,
@@ -228,14 +227,14 @@ class ServiceDetailScreenState extends State<ServiceDetailScreen> {
                           ),
                   ),
 
-                  // --- 2. Dot Indicator ---
+                  // --- Dot Indicator ---
                   if (mainImagePaths.length > 1)
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 12.0),
                       child: buildDotIndicator(),
                     ),
 
-                  // --- 3. White Info Card ---
+                  // --- White Info Card ---
                   Container(
                     margin: const EdgeInsets.fromLTRB(16, 8, 16, 20),
                     padding: const EdgeInsets.symmetric(
@@ -328,7 +327,7 @@ class ServiceDetailScreenState extends State<ServiceDetailScreen> {
                     ),
                   ),
 
-                  // --- 4. Content Body ---
+                  // --- Content Body ---
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20.0),
                     child: Column(

@@ -1,21 +1,21 @@
 import 'package:flutter/material.dart';
 
-class AppNavigationBar extends StatefulWidget {
+class EmpNavigationBar extends StatefulWidget {
   final int currentIndex;
   final Function(int) onTap;
 
-  const AppNavigationBar({
+  const EmpNavigationBar({
     super.key,
     required this.currentIndex,
     required this.onTap,
   });
 
   @override
-  State<AppNavigationBar> createState() => AppNavigationBarState();
+  State<EmpNavigationBar> createState() => EmpNavigationBarState();
 }
 
-class AppNavigationBarState extends State<AppNavigationBar> {
-  final Map<int, GlobalKey> itemKeys = {4: GlobalKey()};
+class EmpNavigationBarState extends State<EmpNavigationBar> {
+  final Map<int, GlobalKey> itemKeys = {3: GlobalKey()};
 
   Future<void> showMoreMenu(BuildContext context) async {
     final renderBox = context.findRenderObject() as RenderBox?;
@@ -28,14 +28,15 @@ class AppNavigationBarState extends State<AppNavigationBar> {
       context: context,
       position: RelativeRect.fromLTRB(
         offset.dx,
-        offset.dy - 167,
+        offset.dy - 217,
         offset.dx + size.width,
         offset.dy,
       ),
       items: const [
+        PopupMenuItem(value: 'empAllService', child: Text('Service')),
+        PopupMenuItem(value: 'billPayment', child: Text('Bill and Payment')),
         PopupMenuItem(value: 'profile', child: Text('Profile')),
         PopupMenuItem(value: 'settings', child: Text('Settings')),
-        PopupMenuItem(value: 'billPayment', child: Text('Bill and Payment')),
       ],
     );
 
@@ -51,6 +52,9 @@ class AppNavigationBarState extends State<AppNavigationBar> {
       case 'billPayment':
         Navigator.pushNamed(context, '/billPayment');
         break;
+      case 'empAllService':
+        Navigator.pushNamed(context, '/empAllService');
+        break;
     }
   }
 
@@ -59,7 +63,7 @@ class AppNavigationBarState extends State<AppNavigationBar> {
     return BottomNavigationBar(
       currentIndex: widget.currentIndex,
       onTap: (index) {
-        if (index == 4) {
+        if (index == 3) {
           final key = itemKeys[index];
           final itemContext = key?.currentContext;
           if (itemContext != null) {
@@ -77,26 +81,22 @@ class AppNavigationBarState extends State<AppNavigationBar> {
       selectedFontSize: 12,
       unselectedFontSize: 12,
       items: [
-        const BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+        const BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Dashboard'),
         const BottomNavigationBarItem(
-          icon: Icon(Icons.description_outlined),
-          label: 'Request',
+          icon: Icon(Icons.description),
+          label: 'Requests',
         ),
         const BottomNavigationBarItem(
-          icon: Icon(Icons.bookmark_border),
-          label: 'Favorite',
-        ),
-        const BottomNavigationBarItem(
-          icon: Icon(Icons.thumb_up_alt_outlined),
-          label: 'Rating',
+          icon: Icon(Icons.groups),
+          label: 'Employees',
         ),
         BottomNavigationBarItem(
           icon: Builder(
             builder: (context) {
               return SizedBox(
-                key: itemKeys[4],
+                key: itemKeys[3],
                 height: 25,
-                child: const Icon(Icons.more_horiz),
+                child: const Icon(Icons.more_horiz_outlined),
               );
             },
           ),
