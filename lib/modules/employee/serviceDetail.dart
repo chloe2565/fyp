@@ -29,7 +29,7 @@ class EmpServiceDetailScreenState extends State<EmpServiceDetailScreen> {
   List<String> imagePaths = [];
   final String imageBasePath = 'assets/services';
 
- @override
+  @override
   void initState() {
     super.initState();
     service = widget.service;
@@ -38,10 +38,12 @@ class EmpServiceDetailScreenState extends State<EmpServiceDetailScreen> {
 
   void loadServiceData() {
     setState(() {
-      picturesFuture =
-          serviceController.getPicturesForService(service.serviceID);
-      assignedHandymenFuture =
-          serviceController.getAssignedHandymanNames(service.serviceID);
+      picturesFuture = serviceController.getPicturesForService(
+        service.serviceID,
+      );
+      assignedHandymenFuture = serviceController.getAssignedHandymanNames(
+        service.serviceID,
+      );
     });
   }
 
@@ -59,18 +61,16 @@ class EmpServiceDetailScreenState extends State<EmpServiceDetailScreen> {
     );
   }
 
-void navigateToModify() {
+  void navigateToModify() {
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => EmpModifyServiceScreen(
           service: service,
           onServiceUpdated: () {
-            setState(() {
-            });
-            widget.onDataChanged(); 
-            Navigator.of(context)
-                .pop(); 
+            setState(() {});
+            widget.onDataChanged();
+            Navigator.of(context).pop();
           },
         ),
       ),
@@ -79,12 +79,12 @@ void navigateToModify() {
     });
   }
 
-Future<void> refreshServiceData() async {
+  Future<void> refreshServiceData() async {
     try {
       final services = await serviceController.empGetAllServices();
       final updatedService = services.firstWhere(
         (s) => s.serviceID == widget.service.serviceID,
-        orElse: () => widget.service, 
+        orElse: () => widget.service,
       );
       setState(() {
         service = updatedService;
@@ -98,26 +98,23 @@ Future<void> refreshServiceData() async {
   void handleDelete() {
     showConfirmDialog(
       context,
-      title: 'Delete Service',
+      title: 'Are you sure?',
       message:
-          'Are you sure you want to delete this service? This action will set it to "inactive" and hide it from customers.',
+          'Do you confirm to delete service? This action will set status to "inactive" and hide it from customers.',
       affirmativeText: 'Delete',
       negativeText: 'Cancel',
       onAffirmative: () async {
         try {
-          // Show loading spinner
           showLoadingDialog(context, 'Deleting...');
           await serviceController.deleteService(service.serviceID);
 
-          // Hide loading
           if (mounted) Navigator.of(context).pop();
 
-          // Show success and pop
-          widget.onDataChanged(); // Refresh the list
+          widget.onDataChanged();
           if (mounted) {
             showSuccessDialog(
               context,
-              title: 'Deleted',
+              title: 'Successful',
               message: 'The service has been set to inactive.',
               primaryButtonText: 'OK',
               onPrimary: () {
@@ -127,9 +124,7 @@ Future<void> refreshServiceData() async {
             );
           }
         } catch (e) {
-          // Hide loading
           if (mounted) Navigator.of(context).pop();
-          // Show error
           if (mounted) {
             showErrorDialog(
               context,
@@ -168,10 +163,8 @@ Future<void> refreshServiceData() async {
               buildDetailRow('Service Name', service.serviceName),
               buildSectionTitle('Photos'),
               buildPhotosSection(),
-              buildDetailRow(
-                'Service Duration (minutes)',
-                service.serviceDuration,
-              ),
+              const SizedBox(height: 16),
+              buildDetailRow('Service Duration', service.serviceDuration),
               buildDetailRow(
                 'Service Price (RM / hour)',
                 service.servicePrice?.toStringAsFixed(2) ?? 'N/A',
@@ -179,19 +172,18 @@ Future<void> refreshServiceData() async {
               buildSectionTitle('Description'),
               Text(
                 service.serviceDesc,
-                style: const TextStyle(
-                  color: Colors.black87,
-                  fontSize: 14,
-                  height: 1.5,
+                textAlign: TextAlign.justify,
+                style: TextStyle(
+                  color: Colors.black,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 16),
               buildDetailRow(
                 'Service Status',
-                service.serviceStatus,
-                valueColor: service.serviceStatus == 'active'
-                    ? Colors.green.shade700
-                    : Colors.red.shade700,
+                capitalizeFirst(service.serviceStatus),
+                valueColor: getStatusColor(service.serviceStatus),
               ),
               buildDetailRow(
                 'Service Created At',
@@ -216,17 +208,14 @@ Future<void> refreshServiceData() async {
         children: [
           Text(
             title,
-            style: TextStyle(
-              color: Colors.grey.shade600,
-              fontSize: 12,
-            ),
+            style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
           ),
           const SizedBox(height: 4),
           Text(
             value,
             style: TextStyle(
               color: valueColor ?? Colors.black,
-              fontSize: 16,
+              fontSize: 15,
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -240,10 +229,7 @@ Future<void> refreshServiceData() async {
       padding: const EdgeInsets.only(top: 16.0, bottom: 8.0),
       child: Text(
         title,
-        style: TextStyle(
-          color: Colors.grey.shade600,
-          fontSize: 12,
-        ),
+        style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
       ),
     );
   }
@@ -317,8 +303,10 @@ Future<void> refreshServiceData() async {
           return const CircularProgressIndicator();
         }
         if (snapshot.hasError) {
-          return const Text('Error loading handymen',
-              style: TextStyle(color: Colors.red));
+          return const Text(
+            'Error loading handymen',
+            style: TextStyle(color: Colors.red),
+          );
         }
         if (!snapshot.hasData || snapshot.data!.isEmpty) {
           return const Text(
@@ -334,7 +322,7 @@ Future<void> refreshServiceData() async {
           snapshot.data!.join(', '),
           style: const TextStyle(
             color: Colors.black,
-            fontSize: 16,
+            fontSize: 15,
             fontWeight: FontWeight.w500,
           ),
         );
@@ -349,7 +337,7 @@ Future<void> refreshServiceData() async {
           child: ElevatedButton(
             onPressed: navigateToModify,
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.orange.shade700,
+              backgroundColor: Theme.of(context).colorScheme.primary,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 16),
               shape: RoundedRectangleBorder(
@@ -362,9 +350,9 @@ Future<void> refreshServiceData() async {
         const SizedBox(width: 16),
         Expanded(
           child: ElevatedButton(
-            onPressed: handleDelete, // UPDATED
+            onPressed: handleDelete, 
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red.shade700,
+              backgroundColor: Theme.of(context).colorScheme.error,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 16),
               shape: RoundedRectangleBorder(

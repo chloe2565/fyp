@@ -4,6 +4,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import '../../controller/service.dart';
 import '../../model/databaseModel.dart';
+import '../../shared/dropdownMultiOption.dart';
+import '../../shared/dropdownSingleOption.dart';
 import '../../shared/helper.dart';
 
 class EmpAddServiceScreen extends StatefulWidget {
@@ -17,6 +19,7 @@ class EmpAddServiceScreen extends StatefulWidget {
 
 class EmpAddServiceScreenState extends State<EmpAddServiceScreen> {
   final formKey = GlobalKey<FormState>();
+  final GlobalKey<CustomDropdownMultiState> handymanDropdownKey = GlobalKey();
   final ServiceController controller = ServiceController();
   final TextEditingController serviceIDController = TextEditingController();
   final TextEditingController serviceNameController = TextEditingController();
@@ -30,39 +33,59 @@ class EmpAddServiceScreenState extends State<EmpAddServiceScreen> {
   String serviceStatus = 'active';
   final List<File> selectedImages = [];
   final ImagePicker picker = ImagePicker();
-  late Future<Map<String, String>> handymenFuture;
+  Map<String, String> allHandymenMap = {};
   Map<String, String> selectedHandymen = {};
   bool isLoading = false;
+  bool isInitializing = true;
+  bool dataLoadError = false;
+  String? errorMessage;
 
   @override
   void initState() {
     super.initState();
-    // Set date immediately
     createdAtController.text = DateFormat('yyyy-MM-dd').format(DateTime.now());
-    // Load handymen map
-    handymenFuture = controller.getAllHandymenMap();
-    // Load service ID in background
-    _loadServiceID();
+    initializeDataInBackground();
   }
 
-  Future<void> _loadServiceID() async {
+  void initializeDataInBackground() async {
     try {
-      final nextID = await controller.generateNextID();
+      await Future.wait([loadServiceID(), loadHandymenData()]);
+
       if (mounted) {
-        serviceIDController.text = nextID;
+        setState(() => isInitializing = false);
       }
     } catch (e) {
-      print('Error loading service ID: $e');
+      debugPrint('Initialization error: $e');
       if (mounted) {
-        // Set a placeholder if generation fails
-        serviceIDController.text = 'S0001';
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error generating ID: $e'),
-            backgroundColor: Colors.orange,
-          ),
-        );
+        setState(() => isInitializing = false);
       }
+    }
+  }
+
+  Future<void> loadServiceID() async {
+    try {
+      final nextID = await controller.generateNextID().timeout(
+        const Duration(seconds: 10),
+        onTimeout: () => 'S0001',
+      );
+      serviceIDController.text = nextID;
+    } catch (e) {
+      debugPrint('Error loading service ID: $e');
+      serviceIDController.text = 'S0001';
+    }
+  }
+
+  Future<void> loadHandymenData() async {
+    try {
+      final handymenMap = await controller.getAllHandymenMap().timeout(
+        const Duration(seconds: 10),
+        onTimeout: () => <String, String>{},
+      );
+      allHandymenMap = handymenMap;
+    } catch (e) {
+      debugPrint('Error loading handymen: $e');
+      dataLoadError = true;
+      errorMessage = 'Could not load handymen list';
     }
   }
 
@@ -86,117 +109,45 @@ class EmpAddServiceScreenState extends State<EmpAddServiceScreen> {
       );
       if (mounted) {
         setState(() {
-          selectedImages.addAll(pickedFiles.map((xfile) => File(xfile.path)));
+          selectedImages.addAll(pickedFiles.map((x) => File(x.path)));
+          errorMessage = null;
         });
       }
     } catch (e) {
-      print('Error picking images: $e');
+      debugPrint('Error picking images: $e');
     }
   }
 
   void removeImage(int index) {
     setState(() {
       selectedImages.removeAt(index);
+      if (selectedImages.isEmpty) {
+        errorMessage = 'At least one photo is required';
+      }
     });
   }
 
-  void showHandymanSelectDialog() {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              title: const Text('Assign Handymen'),
-              content: SizedBox(
-                width: double.maxFinite,
-                child: FutureBuilder<Map<String, String>>(
-                  future: handymenFuture,
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-                    if (snapshot.hasError) {
-                      return Center(
-                        child: Text('Error loading handymen: ${snapshot.error}'),
-                      );
-                    }
-                    if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                      return const Center(child: Text('No handymen found'));
-                    }
-
-                    final allHandymenMap = snapshot.data!;
-                    final handymanIDs = allHandymenMap.keys.toList();
-                    final userNames = allHandymenMap.values.toList();
-
-                    return ListView.builder(
-                      shrinkWrap: true,
-                      itemCount: allHandymenMap.length,
-                      itemBuilder: (context, index) {
-                        final handymanID = handymanIDs[index];
-                        final userName = userNames[index];
-                        final isSelected = selectedHandymen.containsKey(
-                          handymanID,
-                        );
-
-                        return CheckboxListTile(
-                          title: Text(userName),
-                          subtitle: Text(handymanID),
-                          value: isSelected,
-                          onChanged: (bool? value) {
-                            setDialogState(() {
-                              if (value == true) {
-                                selectedHandymen[handymanID] = userName;
-                              } else {
-                                selectedHandymen.remove(handymanID);
-                              }
-                            });
-                          },
-                        );
-                      },
-                    );
-                  },
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('Cancel'),
-                ),
-                TextButton(
-                  onPressed: () {
-                    setState(() {
-                      handymanController.text = selectedHandymen.values.join(
-                        ', ',
-                      );
-                    });
-                    Navigator.of(context).pop();
-                  },
-                  child: const Text('OK'),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
-
   Future<void> submitForm() async {
-    if (!formKey.currentState!.validate()) {
+    if (!formKey.currentState!.validate() || isLoading) return;
+
+    final dropdownState = handymanDropdownKey.currentState;
+    if (dropdownState != null) {
+      dropdownState.validate();
+      if (dropdownState.errorText != null) {
+        return;
+      }
+    }
+
+    if (selectedImages.isEmpty) {
+      setState(() {
+        errorMessage = 'At least one photo is required';
+      });
       return;
     }
-    
-    if (isLoading) {
-      print('Submit already in progress, ignoring...');
-      return;
-    }
-    
-    print('Starting submit...');
-    setState(() => isLoading = true);
+
+    showLoadingDialog(context, 'Adding service…');
 
     try {
-      print('Creating service model...');
       final service = ServiceModel(
         serviceID: serviceIDController.text,
         serviceName: serviceNameController.text,
@@ -205,38 +156,38 @@ class EmpAddServiceScreenState extends State<EmpAddServiceScreen> {
             ? null
             : double.tryParse(priceController.text),
         serviceDuration:
-            '${minDurationController.text} to ${maxDurationController.text} minutes',
+            '${minDurationController.text} to ${maxDurationController.text} hours',
         serviceStatus: serviceStatus,
         serviceCreatedAt: DateTime.now(),
       );
 
-      final List<String> handymanIDs = selectedHandymen.keys.toList();
-      
-      print('Calling controller.addNewService...');
-      await controller.addNewService(service, handymanIDs, selectedImages);
-      print('Service added successfully');
+      final handymanIDs = selectedHandymen.keys.toList();
 
-      if (mounted) {
-        widget.onServiceAdded();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Service added successfully!'),
-            backgroundColor: Colors.green,
-          ),
-        );
-        Navigator.of(context).pop();
-      }
+      await controller.addNewService(service, handymanIDs, selectedImages);
+      if (!mounted) return;
+      Navigator.of(context).pop();
+
+      showSuccessDialog(
+        context,
+        title: 'Service Added',
+        message: 'The new service has been created successfully.',
+        primaryButtonText: 'Back to Home',
+        onPrimary: () {
+          widget.onServiceAdded();
+          Navigator.of(context)
+            ..pop() // close success dialog
+            ..pop(); // close add-screen
+        },
+      );
     } catch (e) {
-      print('Error in submitForm: $e');
-      if (mounted) {
-        setState(() => isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error adding service: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      if (!mounted) return;
+      Navigator.of(context).pop(); // close loading dialog
+
+      showErrorDialog(
+        context,
+        title: 'Failed to Add Service',
+        message: e.toString(),
+      );
     }
   }
 
@@ -246,7 +197,7 @@ class EmpAddServiceScreenState extends State<EmpAddServiceScreen> {
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: isLoading ? null : () => Navigator.of(context).pop(),
+          onPressed: isLoading ? null : () => Navigator.pop(context),
         ),
         title: const Text(
           'Add Service',
@@ -256,264 +207,346 @@ class EmpAddServiceScreenState extends State<EmpAddServiceScreen> {
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
       ),
-      body: Form(
-        key: formKey,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              buildTextFormField(
-                controller: serviceIDController,
-                label: 'Service ID',
-                readOnly: true,
-                enabled: false,
-              ),
-              const SizedBox(height: 16),
-
-              buildTextFormField(
-                controller: serviceNameController,
-                label: 'Service Name',
-                validator: (value) =>
-                    value!.isEmpty ? 'Please enter a name' : null,
-              ),
-              const SizedBox(height: 16),
-
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+      body: isInitializing
+          ? const Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  buildSectionTitle('Photos'),
-                  const SizedBox(height: 8),
-                  buildPhotoUploader(),
-                  const SizedBox(height: 8),
-                  if (selectedImages.isNotEmpty)
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: List.generate(
-                        selectedImages.length,
-                        (index) => Stack(
-                          children: [
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(8),
-                              child: Image.file(
-                                selectedImages[index],
-                                width: 80,
-                                height: 80,
-                                fit: BoxFit.cover,
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text('Loading...', style: TextStyle(color: Colors.grey)),
+                ],
+              ),
+            )
+          : Form(
+              key: formKey,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // ----- Service ID -----
+                    buildLabel('Service ID'),
+                    buildTextFormField(
+                      controller: serviceIDController,
+                      readOnly: true,
+                      enabled: false,
+                    ),
+                    const SizedBox(height: 16),
+
+                    // ----- Service Name -----
+                    buildLabel('Service Name'),
+                    buildTextFormField(
+                      controller: serviceNameController,
+                      validator: (value) =>
+                          Validator.validateNotEmpty(value, 'Service name'),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // ----- Photos Section -----
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Photos',
+                          style: TextStyle(color: Colors.grey, fontSize: 14),
+                        ),
+                        const SizedBox(width: 100),
+                        Expanded(child: buildPhotoUploader()),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    if (selectedImages.isNotEmpty)
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: List.generate(
+                          selectedImages.length,
+                          (i) => Stack(
+                            children: [
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: Image.file(
+                                  selectedImages[i],
+                                  width: 80,
+                                  height: 80,
+                                  fit: BoxFit.cover,
+                                ),
                               ),
-                            ),
-                            Positioned(
-                              top: 0,
-                              right: 0,
-                              child: GestureDetector(
-                                onTap: () => removeImage(index),
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    color: Colors.red,
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: const Icon(
-                                    Icons.close,
-                                    size: 16,
-                                    color: Colors.white,
+                              Positioned(
+                                top: 0,
+                                right: 0,
+                                child: GestureDetector(
+                                  onTap: () {
+                                    setState(() {
+                                      selectedImages.removeAt(i);
+                                      errorMessage = Validator.validatePhoto(
+                                        selectedImages,
+                                      );
+                                    });
+                                  },
+                                  child: Container(
+                                    decoration: const BoxDecoration(
+                                      color: Colors.red,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(
+                                      Icons.close,
+                                      size: 16,
+                                      color: Colors.white,
+                                    ),
                                   ),
                                 ),
                               ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    if (errorMessage != null && selectedImages.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Text(
+                          errorMessage!,
+                          style: const TextStyle(
+                            color: Colors.red,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    const SizedBox(height: 16),
+
+                    // ----- Duration -----
+                    const Text(
+                      'Service Duration (Hours)',
+                      style: TextStyle(color: Colors.grey, fontSize: 14),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: buildTextFormField(
+                            controller: minDurationController,
+                            label: 'Min',
+                            keyboardType: TextInputType.number,
+                            validator: (_) => Validator.validateDuration(
+                              minDurationController.text,
+                              maxDurationController.text,
                             ),
-                          ],
+                          ),
                         ),
+                        const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 8),
+                          child: Text('To'),
+                        ),
+                        Expanded(
+                          child: buildTextFormField(
+                            controller: maxDurationController,
+                            label: 'Max',
+                            keyboardType: TextInputType.number,
+                            validator: (_) => Validator.validateDuration(
+                              minDurationController.text,
+                              maxDurationController.text,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+
+                    // ----- Price -----
+                    buildLabel('Service Price (RM / hour)'),
+                    buildTextFormField(
+                      controller: priceController,
+                      hint: 'Leave empty if N/A',
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
                       ),
                     ),
-                ],
-              ),
-              const SizedBox(height: 16),
+                    const SizedBox(height: 16),
 
-              buildSectionTitle('Service Duration (minutes)'),
-              Row(
-                children: [
-                  Expanded(
-                    child: buildTextFormField(
-                      controller: minDurationController,
-                      label: 'min',
-                      keyboardType: TextInputType.number,
+                    // ----- Description -----
+                    buildLabel('Description'),
+                    buildTextFormField(
+                      controller: descriptionController,
+                      maxLines: 4,
                       validator: (value) =>
-                          value!.isEmpty ? 'Required' : null,
+                          Validator.validateNotEmpty(value, 'Description'),
                     ),
-                  ),
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 8.0),
-                    child: Text('To'),
-                  ),
-                  Expanded(
-                    child: buildTextFormField(
-                      controller: maxDurationController,
-                      label: 'max',
-                      keyboardType: TextInputType.number,
-                      validator: (value) =>
-                          value!.isEmpty ? 'Required' : null,
+                    const SizedBox(height: 16),
+
+                    // ----- Status -----
+                    buildLabel('Service Status'),
+                    CustomDropdownSingle(
+                      value: serviceStatus,
+                      items: ['active', 'inactive'],
+                      hint: 'Select status',
+                      onChanged: (value) {
+                        setState(() {
+                          serviceStatus = value!;
+                        });
+                      },
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Please select a status';
+                        }
+                        return null;
+                      },
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
+                    const SizedBox(height: 16),
 
-              buildTextFormField(
-                controller: priceController,
-                label: 'Service Price (RM / hour)',
-                hint: 'Leave empty if N/A',
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
-              ),
-              const SizedBox(height: 16),
+                    // ----- Created At -----
+                    buildLabel('Service Created At'),
+                    buildTextFormField(
+                      controller: createdAtController,
+                      readOnly: true,
+                      enabled: false,
+                    ),
+                    const SizedBox(height: 16),
 
-              buildTextFormField(
-                controller: descriptionController,
-                label: 'Description',
-                maxLines: 4,
-                validator: (value) =>
-                    value!.isEmpty ? 'Please enter a description' : null,
-              ),
-              const SizedBox(height: 16),
+                    // ----- Handyman -----
+                    buildLabel('Handyman Assigned'),
+                    CustomDropdownMulti(
+                      key: handymanDropdownKey,
+                      allItems: allHandymenMap,
+                      selectedItems: selectedHandymen,
+                      hint: 'Select handymen (multiple)',
+                      showSubtitle: true,
+                      onChanged: (selected) {
+                        setState(() {
+                          selectedHandymen = selected;
+                          handymanController.text = selectedHandymen.values
+                              .join(', ');
+                        });
+                      },
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Please select at least one handyman';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 32),
 
-              buildDropdownFormField(
-                label: 'Service Status',
-                value: serviceStatus,
-                items: ['active', 'inactive'],
-                onChanged: (value) {
-                  if (value != null) {
-                    setState(() => serviceStatus = value);
-                  }
-                },
-              ),
-              const SizedBox(height: 16),
-
-              buildTextFormField(
-                controller: createdAtController,
-                label: 'Service Created At',
-                readOnly: true,
-                enabled: false,
-              ),
-              const SizedBox(height: 16),
-
-              buildTextFormField(
-                controller: handymanController,
-                label: 'Handyman Assigned',
-                readOnly: true,
-                onTap: showHandymanSelectDialog,
-                suffixIcon: const Icon(Icons.add_circle_outline),
-              ),
-              const SizedBox(height: 32),
-
-              Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: isLoading ? null : submitForm,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.orange.shade700,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: isLoading
-                          ? const SizedBox(
-                              width: 24,
-                              height: 24,
-                              child: CircularProgressIndicator(
-                                color: Colors.white,
-                                strokeWidth: 2,
+                    // ----- Submit / Cancel -----
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: isLoading ? null : submitForm,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Theme.of(
+                                context,
+                              ).colorScheme.primary,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
                               ),
-                            )
-                          : const Text(
-                              'Submit',
+                            ),
+                            child: isLoading
+                                ? const SizedBox(
+                                    width: 24,
+                                    height: 24,
+                                    child: CircularProgressIndicator(
+                                      color: Colors.white,
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Text(
+                                    'Submit',
+                                    style: TextStyle(fontSize: 16),
+                                  ),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: isLoading
+                                ? null
+                                : () => Navigator.pop(context),
+                            style: OutlinedButton.styleFrom(
+                              backgroundColor: Theme.of(
+                                context,
+                              ).colorScheme.secondary,
+                              foregroundColor: Colors.white,
+                              side: BorderSide(color: Colors.grey.shade300),
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: const Text(
+                              'Cancel',
                               style: TextStyle(fontSize: 16),
                             ),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: isLoading ? null : () => Navigator.of(context).pop(),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.grey.shade700,
-                        side: BorderSide(color: Colors.grey.shade300),
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
-                      ),
-                      child: const Text(
-                        'Cancel',
-                        style: TextStyle(fontSize: 16),
-                      ),
+                      ],
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ],
-          ),
-        ),
-      ),
+            ),
     );
   }
 
-  Widget buildSectionTitle(String title) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8.0),
-      child: Text(
-        title,
-        style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
-      ),
-    );
+  Widget buildLabel(String text) {
+    return Text(text, style: const TextStyle(color: Colors.grey, fontSize: 14));
   }
 
   Widget buildPhotoUploader() {
     return OutlinedButton.icon(
       onPressed: pickImage,
-      icon: const Icon(Icons.upload_file_outlined),
+      icon: const Icon(Icons.upload_file_outlined, size: 18),
       label: const Text('Upload photo'),
       style: OutlinedButton.styleFrom(
+        textStyle: TextStyle(
+          color: Colors.black,
+          fontSize: 15,
+          fontWeight: FontWeight.w500,
+        ),
         foregroundColor: Colors.grey.shade700,
         side: BorderSide(color: Colors.grey.shade300),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       ),
     );
   }
 
   Widget buildTextFormField({
     required TextEditingController controller,
-    required String label,
+    String? label,
     String? hint,
     bool readOnly = false,
     bool enabled = true,
     int maxLines = 1,
     TextInputType? keyboardType,
     String? Function(String?)? validator,
-    Icon? suffixIcon,
+    Widget? suffixIcon,
     VoidCallback? onTap,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        buildSectionTitle(label),
+        if (label != null) ...[
+          Text(label, style: const TextStyle(color: Colors.grey, fontSize: 14)),
+          const SizedBox(height: 4),
+        ],
         TextFormField(
           controller: controller,
           readOnly: readOnly,
           enabled: enabled,
           maxLines: maxLines,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            fontSize: 15,
-            color: Colors.grey.shade600,
-          ),
           keyboardType: keyboardType,
           validator: validator,
           onTap: onTap,
+          style: TextStyle(
+            color: Colors.black,
+            fontSize: 15,
+            fontWeight: FontWeight.w500,
+          ),
           decoration: InputDecoration(
             hintText: hint,
+            hintStyle: const TextStyle(color: Colors.grey),
             filled: true,
             fillColor: enabled ? Colors.white : Colors.grey.shade100,
             border: OutlineInputBorder(
@@ -533,50 +566,6 @@ class EmpAddServiceScreenState extends State<EmpAddServiceScreen> {
               horizontal: 12,
             ),
             suffixIcon: suffixIcon,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget buildDropdownFormField({
-    required String label,
-    required String value,
-    required List<String> items,
-    required void Function(String?) onChanged,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        buildSectionTitle(label),
-        DropdownButtonFormField<String>(
-          value: value,
-          items: items
-              .map(
-                (item) => DropdownMenuItem(
-                  value: item,
-                  child: Text(
-                    item.substring(0, 1).toUpperCase() + item.substring(1),
-                  ),
-                ),
-              )
-              .toList(),
-          onChanged: onChanged,
-          decoration: InputDecoration(
-            filled: true,
-            fillColor: Colors.white,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: Colors.grey.shade300),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: Colors.grey.shade300),
-            ),
-            contentPadding: const EdgeInsets.symmetric(
-              vertical: 12,
-              horizontal: 12,
-            ),
           ),
         ),
       ],

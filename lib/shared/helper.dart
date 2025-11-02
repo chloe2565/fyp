@@ -83,6 +83,27 @@ class Validator {
     }
     return null;
   }
+
+  static String? validateDuration(String? minStr, String? maxStr) {
+    if (minStr == null || minStr.isEmpty) return 'Min required';
+    if (maxStr == null || maxStr.isEmpty) return 'Max required';
+
+    final min = int.tryParse(minStr);
+    final max = int.tryParse(maxStr);
+
+    if (min == null || max == null) return 'Must be whole numbers';
+    if (min <= 0 || max <= 0) return 'Must be greater than 0';
+    if (max < min) return 'Max must be ≥ Min';
+
+    return null;
+  }
+
+  static String? validatePhoto(List<File> photos) {
+    if (photos.isEmpty) {
+      return 'At least one photo is required';
+    }
+    return null;
+  }
 }
 
 class Formatter {
@@ -781,9 +802,11 @@ Color getStatusColor(String status) {
       return Colors.blue;
     case 'completed':
     case 'paid':
+    case 'active':
       return Colors.green;
     case 'cancelled':
     case 'failed':
+    case 'inactive':
       return Colors.red;
     default:
       return Colors.grey;
@@ -1690,11 +1713,6 @@ Widget buildReviewTextField(RatingReviewController controller) {
     ],
   );
 }
-
-
-
-
-
 
 
 

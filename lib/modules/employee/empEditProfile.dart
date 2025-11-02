@@ -6,14 +6,14 @@ import '../../shared/helper.dart';
 
 enum Gender { male, female }
 
-class EditProfileScreen extends StatefulWidget {
+class EmpEditProfileScreen extends StatefulWidget {
   final String initialName;
   final String initialEmail;
   final Gender initialGender;
   final String initialPhoneNumber;
   final String userID;
 
-  const EditProfileScreen({
+  const EmpEditProfileScreen({
     super.key,
     required this.initialName,
     required this.initialEmail,
@@ -23,10 +23,10 @@ class EditProfileScreen extends StatefulWidget {
   });
 
   @override
-  State<EditProfileScreen> createState() => EditProfileScreenState();
+  State<EmpEditProfileScreen> createState() => EmpEditProfileScreenState();
 }
 
-class EditProfileScreenState extends State<EditProfileScreen>
+class EmpEditProfileScreenState extends State<EmpEditProfileScreen>
     with WidgetsBindingObserver {
   final formKey = GlobalKey<FormState>();
   final nameController = TextEditingController();

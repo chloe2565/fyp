@@ -137,8 +137,9 @@ class ServiceController {
   Future<void> updateService(
     ServiceModel service,
     List<String> handymanIDs,
-    List<File> newPhotos,
-  ) async {
+    List<File> newPhotos, {
+    List<String> removedPicNames = const [],
+  }) async {
     try {
       List<String> newPhotoNames = [];
       for (var i = 0; i < newPhotos.length; i++) {
@@ -150,7 +151,12 @@ class ServiceController {
       }
       print('Simulating upload for new photos: $newPhotoNames');
 
-      await serviceService.updateService(service, handymanIDs, newPhotoNames);
+      await serviceService.updateService(
+        service,
+        handymanIDs,
+        newPhotoNames,
+        removedPicNames: removedPicNames,
+      );
     } catch (e) {
       print('Error in Controller updateService: $e');
       rethrow;

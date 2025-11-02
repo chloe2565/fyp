@@ -120,7 +120,7 @@ class CustomerModel {
 
 class EmployeeModel {
   final String empID;
-  final String empStatus;
+  final String empStatus; // active, resigned, retired
   final double empSalary;
   final String empType;
   final DateTime empHireDate;
@@ -234,12 +234,12 @@ class HandymanModel {
 
 class HandymanServiceModel {
   final String handymanID;
-  final String skillID;
+  final String serviceID;
   final double yearExperience;
 
   HandymanServiceModel({
     required this.handymanID,
-    required this.skillID,
+    required this.serviceID,
     required this.yearExperience,
   });
 
@@ -247,7 +247,7 @@ class HandymanServiceModel {
   factory HandymanServiceModel.fromMap(Map<String, dynamic> data) {
     return HandymanServiceModel(
       handymanID: data['handymanID'] ?? '',
-      skillID: data['skillID'] ?? '',
+      serviceID: data['serviceID'] ?? '',
       yearExperience: data['yearExperience'] ?? '',
     );
   }
@@ -256,7 +256,7 @@ class HandymanServiceModel {
   Map<String, dynamic> toMap() {
     return {
       'handymanID': handymanID,
-      'skillID': skillID,
+      'serviceID': serviceID,
       'yearExperience': yearExperience,
     };
   }

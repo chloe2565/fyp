@@ -5,6 +5,7 @@ import '../model/databaseModel.dart';
 import '../../model/reviewDisplayViewModel.dart';
 import '../service/ratingReview.dart';
 import '../service/firestore_service.dart';
+import 'handymanService.dart';
 
 class ServiceAggregates {
   final double averageRating;
@@ -79,6 +80,7 @@ class ServiceService {
   late final CollectionReference servicesCollection;
   final RatingReviewService ratingReviewService;
   final ServicePictureService servicePictureService;
+  final handymanServiceService = HandymanServiceService();
 
   ServiceService({
     required this.ratingReviewService,
@@ -337,6 +339,7 @@ class ServiceService {
 
       final empSnap = await db
           .collection('Employee')
+          .where('empStatus', isEqualTo: 'active')
           .where(FieldPath.documentId, whereIn: empIdSet.toList())
           .get();
 
@@ -391,15 +394,10 @@ class ServiceService {
     final WriteBatch batch = db.batch();
     final serviceRef = servicesCollection.doc(service.serviceID);
     batch.set(serviceRef, service.toMap());
-    for (final handymanID in handymanIDs) {
-      final handymanServiceRef = db.collection('HandymanService').doc();
-      final newHandymanService = HandymanServiceModel(
-        handymanID: handymanID,
-        skillID: service.serviceID,
-        yearExperience: 0.0,
-      );
-      batch.set(handymanServiceRef, newHandymanService.toMap());
-    }
+    await handymanServiceService.addHandymanToService(
+      service.serviceID,
+      handymanIDs,
+    );
 
     await batch.commit();
     if (photoFileNames.isNotEmpty) {
@@ -421,7 +419,7 @@ class ServiceService {
     try {
       final handymanServiceSnap = await db
           .collection('HandymanService')
-          .where('skillID', isEqualTo: serviceID)
+          .where('serviceID', isEqualTo: serviceID)
           .get();
 
       if (handymanServiceSnap.docs.isEmpty) return [];
@@ -503,7 +501,7 @@ class ServiceService {
     try {
       final handymanServiceSnap = await db
           .collection('HandymanService')
-          .where('skillID', isEqualTo: serviceID)
+          .where('serviceID', isEqualTo: serviceID)
           .get();
 
       if (handymanServiceSnap.docs.isEmpty) return {};
@@ -595,8 +593,9 @@ class ServiceService {
   Future<void> updateService(
     ServiceModel service,
     List<String> handymanIDs,
-    List<String> newPhotoNames,
-  ) async {
+    List<String> newPhotoNames, {
+    List<String> removedPicNames = const [],
+  }) async {
     final WriteBatch batch = db.batch();
 
     final serviceRef = servicesCollection.doc(service.serviceID);
@@ -604,28 +603,49 @@ class ServiceService {
 
     final oldHandymanLinks = await db
         .collection('HandymanService')
-        .where('skillID', isEqualTo: service.serviceID)
+        .where('serviceID', isEqualTo: service.serviceID)
         .get();
     for (var doc in oldHandymanLinks.docs) {
       batch.delete(doc.reference);
     }
 
-    for (final handymanID in handymanIDs) {
-      final handymanServiceRef = db.collection('HandymanService').doc();
-      final newHandymanService = HandymanServiceModel(
-        handymanID: handymanID,
-        skillID: service.serviceID,
-        yearExperience: 0.0,
-      );
-      batch.set(handymanServiceRef, newHandymanService.toMap());
+    for (var handymanID in handymanIDs) {
+      final linkRef = db.collection('HandymanService').doc();
+      batch.set(linkRef, {
+        'handymanID': handymanID,
+        'serviceID': service.serviceID,
+        'yearExperience': 0.0,
+      });
     }
 
     await batch.commit();
-    for (var i = 0; i < newPhotoNames.length; i++) {
-      await servicePictureService.addNewPicture(
-        service.serviceID,
-        newPhotoNames[i],
-        false,
+
+    if (removedPicNames.isNotEmpty) {
+      await Future.wait(
+        removedPicNames.map((picName) async {
+          final picQuery = await db
+              .collection('ServicePicture')
+              .where('serviceID', isEqualTo: service.serviceID)
+              .where('picName', isEqualTo: picName)
+              .get();
+          for (var doc in picQuery.docs) {
+            await doc.reference.delete();
+          }
+        }),
+      );
+    }
+
+    if (newPhotoNames.isNotEmpty) {
+      await Future.wait(
+        newPhotoNames.asMap().entries.map((entry) {
+          final index = entry.key;
+          final fileName = entry.value;
+          return servicePictureService.addNewPicture(
+            service.serviceID,
+            fileName,
+            index == 0,
+          );
+        }),
       );
     }
   }

@@ -116,7 +116,7 @@ class RequestHistoryScreenState extends State<RequestHistoryScreen> {
 
                       // Service Name Filter
                       DropdownButtonFormField<String>(
-                        value: tempService,
+                        initialValue: tempService,
                         hint: const Text('Select Service'),
                         items: controller.allServiceNames
                             .map(
@@ -135,7 +135,7 @@ class RequestHistoryScreenState extends State<RequestHistoryScreen> {
 
                       // Status Filter
                       DropdownButtonFormField<String>(
-                        value: tempStatus,
+                        initialValue: tempStatus,
                         hint: const Text('Select Status'),
                         items: allStatuses
                             .map(
