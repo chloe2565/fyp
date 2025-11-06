@@ -33,7 +33,6 @@ class ProviderServiceReqMapScreen extends StatelessWidget {
   Widget buildMapUI(BuildContext context, HandymanController controller) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
@@ -45,6 +44,7 @@ class ProviderServiceReqMapScreen extends StatelessWidget {
             }
           },
         ),
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         title: const Text(
           'Handyman Location',
           style: TextStyle(

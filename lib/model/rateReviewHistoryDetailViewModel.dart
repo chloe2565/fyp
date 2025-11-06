@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../model/databaseModel.dart';
 
 class RatingReviewDetailViewModel {
   final String reqID;
@@ -12,6 +13,7 @@ class RatingReviewDetailViewModel {
   final String reviewText;
   final DateTime? updatedAt;
   final DateTime reviewCreatedAt;
+  final ReviewReplyModel? reply;
 
   RatingReviewDetailViewModel({
     required this.reqID,
@@ -25,6 +27,7 @@ class RatingReviewDetailViewModel {
     required this.reviewText,
     this.updatedAt,
     required this.reviewCreatedAt,
+    this.reply,
   });
 
   bool get canUpdate {

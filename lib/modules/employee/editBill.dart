@@ -150,12 +150,12 @@ class EmpEditBillScreenState extends State<EmpEditBillScreen> {
           icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: isSubmitting ? null : () => Navigator.pop(context),
         ),
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         title: const Text(
           'Edit Billing Record',
           style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
-        backgroundColor: Colors.white,
         elevation: 0,
       ),
       body: isPageLoading
@@ -317,7 +317,11 @@ class EmpEditBillScreenState extends State<EmpEditBillScreen> {
           readOnly: readOnly,
           keyboardType: keyboardType,
           validator: validator,
-          style: const TextStyle(fontSize: 16),
+          style: TextStyle(
+            color: Colors.black,
+            fontSize: 15,
+            fontWeight: FontWeight.w500,
+          ),
           decoration: InputDecoration(
             filled: true,
             fillColor: readOnly ? Colors.grey[100] : Colors.white,

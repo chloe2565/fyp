@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../controller/bill.dart';
-import '../../shared/dropdownSingleOption.dart'; 
-import '../../shared/helper.dart'; 
+import '../../shared/dropdownSingleOption.dart';
+import '../../shared/helper.dart';
 
 class EmpAddBillScreen extends StatefulWidget {
   final VoidCallback onBillAdded;
@@ -51,10 +51,9 @@ class EmpAddBillScreenState extends State<EmpAddBillScreen> {
           message: 'New billing record has been added.',
           primaryButtonText: 'OK',
           onPrimary: () {
-            widget
-                .onBillAdded(); 
+            widget.onBillAdded();
             Navigator.of(context).pop(); // Close success dialog
-            Navigator.of(context).pop(); // Go back 
+            Navigator.of(context).pop(); // Go back
           },
         );
       } catch (e) {
@@ -83,12 +82,12 @@ class EmpAddBillScreenState extends State<EmpAddBillScreen> {
             icon: const Icon(Icons.arrow_back, color: Colors.black),
             onPressed: isLoading ? null : () => Navigator.pop(context),
           ),
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           title: const Text(
             'Add Billing Record',
             style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
           ),
           centerTitle: true,
-          backgroundColor: Colors.white,
           elevation: 0,
         ),
         body: Consumer<BillController>(
@@ -198,7 +197,9 @@ class EmpAddBillScreenState extends State<EmpAddBillScreen> {
                                 ? null
                                 : () => Navigator.pop(context),
                             style: OutlinedButton.styleFrom(
-                              backgroundColor: Colors.grey[200],
+                              backgroundColor: Theme.of(
+                                context,
+                              ).colorScheme.secondary,
                               side: BorderSide(color: Colors.grey[300]!),
                               padding: const EdgeInsets.symmetric(vertical: 16),
                               shape: RoundedRectangleBorder(
@@ -209,7 +210,7 @@ class EmpAddBillScreenState extends State<EmpAddBillScreen> {
                               'Cancel',
                               style: TextStyle(
                                 fontSize: 16,
-                                color: Colors.black54,
+                                color: Colors.white,
                               ),
                             ),
                           ),
@@ -257,7 +258,11 @@ class EmpAddBillScreenState extends State<EmpAddBillScreen> {
           readOnly: readOnly,
           keyboardType: keyboardType,
           validator: validator,
-          style: const TextStyle(fontSize: 16),
+          style: TextStyle(
+            color: Colors.black,
+            fontSize: 15,
+            fontWeight: FontWeight.w500,
+          ),
           decoration: InputDecoration(
             filled: true,
             fillColor: readOnly ? Colors.grey[100] : Colors.white,

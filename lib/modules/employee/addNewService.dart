@@ -199,12 +199,12 @@ class EmpAddServiceScreenState extends State<EmpAddServiceScreen> {
           icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: isLoading ? null : () => Navigator.pop(context),
         ),
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         title: const Text(
           'Add Service',
           style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
       ),
       body: isInitializing

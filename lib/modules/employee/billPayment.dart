@@ -65,7 +65,6 @@ class EmpBillPaymentScreenState extends State<EmpBillPaymentScreen> {
       length: 2,
       child: Scaffold(
         appBar: AppBar(
-          backgroundColor: Colors.white,
           elevation: 0,
           leading: IconButton(
             icon: const Icon(Icons.arrow_back, color: Colors.black),
@@ -77,6 +76,7 @@ class EmpBillPaymentScreenState extends State<EmpBillPaymentScreen> {
               }
             },
           ),
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           title: const Text(
             'Bill and Payment',
             style: TextStyle(

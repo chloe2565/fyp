@@ -216,9 +216,9 @@ class EmpBillDetailScreenState extends State<EmpBillDetailScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.white,
         elevation: 0,
         leading: const BackButton(color: Colors.black),
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         title: const Text(
           'Billing Record Details',
           style: TextStyle(
@@ -274,8 +274,13 @@ class EmpBillDetailScreenState extends State<EmpBillDetailScreen> {
             'Billing Created At',
             dateTimeFormat.format(widget.bill.billDueDate),
           ),
-          if (vm.adminRemark != null && vm.adminRemark!.isNotEmpty)
-            buildDetailItem('Admin Remark', vm.adminRemark!),
+          buildDetailItem(
+            'Admin Remark',
+            (vm.adminRemark != null && vm.adminRemark!.trim().isNotEmpty)
+                ? vm.adminRemark!
+                : 'None',
+          ),
+
           Padding(
             padding: const EdgeInsets.only(top: 32.0, bottom: 16.0),
             child: Row(

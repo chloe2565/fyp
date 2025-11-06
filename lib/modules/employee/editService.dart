@@ -212,12 +212,12 @@ class EmpModifyServiceScreenState extends State<EmpModifyServiceScreen> {
           icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () => Navigator.of(context).pop(),
         ),
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         title: const Text(
           'Modify Service',
           style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
       ),
       body: isPageLoading

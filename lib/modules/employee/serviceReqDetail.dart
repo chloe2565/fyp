@@ -10,7 +10,6 @@ import 'providerServiceReqMap.dart';
 class EmpRequestDetailScreen extends StatelessWidget {
   final String reqID;
   final ServiceRequestController controller;
-  
 
   const EmpRequestDetailScreen({
     super.key,
@@ -28,9 +27,9 @@ class EmpRequestDetailScreen extends StatelessWidget {
         return Scaffold(
           appBar: AppBar(
             title: const Text('Request Details'),
-            backgroundColor: Colors.white,
             elevation: 0,
             iconTheme: const IconThemeData(color: Colors.black),
+            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
             titleTextStyle: const TextStyle(
               color: Colors.black,
               fontWeight: FontWeight.bold,
@@ -220,7 +219,7 @@ class EmpRequestDetailScreen extends StatelessWidget {
         ElevatedButton(
           onPressed: () async {
             final String? empType = controller.currentEmployeeType;
-            
+
             if (empType == 'handyman') {
               Navigator.push(
                 context,
@@ -240,7 +239,8 @@ class EmpRequestDetailScreen extends StatelessWidget {
             } else {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
-                    content: Text('Error: Could not determine user role.')),
+                  content: Text('Error: Could not determine user role.'),
+                ),
               );
             }
           },

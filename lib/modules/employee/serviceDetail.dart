@@ -9,10 +9,12 @@ import 'editService.dart';
 class EmpServiceDetailScreen extends StatefulWidget {
   final ServiceModel service;
   final VoidCallback onDataChanged;
+  final bool isAdmin;
 
   const EmpServiceDetailScreen({
     required this.service,
     required this.onDataChanged,
+    required this.isAdmin,
     super.key,
   });
 
@@ -145,12 +147,12 @@ class EmpServiceDetailScreenState extends State<EmpServiceDetailScreen> {
           icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () => Navigator.of(context).pop(),
         ),
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         title: const Text(
           'Service Details',
           style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
       ),
       body: SingleChildScrollView(
@@ -192,7 +194,7 @@ class EmpServiceDetailScreenState extends State<EmpServiceDetailScreen> {
               buildSectionTitle('Handyman Assigned'),
               buildHandymenSection(),
               const SizedBox(height: 32),
-              buildActionButtons(),
+              if (widget.isAdmin) buildActionButtons(),
             ],
           ),
         ),
@@ -249,7 +251,6 @@ class EmpServiceDetailScreenState extends State<EmpServiceDetailScreen> {
         }
 
         final pictures = snapshot.data!;
-        // Store the picNames for the gallery viewer
         imagePaths = pictures.map((p) => p.picName).toList();
 
         return SizedBox(
@@ -350,7 +351,7 @@ class EmpServiceDetailScreenState extends State<EmpServiceDetailScreen> {
         const SizedBox(width: 16),
         Expanded(
           child: ElevatedButton(
-            onPressed: handleDelete, 
+            onPressed: handleDelete,
             style: ElevatedButton.styleFrom(
               backgroundColor: Theme.of(context).colorScheme.error,
               foregroundColor: Colors.white,

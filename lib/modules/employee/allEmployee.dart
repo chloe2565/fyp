@@ -3,17 +3,15 @@ import '../../controller/service.dart';
 import '../../model/databaseModel.dart';
 import '../../shared/helper.dart';
 import '../../service/user.dart';
-import 'addNewService.dart';
-import 'serviceDetail.dart';
 
-class EmpAllServicesScreen extends StatefulWidget {
-  const EmpAllServicesScreen({super.key});
+class EmpAllEmployeeScreen extends StatefulWidget {
+  const EmpAllEmployeeScreen({super.key});
 
   @override
-  State<EmpAllServicesScreen> createState() => EmpAllServicesScreenState();
+  State<EmpAllEmployeeScreen> createState() => EmpAllEmployeeScreenState();
 }
 
-class EmpAllServicesScreenState extends State<EmpAllServicesScreen> {
+class EmpAllEmployeeScreenState extends State<EmpAllEmployeeScreen> {
   final TextEditingController searchController = TextEditingController();
   final UserService userService = UserService();
   late Future<List<ServiceModel>> servicesFuture;

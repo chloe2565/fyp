@@ -205,7 +205,6 @@ class EmpRequestScreenState extends State<EmpRequestScreen> {
       length: 3,
       child: Scaffold(
         appBar: AppBar(
-          backgroundColor: Colors.white,
           elevation: 0,
           leading: IconButton(
             icon: const Icon(Icons.arrow_back, color: Colors.black),
@@ -217,6 +216,7 @@ class EmpRequestScreenState extends State<EmpRequestScreen> {
               }
             },
           ),
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           title: const Text(
             'Service Request',
             style: TextStyle(

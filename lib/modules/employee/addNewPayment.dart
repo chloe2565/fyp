@@ -74,18 +74,17 @@ class EmpAddPaymentScreenState extends State<EmpAddPaymentScreen> {
     return ChangeNotifierProvider.value(
       value: controller,
       child: Scaffold(
-        backgroundColor: Colors.white,
         appBar: AppBar(
           leading: IconButton(
             icon: const Icon(Icons.arrow_back, color: Colors.black),
             onPressed: isLoading ? null : () => Navigator.pop(context),
           ),
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           title: const Text(
             'Add Payment Record',
             style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
           ),
           centerTitle: true,
-          backgroundColor: Colors.white,
           elevation: 0,
         ),
         body: Consumer<PaymentController>(
@@ -225,7 +224,8 @@ class EmpAddPaymentScreenState extends State<EmpAddPaymentScreen> {
                       label: 'Admin Remark',
                       controller: controller.adminRemarkController,
                       maxLines: 3,
-                      validator: (value) => Validator.validateNotEmpty(value, 'Admin Remark'),
+                      validator: (value) =>
+                          Validator.validateNotEmpty(value, 'Admin Remark'),
                     ),
                     const SizedBox(height: 32),
 
@@ -256,7 +256,9 @@ class EmpAddPaymentScreenState extends State<EmpAddPaymentScreen> {
                                 ? null
                                 : () => Navigator.pop(context),
                             style: OutlinedButton.styleFrom(
-                              backgroundColor: Colors.grey[200],
+                              backgroundColor: Theme.of(
+                                context,
+                              ).colorScheme.secondary,
                               side: BorderSide(color: Colors.grey[300]!),
                               padding: const EdgeInsets.symmetric(vertical: 16),
                               shape: RoundedRectangleBorder(
@@ -267,7 +269,7 @@ class EmpAddPaymentScreenState extends State<EmpAddPaymentScreen> {
                               'Cancel',
                               style: TextStyle(
                                 fontSize: 16,
-                                color: Colors.black54,
+                                color: Colors.white,
                               ),
                             ),
                           ),
@@ -331,7 +333,11 @@ class EmpAddPaymentScreenState extends State<EmpAddPaymentScreen> {
           keyboardType: keyboardType,
           validator: validator,
           maxLines: maxLines,
-          style: const TextStyle(fontSize: 16),
+          style: TextStyle(
+            color: Colors.black,
+            fontSize: 15,
+            fontWeight: FontWeight.w500,
+          ),
           decoration: InputDecoration(
             hintText: hint,
             hintStyle: TextStyle(color: Colors.grey[400]),

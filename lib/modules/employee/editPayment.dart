@@ -160,18 +160,17 @@ class EmpEditPaymentScreenState extends State<EmpEditPaymentScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: isLoading ? null : () => Navigator.pop(context),
         ),
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         title: const Text(
           'Edit Payment Record',
           style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
-        backgroundColor: Colors.white,
         elevation: 0,
       ),
       body: Form(
@@ -316,8 +315,8 @@ class EmpEditPaymentScreenState extends State<EmpEditPaymentScreen> {
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [            
-              buildLabel('Media Proof'),
+          children: [
+            buildLabel('Media Proof'),
             const SizedBox(width: 50),
             Expanded(
               child: buildMediaProofUploader(
@@ -550,7 +549,11 @@ class EmpEditPaymentScreenState extends State<EmpEditPaymentScreen> {
           keyboardType: keyboardType,
           validator: validator,
           maxLines: maxLines,
-          style: const TextStyle(fontSize: 16),
+          style: TextStyle(
+            color: Colors.black,
+            fontSize: 15,
+            fontWeight: FontWeight.w500,
+          ),
           decoration: InputDecoration(
             hintText: hint,
             hintStyle: TextStyle(color: Colors.grey[400]),

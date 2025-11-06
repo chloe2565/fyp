@@ -76,6 +76,38 @@ class ServiceRequestService {
     }
   }
 
+  // Employee admin side
+  Future<List<ServiceRequestModel>> getAllRequests() async {
+    try {
+      final querySnapshot = await db.collection('ServiceRequest').get();
+      return querySnapshot.docs
+          .map((doc) => ServiceRequestModel.fromMap(doc.data()))
+          .toList();
+    } catch (e) {
+      print('Error in getAllRequests: $e');
+      return [];
+    }
+  }
+
+  // Employee handyman side
+  Future<List<ServiceRequestModel>> getRequestsForHandyman(
+    String handymanID,
+  ) async {
+    try {
+      final querySnapshot = await db
+          .collection('ServiceRequest')
+          .where('handymanID', isEqualTo: handymanID)
+          .get();
+
+      return querySnapshot.docs
+          .map((doc) => ServiceRequestModel.fromMap(doc.data()))
+          .toList();
+    } catch (e) {
+      print('Error in getRequestsForHandyman: $e');
+      return [];
+    }
+  }
+
   // Customer side
   Future<List<Map<String, dynamic>>> getUpcomingRequests(String custID) async {
     return fetchRequests(custID, ['pending', 'confirmed', 'departed']);

@@ -37,15 +37,14 @@ class EmpProfileScreenState extends State<EmpProfileScreen> {
     return Scaffold(
       appBar: AppBar(
         leading: const BackButton(color: Colors.black),
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         title: const Text(
           'My Profile',
           style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
-        backgroundColor: Colors.white,
         elevation: 0,
       ),
-      backgroundColor: Colors.white,
       body: AnimatedBuilder(
         animation: controller,
         builder: (context, _) {

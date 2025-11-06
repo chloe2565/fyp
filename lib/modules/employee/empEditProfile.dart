@@ -106,7 +106,7 @@ class _EmpEditProfileScreenState extends State<EmpEditProfileScreen> {
       }
     } catch (e) {
       if (!mounted) return;
-       Navigator.of(context).pop(); // Close loading
+      Navigator.of(context).pop(); // Close loading
 
       if (mounted) {
         showErrorDialog(
@@ -126,15 +126,14 @@ class _EmpEditProfileScreenState extends State<EmpEditProfileScreen> {
     return Scaffold(
       appBar: AppBar(
         leading: const BackButton(color: Colors.black),
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         title: const Text(
           'Edit Profile',
           style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
-        backgroundColor: Colors.white,
         elevation: 0,
       ),
-      backgroundColor: Colors.white,
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 24),
         child: Form(

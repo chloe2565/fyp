@@ -41,9 +41,9 @@ class EmpPaymentDetailScreenState extends State<EmpPaymentDetailScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.white,
         elevation: 0,
         leading: const BackButton(color: Colors.black),
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         title: const Text(
           'Payment Record Details',
           style: TextStyle(
@@ -92,7 +92,12 @@ class EmpPaymentDetailScreenState extends State<EmpPaymentDetailScreen> {
         children: [
           buildDetailItem('Payment ID', payment.payID),
           buildDetailItem('Billing ID', payment.billingID),
-          buildDetailItem('Admin Remark', payment.adminRemark ?? 'N/A'),
+          buildDetailItem(
+            'Admin Remark',
+            (payment.adminRemark.trim().isNotEmpty)
+                ? payment.adminRemark
+                : 'None',
+          ),
           payment.payMediaProof.isEmpty
               ? buildDetailItem('Media Proof', 'None')
               : buildMediaProof(payment.payMediaProof),

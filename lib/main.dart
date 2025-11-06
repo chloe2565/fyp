@@ -14,6 +14,7 @@ import 'modules/customer/register.dart';
 import 'modules/customer/homepage.dart';
 import 'modules/employee/billPayment.dart';
 import 'modules/employee/empProfile.dart';
+import 'modules/employee/ratingReview.dart';
 import 'service/firebase_options.dart';
 import 'shared/theme.dart';
 import 'login.dart';
@@ -55,7 +56,8 @@ class MyApp extends StatelessWidget {
         '/empAllService': (context) => const EmpAllServicesScreen(),
         '/empRequest': (context) => const EmpRequestScreen(),
         '/empBillPayment': (context) => const EmpBillPaymentScreen(),
-        // '/empEmployee': (context) => const EmpEmlpoyee(),
+        '/empRating': (context) => const EmpRatingReviewScreen(),
+        // '/empEmployee': (context) => const EmpEmployee(),
         '/empProfile': (context) => const EmpProfileScreen(),
       },
     );
