@@ -353,8 +353,6 @@ serve(async (req: Request) => {
 
       const billingDoc = await billingResponse.json();
       const billingData = firestoreDocToObject(billingDoc);
-      const providerID = billingData.providerID || "";
-      console.log(`Retrieved providerID: ${providerID}`);
 
       // Create new payment document
       const newPayment = {
@@ -365,7 +363,7 @@ serve(async (req: Request) => {
         payCreatedAt: new Date(),
         adminRemark: "Paid via Stripe",
         payMediaProof: "",
-        providerID: providerID,
+        providerID: "",
         billingID: billingID,
       };
 
@@ -446,7 +444,6 @@ serve(async (req: Request) => {
       
       const billingDoc = await billingResponse.json();
       const billingData = firestoreDocToObject(billingDoc);
-      const providerID = billingData.providerID || "";
 
       // Create failed payment record
       const newPayment = {
@@ -457,7 +454,7 @@ serve(async (req: Request) => {
         payCreatedAt: new Date(),
         adminRemark: paymentIntent.last_payment_error?.message ?? "Payment failed",
         payMediaProof: "",
-        providerID: providerID,
+        providerID: "",
         billingID: billingID,
       };
 

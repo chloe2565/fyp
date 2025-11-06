@@ -12,7 +12,6 @@ class UserService {
   Future<UserModel?> getUserByAuthID(String authID) async {
     try {
       print('Querying User for authID: $authID');
-      // Query the users collection where authID matches the provided Firebase uid
       QuerySnapshot query = await usersCollection
           .where('authID', isEqualTo: authID)
           .limit(1)
@@ -37,8 +36,7 @@ class UserService {
         print("User not logged in");
         return null;
       }
-
-      // Get authID then find matched authID
+      
       final userQuery = await usersCollection
           .where('authID', isEqualTo: userAuth.uid)
           .limit(1)
@@ -65,6 +63,100 @@ class UserService {
       return customerQuery.docs.first.id;
     } catch (e) {
       print("Error fetching customer ID: $e");
+      return null;
+    }
+  }
+
+  // Get current employee ID and type (admin or handyman)
+  Future<Map<String, String>?> getCurrentEmployeeInfo() async {
+    try {
+      final userAuth = auth.currentUser;
+      if (userAuth == null) {
+        print("User not logged in");
+        return null;
+      }
+      
+      final userQuery = await usersCollection
+          .where('authID', isEqualTo: userAuth.uid)
+          .limit(1)
+          .get();
+
+      if (userQuery.docs.isEmpty) {
+        print("No User document found for authID ${userAuth.uid}");
+        return null;
+      }
+
+      final employeeCollection = usersCollection.firestore.collection(
+        'Employee',
+      );
+
+      final employeeQuery = await employeeCollection
+          .where('userID', isEqualTo: userQuery.docs.first.id)
+          .limit(1)
+          .get();
+
+      if (employeeQuery.docs.isEmpty) {
+        print("No employee profile found for user ${userQuery.docs.first.id}");
+        return null;
+      }
+
+      final empDoc = employeeQuery.docs.first;
+      final empData = empDoc.data() as Map<String, dynamic>;
+      
+      return {
+        'empID': empDoc.id,
+        'empType': empData['empType'] as String, // 'admin' or 'handyman'
+      };
+    } catch (e) {
+      print("Error fetching employee info: $e");
+      return null;
+    }
+  }
+
+  // Get provider ID (admin ID)
+  Future<String?> getCurrentProviderID() async {
+    try {
+      final userAuth = auth.currentUser;
+      if (userAuth == null) {
+        print("User not logged in");
+        return null;
+      }
+
+      final userQuery = await usersCollection
+          .where('authID', isEqualTo: userAuth.uid)
+          .limit(1)
+          .get();
+      if (userQuery.docs.isEmpty) {
+        print("No User document found for authID ${userAuth.uid}");
+        return null;
+      }
+      final String userID = userQuery.docs.first.id;
+
+      final firestore = usersCollection.firestore;
+      final employeeQuery = await firestore
+          .collection('Employee')
+          .where('userID', isEqualTo: userID)
+          .limit(1)
+          .get();
+      if (employeeQuery.docs.isEmpty) {
+        print("No Employee document found for userID $userID");
+        return null;
+      }
+      final String empID = employeeQuery.docs.first.id;
+
+      final providerQuery = await firestore
+          .collection('ServiceProvider')
+          .where('empID', isEqualTo: empID)
+          .limit(1)
+          .get();
+      if (providerQuery.docs.isEmpty) {
+        print("No ServiceProvider document found for empID $empID");
+        return null;
+      }
+
+      return providerQuery.docs.first.id; 
+    } catch (e) {
+      print("Error fetching provider ID: $e");
       return null;
     }
   }

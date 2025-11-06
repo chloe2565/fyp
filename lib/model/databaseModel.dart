@@ -8,6 +8,7 @@ class BillingModel {
   final String billStatus; // "cancelled", "paid", "pending"
   final String reqID;
   final String providerID;
+  final String? adminRemark;
 
   BillingModel({
     required this.billingID,
@@ -17,6 +18,7 @@ class BillingModel {
     required this.billStatus,
     required this.reqID,
     required this.providerID,
+    this.adminRemark,
   });
 
   // Convert Firestore data to Dart
@@ -33,6 +35,7 @@ class BillingModel {
       billStatus: data['billStatus'] ?? '',
       reqID: data['reqID'] ?? '',
       providerID: data['providerID'] ?? '',
+      adminRemark: data['adminRemark'],
     );
   }
 
@@ -46,6 +49,7 @@ class BillingModel {
       'billStatus': billStatus,
       'reqID': reqID,
       'providerID': providerID,
+      'adminRemark': adminRemark,
     };
   }
 }
@@ -576,8 +580,7 @@ class ServiceRequestModel {
   final String reqDesc;
   final List<String> reqPicName;
   final DateTime? reqCompleteTime;
-  final String
-  reqStatus; // "pending", "confirmed", "departed", "completed", "cancelled"
+  final String reqStatus; // "pending", "confirmed", "departed", "completed", "cancelled"
   final String? reqRemark;
   final DateTime? reqCancelDateTime;
   final String? reqCustomCancel;

@@ -1,15 +1,15 @@
 import '../../model/serviceRequestViewModel.dart';
 
-class FilterInput {
-  final List<RequestViewModel> allPending;   // Used by admin only
-  final List<RequestViewModel> allUpcoming;  // Used by both
-  final List<RequestViewModel> allHistory;   // Used by both
+class EmpServiceRequestInput {
+  final List<RequestViewModel> allPending;
+  final List<RequestViewModel> allUpcoming;
+  final List<RequestViewModel> allHistory;
   final String searchQuery;
   final String? selectedService;
   final DateTime? selectedDate;
   final String? selectedStatus;
 
-  FilterInput({
+  EmpServiceRequestInput({
     required this.allPending,
     required this.allUpcoming,
     required this.allHistory,
@@ -20,12 +20,12 @@ class FilterInput {
   });
 }
 
-class FilterOutput {
-  final List<RequestViewModel> filteredPending;   // Used by admin only
-  final List<RequestViewModel> filteredUpcoming;  // Used by both
-  final List<RequestViewModel> filteredHistory;   // Used by both
+class EmpServiceRequestOutput {
+  final List<RequestViewModel> filteredPending;
+  final List<RequestViewModel> filteredUpcoming;
+  final List<RequestViewModel> filteredHistory;
 
-  FilterOutput({
+  EmpServiceRequestOutput({
     required this.filteredPending,
     required this.filteredUpcoming,
     required this.filteredHistory,

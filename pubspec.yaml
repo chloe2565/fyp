@@ -87,6 +87,7 @@ flutter:
     - assets/reviews/
     - assets/services/
     - assets/requests/
+    - assets/payments/
     
   # assets:
   #   - images/a_dot_burr.jpeg

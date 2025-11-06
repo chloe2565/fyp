@@ -76,4 +76,14 @@ class HandymanService {
       }
     });
   }
+
+  Future<void> updateHandymanLocation(String handymanID, GeoPoint location) async {
+    try {
+      await db.collection('Handyman').doc(handymanID).update({
+        'currentLocation': location,
+      });
+    } catch (e) {
+      print("Error updating handyman location: $e");
+    }
+  }
 }

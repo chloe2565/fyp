@@ -21,12 +21,10 @@ class ServiceRequestService {
         .limit(1)
         .get();
 
-    // Start from 1 if no service request record
     if (query.docs.isEmpty) {
       return '$prefix${'1'.padLeft(padding, '0')}';
     }
 
-    // Find recent service request record ID
     final lastID = query.docs.first.id;
 
     try {
@@ -78,12 +76,35 @@ class ServiceRequestService {
     }
   }
 
+  // Customer side
   Future<List<Map<String, dynamic>>> getUpcomingRequests(String custID) async {
     return fetchRequests(custID, ['pending', 'confirmed', 'departed']);
   }
 
   Future<List<Map<String, dynamic>>> getHistoryRequests(String custID) async {
     return fetchRequests(custID, ['completed', 'cancelled']);
+  }
+
+  // Employee side
+  Future<List<Map<String, dynamic>>> getPendingRequestsForEmployee(
+    String empID,
+    String empType,
+  ) async {
+    return fetchRequestsForEmployee(empID, empType, ['pending']);
+  }
+
+  Future<List<Map<String, dynamic>>> getUpcomingRequestsForEmployee(
+    String empID,
+    String empType,
+  ) async {
+    return fetchRequestsForEmployee(empID, empType, ['confirmed', 'departed']);
+  }
+
+  Future<List<Map<String, dynamic>>> getHistoryRequestsForEmployee(
+    String empID,
+    String empType,
+  ) async {
+    return fetchRequestsForEmployee(empID, empType, ['completed', 'cancelled']);
   }
 
   Future<void> addServiceRequest(ServiceRequestModel request) async {
@@ -100,7 +121,6 @@ class ServiceRequestService {
   }
 
   Future<void> cancelRequest(String reqID) async {
-    // Finds the request by reqID to update
     final query = await db
         .collection('ServiceRequest')
         .where('reqID', isEqualTo: reqID)
@@ -142,12 +162,12 @@ class ServiceRequestService {
     }
   }
 
+  // Fetch requests for customer
   Future<List<Map<String, dynamic>>> fetchRequests(
     String custID,
     List<String> statuses,
   ) async {
     try {
-      // Fetch all service requests
       final requestQuery = await db
           .collection('ServiceRequest')
           .where('custID', isEqualTo: custID)
@@ -162,7 +182,6 @@ class ServiceRequestService {
           .map((doc) => ServiceRequestModel.fromMap(doc.data()))
           .toList();
 
-      // Get unique IDs to fetch
       final serviceIds = requests.map((req) => req.serviceID).toSet().toList();
       final handymanIds = requests
           .map((req) => req.handymanID)
@@ -170,21 +189,18 @@ class ServiceRequestService {
           .toList();
       final reqIds = requests.map((req) => req.reqID).toSet().toList();
 
-      // Fetch related services and handymen
       final serviceMap = await batchFetchServices(serviceIds);
       final handymanNameMap = await handyman.fetchHandymanNames(
         requests.map((req) => req.handymanID).toSet().toList(),
       );
       final billingMap = await fetchBillingInfo(reqIds);
 
-      // Combine all the data into a List of Maps
       final List<Map<String, dynamic>> detailsList = [];
       for (final req in requests) {
         final service = serviceMap[req.serviceID];
         final handymanName = handymanNameMap[req.handymanID];
         final billing = billingMap[req.reqID];
 
-        // Only add if all data exists
         if (service != null && handymanName != null) {
           detailsList.add({
             'request': req,
@@ -197,6 +213,88 @@ class ServiceRequestService {
       return detailsList;
     } catch (e) {
       print('Error fetching request details: $e');
+      rethrow;
+    }
+  }
+
+  // Fetch requests for employee
+  Future<List<Map<String, dynamic>>> fetchRequestsForEmployee(
+    String empID,
+    String empType,
+    List<String> statuses,
+  ) async {
+    try {
+      List<ServiceRequestModel> requests;
+
+      if (empType.toLowerCase() == 'admin') {
+        final requestQuery = await db
+            .collection('ServiceRequest')
+            .where('reqStatus', whereIn: statuses)
+            .get();
+
+        requests = requestQuery.docs
+            .map((doc) => ServiceRequestModel.fromMap(doc.data()))
+            .toList();
+      } else {
+        final handymanData = await db
+            .collection('Handyman')
+            .where('empID', isEqualTo: empID)
+            .limit(1)
+            .get();
+
+        if (handymanData.docs.isEmpty) {
+          print('No handyman found with empID: $empID');
+          return [];
+        }
+
+        final handymanID = handymanData.docs.first.data()['handymanID'];
+
+        final requestQuery = await db
+            .collection('ServiceRequest')
+            .where('handymanID', isEqualTo: handymanID)
+            .where('reqStatus', whereIn: statuses)
+            .get();
+
+        requests = requestQuery.docs
+            .map((doc) => ServiceRequestModel.fromMap(doc.data()))
+            .toList();
+      }
+
+      if (requests.isEmpty) {
+        return [];
+      }
+
+      final serviceIds = requests.map((req) => req.serviceID).toSet().toList();
+      final handymanIds = requests
+          .map((req) => req.handymanID)
+          .toSet()
+          .toList();
+      final reqIds = requests.map((req) => req.reqID).toSet().toList();
+
+      final serviceMap = await batchFetchServices(serviceIds);
+      final handymanNameMap = await handyman.fetchHandymanNames(
+        requests.map((req) => req.handymanID).toSet().toList(),
+      );
+      final billingMap = await fetchBillingInfo(reqIds);
+
+      final List<Map<String, dynamic>> detailsList = [];
+      for (final req in requests) {
+        final service = serviceMap[req.serviceID];
+        final handymanName = handymanNameMap[req.handymanID];
+        final billing = billingMap[req.reqID];
+
+        if (service != null && handymanName != null) {
+          detailsList.add({
+            'request': req,
+            'service': service,
+            'handymanName': handymanName,
+            'billing': billing,
+          });
+        }
+      }
+      return detailsList;
+    } catch (e) {
+      print('Error fetching request details for employee: $e');
       rethrow;
     }
   }

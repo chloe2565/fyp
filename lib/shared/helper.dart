@@ -131,12 +131,16 @@ void showChangePasswordDialog({
   required TextEditingController currentPasswordController,
   required TextEditingController newPasswordController,
   required TextEditingController confirmNewPasswordController,
-  required VoidCallback onSubmit,
+  required Future<String?> Function() onSubmit,
+  String? errorText,
 }) {
   final formKey = GlobalKey<FormState>();
   bool isCurrentPasswordVisible = false;
   bool isNewPasswordVisible = false;
   bool isConfirmNewPasswordVisible = false;
+  String? currentPasswordError;
+  String? newPasswordError;
+  String? confirmPasswordError;
 
   currentPasswordController.clear();
   newPasswordController.clear();
@@ -191,6 +195,8 @@ void showChangePasswordDialog({
                         ],
                       ),
                       const SizedBox(height: 20),
+
+                      // Current Password
                       buildPasswordField(
                         context: context,
                         label: 'Current Password',
@@ -198,9 +204,11 @@ void showChangePasswordDialog({
                         controller: currentPasswordController,
                         isVisible: isCurrentPasswordVisible,
                         obscureText: true,
-                        validator: (value) => value!.isEmpty
-                            ? 'Current Password is required'
-                            : null,
+                        validator: (value) =>
+                            currentPasswordError ??
+                            (value!.isEmpty
+                                ? 'Current Password is required'
+                                : null),
                         onVisibilityChanged: () {
                           setDialogState(() {
                             isCurrentPasswordVisible =
@@ -209,6 +217,8 @@ void showChangePasswordDialog({
                         },
                       ),
                       const SizedBox(height: 15),
+
+                      // New Password
                       buildPasswordField(
                         context: context,
                         label: 'New Password',
@@ -216,7 +226,9 @@ void showChangePasswordDialog({
                         controller: newPasswordController,
                         isVisible: isNewPasswordVisible,
                         obscureText: true,
-                        validator: Validator.validatePassword,
+                        validator: (value) =>
+                            newPasswordError ??
+                            Validator.validatePassword(value),
                         onVisibilityChanged: () {
                           setDialogState(() {
                             isNewPasswordVisible = !isNewPasswordVisible;
@@ -224,6 +236,8 @@ void showChangePasswordDialog({
                         },
                       ),
                       const SizedBox(height: 15),
+
+                      // Confirm New Password
                       buildPasswordField(
                         context: context,
                         label: 'Confirm New Password',
@@ -231,10 +245,12 @@ void showChangePasswordDialog({
                         controller: confirmNewPasswordController,
                         isVisible: isConfirmNewPasswordVisible,
                         obscureText: true,
-                        validator: (value) => Validator.validateConfirmPassword(
-                          value,
-                          newPasswordController.text,
-                        ),
+                        validator: (value) =>
+                            confirmPasswordError ??
+                            Validator.validateConfirmPassword(
+                              value,
+                              newPasswordController.text,
+                            ),
                         onVisibilityChanged: () {
                           setDialogState(() {
                             isConfirmNewPasswordVisible =
@@ -242,13 +258,45 @@ void showChangePasswordDialog({
                           });
                         },
                       ),
+
                       const SizedBox(height: 30),
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
-                          onPressed: (formKey.currentState?.validate() ?? false)
-                              ? onSubmit
-                              : null,
+                          onPressed: () async {
+                            setDialogState(() {
+                              currentPasswordError = null;
+                              newPasswordError = null;
+                              confirmPasswordError = null;
+                            });
+
+                            if (formKey.currentState?.validate() ?? false) {
+                              final error = await onSubmit();
+
+                              if (error != null) {
+                                setDialogState(() {
+                                  if (error.toLowerCase().contains('current')) {
+                                    currentPasswordError = error;
+                                  } else if (error.toLowerCase().contains(
+                                    'confirm',
+                                  )) {
+                                    confirmPasswordError = error;
+                                  } else if (error.toLowerCase().contains(
+                                    'new',
+                                  )) {
+                                    newPasswordError = error;
+                                  } else {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text(error)),
+                                    );
+                                  }
+
+                                  formKey.currentState?.validate();
+                                });
+                              }
+                            }
+                          },
+
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFFFD722E),
                             padding: const EdgeInsets.symmetric(vertical: 14),
@@ -658,7 +706,7 @@ Widget buildPrimaryTabBar({
       tabs: tabs
           .map(
             (label) => SizedBox(
-              width: MediaQuery.of(context).size.width / (tabs.length * 2),
+              width: MediaQuery.of(context).size.width / (tabs.length * 1.5),
               child: Tab(text: label),
             ),
           )
@@ -1072,7 +1120,7 @@ void showSuccessDialog(
   BuildContext context, {
   required String title,
   required String message,
-  String primaryButtonText = 'Back to Home',
+  String primaryButtonText = 'Back',
   String? secondaryButtonText,
   VoidCallback? onPrimary,
   VoidCallback? onSecondary,
@@ -1714,11 +1762,132 @@ Widget buildReviewTextField(RatingReviewController controller) {
   );
 }
 
+// Employee side info card
+class EmpInfoCard extends StatelessWidget {
+  final IconData icon;
+  final String reqID;
+  final List<MapEntry<String, String>> details;
+  final VoidCallback onViewDetails;
 
+  const EmpInfoCard({
+    super.key,
+    required this.icon,
+    required this.reqID,
+    required this.details,
+    required this.onViewDetails,
+  });
 
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 1.5,
+      color: Colors.white,
+      shadowColor: Colors.black.withValues(alpha: 0.08),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 35,
+                      height: 35,
+                      decoration: BoxDecoration(
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.primary.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(
+                        icon,
+                        color: Theme.of(context).colorScheme.primary,
+                        size: 22,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Text(
+                      reqID,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ],
+                ),
+                Flexible(
+                  fit: FlexFit.loose,
+                  child: ElevatedButton(
+                    onPressed: onViewDetails,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                      minimumSize: const Size(0, 36),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                    ),
+                    child: const Text('View Details'),
+                  ),
+                ),
+              ],
+            ),
 
+            const SizedBox(height: 16),
+            const Divider(height: 1, thickness: 1, color: Color(0xFFEEEEEE)),
+            const SizedBox(height: 12),
 
-
+            ...details.map((e) {
+              final isStatusRow = e.key.toLowerCase() == 'status';
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      flex: 3,
+                      child: Text(
+                        e.key,
+                        style: TextStyle(
+                          color: Colors.grey.shade700,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      flex: 3,
+                      child: Text(
+                        e.value,
+                        style: TextStyle(
+                          color: isStatusRow
+                              ? getStatusColor(e.value)
+                              : Colors.black87,
+                          fontSize: 13,
+                          fontWeight: isStatusRow
+                              ? FontWeight.bold
+                              : FontWeight.normal,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
 
 

@@ -6,7 +6,7 @@ class PaymentService {
   final FirebaseFirestore db = FirebaseFirestore.instance;
   final UserService userService = UserService();
 
-Future<String> generateNextID() async {
+  Future<String> generateNextID() async {
     const String prefix = 'PY';
     const int padding = 4;
 
@@ -18,12 +18,10 @@ Future<String> generateNextID() async {
         .limit(1)
         .get();
 
-    // Start from 1 if no service request record
     if (query.docs.isEmpty) {
       return '$prefix${'1'.padLeft(padding, '0')}';
     }
 
-    // Find recent service request record ID
     final lastID = query.docs.first.id;
 
     try {
@@ -38,6 +36,7 @@ Future<String> generateNextID() async {
     }
   }
 
+  // Customer side
   Future<List<PaymentModel>> getPayments() async {
     try {
       final String? custID = await userService.getCurrentCustomerID();
@@ -108,37 +107,101 @@ Future<String> generateNextID() async {
     }
   }
 
+  // Employee side
+  Future<List<PaymentModel>> empGetPayments() async {
+    try {
+      final paymentQuery = await db.collection('Payment').get();
+
+      if (paymentQuery.docs.isEmpty) {
+        return [];
+      }
+
+      return paymentQuery.docs
+          .map((doc) => PaymentModel.fromMap(doc.data()))
+          .toList();
+    } catch (e) {
+      print("Error fetching payments: $e");
+      return [];
+    }
+  }
+
+  Future<PaymentModel?> getPaymentById(String payID) async {
+    try {
+      final doc = await db.collection('Payment').doc(payID).get();
+      if (doc.exists) {
+        return PaymentModel.fromMap(doc.data()!);
+      }
+      return null;
+    } catch (e) {
+      print("Error fetching payment $payID: $e");
+      return null;
+    }
+  }
+
   Future<void> createNewPayment({
     required String billingID,
-    required double amount,
-    required String method,
+    required double payAmt,
+    required String payMethod,
     required String providerID,
+    required String payStatus,
+    required String payMediaProof,
+    required String adminRemark,
   }) async {
     try {
       final batch = db.batch();
-      final newPaymentRef = db.collection('payment').doc();
-      final newPaymentID = newPaymentRef.id;
+      final newPaymentID = await generateNextID();
+      final newPaymentRef = db.collection('Payment').doc(newPaymentID);
 
       final newPayment = PaymentModel(
         payID: newPaymentID,
-        payStatus: 'Success', 
-        payAmt: amount,
-        payMethod: method,
+        payStatus: payStatus,
+        payAmt: payAmt,
+        payMethod: payMethod,
         payCreatedAt: DateTime.now(),
-        adminRemark: '',
-        payMediaProof: '', 
+        adminRemark: adminRemark,
+        payMediaProof: payMediaProof,
         providerID: providerID,
         billingID: billingID,
       );
 
       batch.set(newPaymentRef, newPayment.toMap());
 
-      final billingRef = db.collection('billing').doc(billingID);
-      batch.update(billingRef, {'billStatus': 'paid'});
+      final billingRef = db.collection('Billing').doc(billingID);
+      String billStatus = (payStatus.toLowerCase() == 'paid')
+          ? 'paid'
+          : 'pending';
+      batch.update(billingRef, {'billStatus': billStatus});
 
       await batch.commit();
     } catch (e) {
       print("Error creating new payment: $e");
+      rethrow;
+    }
+  }
+
+  Future<void> updatePayment(
+    String payID,
+    String billingID,
+    Map<String, dynamic> data,
+    String newPayStatus,
+  ) async {
+    try {
+      final batch = db.batch();
+
+      final paymentRef = db.collection('Payment').doc(payID);
+      batch.update(paymentRef, data);
+
+      final billingRef = db.collection('Billing').doc(billingID);
+      final String statusToSync = newPayStatus.toLowerCase();
+      if (statusToSync == 'paid') {
+        batch.update(billingRef, {'billStatus': 'paid'});
+      } else if (statusToSync == 'pending') {
+        batch.update(billingRef, {'billStatus': 'pending'});
+      }
+
+      await batch.commit();
+    } catch (e) {
+      print("Error updating payment $payID: $e");
       rethrow;
     }
   }

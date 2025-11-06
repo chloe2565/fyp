@@ -4,13 +4,15 @@ import '../../controller/serviceRequest.dart';
 import '../../model/serviceRequestViewModel.dart';
 import '../../shared/fullScreenImage.dart';
 import '../../shared/helper.dart';
-import 'serviceReqMap.dart';
+import 'handymanServiceReqMap.dart';
+import 'providerServiceReqMap.dart';
 
-class RequestHistoryDetailScreen extends StatelessWidget {
+class EmpRequestDetailScreen extends StatelessWidget {
   final String reqID;
   final ServiceRequestController controller;
+  
 
-  const RequestHistoryDetailScreen({
+  const EmpRequestDetailScreen({
     super.key,
     required this.reqID,
     required this.controller,
@@ -78,8 +80,14 @@ class RequestHistoryDetailScreen extends StatelessWidget {
             DateFormat('HH:mm:ss').format(viewModel.scheduledDateTime),
           ),
           buildDetailItem(context, 'Description', model.reqDesc),
-          if (model.reqRemark != null && model.reqRemark!.isNotEmpty)
-            buildDetailItem(context, 'Additional Remark', model.reqRemark!),
+          buildDetailItem(
+            context,
+            'Additional Remark',
+            (model.reqRemark != null && model.reqRemark!.isNotEmpty)
+                ? model.reqRemark!
+                : 'None',
+          ),
+
           buildDetailItem(
             context,
             'Service Request Status',
@@ -210,14 +218,31 @@ class RequestHistoryDetailScreen extends StatelessWidget {
     if (status == 'departed') {
       actions.add(
         ElevatedButton(
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) =>
-                    ServiceReqMapScreen(reqID: viewModel.reqID),
-              ),
-            );
+          onPressed: () async {
+            final String? empType = controller.currentEmployeeType;
+            
+            if (empType == 'handyman') {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) =>
+                      HandymanServiceReqMapScreen(reqID: viewModel.reqID),
+                ),
+              );
+            } else if (empType == 'admin') {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) =>
+                      ProviderServiceReqMapScreen(reqID: viewModel.reqID),
+                ),
+              );
+            } else {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                    content: Text('Error: Could not determine user role.')),
+              );
+            }
           },
           style: ElevatedButton.styleFrom(
             backgroundColor: Theme.of(context).colorScheme.primary,

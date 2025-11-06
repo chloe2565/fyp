@@ -358,9 +358,9 @@ class EmpModifyServiceScreenState extends State<EmpModifyServiceScreen> {
                           );
                         }
                         if (snapshot.hasError || !snapshot.hasData) {
-                          return const Text(
+                          return Text(
                             'Failed to load handymen',
-                            style: TextStyle(color: Colors.red),
+                            style: TextStyle(color: Theme.of(context).colorScheme.error),
                           );
                         }
                         return CustomDropdownMulti(

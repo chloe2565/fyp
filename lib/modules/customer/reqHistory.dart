@@ -338,7 +338,7 @@ class RequestHistoryScreenState extends State<RequestHistoryScreen> {
                   horizontal: 10,
                   vertical: 10,
                 ),
-                foregroundColor: Colors.red,
+                foregroundColor: Theme.of(context).colorScheme.error,
                 side: const BorderSide(color: Colors.red, width: 1.5),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
@@ -368,7 +368,7 @@ class RequestHistoryScreenState extends State<RequestHistoryScreen> {
             icon: requestViewModel.icon,
             title: requestViewModel.title,
             details: upcomingDetails,
-            actions: upcomingActions, // Use the conditional list
+            actions: upcomingActions,
           ),
         );
       },

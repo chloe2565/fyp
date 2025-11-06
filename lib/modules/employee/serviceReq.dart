@@ -1,0 +1,607 @@
+import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
+import '../../controller/serviceRequest.dart';
+import '../../shared/empNavigatorBase.dart';
+import '../../shared/helper.dart';
+import 'serviceReqDetail.dart';
+
+class EmpRequestScreen extends StatefulWidget {
+  const EmpRequestScreen({super.key});
+
+  @override
+  State<EmpRequestScreen> createState() => EmpRequestScreenState();
+}
+
+class EmpRequestScreenState extends State<EmpRequestScreen> {
+  int currentIndex = 1;
+  bool isInitialized = false;
+  late ServiceRequestController controller;
+  final TextEditingController searchController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    controller = ServiceRequestController();
+    initializeController();
+    searchController.addListener(() {
+      controller.onSearchChanged(searchController.text);
+    });
+  }
+
+  Future<void> initializeController() async {
+    await controller.initializeForEmployee();
+    if (mounted) {
+      setState(() {
+        isInitialized = true;
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    controller.dispose();
+    searchController.dispose();
+    super.dispose();
+  }
+
+  void onNavBarTap(int index) async {
+    if (index == currentIndex) {
+      return;
+    }
+
+    String? routeToPush;
+
+    switch (index) {
+      case 0:
+        Navigator.pop(context);
+        return;
+      case 1:
+        break;
+      case 2:
+        routeToPush = '/empEmployee';
+        break;
+    }
+
+    if (routeToPush != null) {
+      await Navigator.pushNamed(context, routeToPush);
+
+      if (mounted) {
+        setState(() {
+          currentIndex = 1;
+        });
+      }
+    }
+  }
+
+  void showFilterDialog() {
+    String? tempService = controller.selectedService;
+    DateTime? tempDate = controller.selectedDate;
+    String? tempStatus = controller.selectedStatus;
+    final allStatuses = [
+      'Pending',
+      'Confirmed',
+      'Departed',
+      'Completed',
+      'Cancelled',
+    ];
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setModalState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+              ),
+              child: SingleChildScrollView(
+                child: Container(
+                  padding: const EdgeInsets.all(20),
+                  child: Wrap(
+                    runSpacing: 16,
+                    children: [
+                      const Text(
+                        'Filter By',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      DropdownButtonFormField<String>(
+                        initialValue: tempService,
+                        hint: const Text('Select Service'),
+                        items: controller.allServiceNames
+                            .map(
+                              (name) => DropdownMenuItem(
+                                value: name,
+                                child: Text(name),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (value) =>
+                            setModalState(() => tempService = value),
+                        decoration: const InputDecoration(
+                          labelText: 'Service Name',
+                        ),
+                      ),
+                      DropdownButtonFormField<String>(
+                        initialValue: tempStatus,
+                        hint: const Text('Select Status'),
+                        items: allStatuses
+                            .map(
+                              (name) => DropdownMenuItem(
+                                value: name.toLowerCase(),
+                                child: Text(name),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (value) =>
+                            setModalState(() => tempStatus = value),
+                        decoration: const InputDecoration(labelText: 'Status'),
+                      ),
+                      TextFormField(
+                        readOnly: true,
+                        controller: TextEditingController(
+                          text: tempDate == null
+                              ? ''
+                              : DateFormat('dd MMM yyyy').format(tempDate!),
+                        ),
+                        decoration: InputDecoration(
+                          labelText: 'Select Date',
+                          suffixIcon: Icon(Icons.calendar_today),
+                        ),
+                        onTap: () async {
+                          final pickedDate = await showDatePicker(
+                            context: context,
+                            initialDate: tempDate ?? DateTime.now(),
+                            firstDate: DateTime(2020),
+                            lastDate: DateTime(2030),
+                          );
+                          if (pickedDate != null) {
+                            setModalState(() => tempDate = pickedDate);
+                          }
+                        },
+                      ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          ElevatedButton(
+                            child: const Text('Clear Filters'),
+                            onPressed: () async {
+                              Navigator.pop(context);
+                              searchController.clear();
+                              await controller.clearFilters();
+                            },
+                          ),
+                          ElevatedButton(
+                            child: const Text('Apply'),
+                            onPressed: () async {
+                              Navigator.pop(context);
+                              await controller.applyFilters(
+                                service: tempService,
+                                date: tempDate,
+                                status: tempStatus,
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return DefaultTabController(
+      length: 3,
+      child: Scaffold(
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.black),
+            onPressed: () {
+              if (Navigator.canPop(context)) {
+                Navigator.pop(context);
+              } else {
+                Navigator.pushReplacementNamed(context, '/empHome');
+              }
+            },
+          ),
+          title: const Text(
+            'Service Request',
+            style: TextStyle(
+              color: Colors.black,
+              fontWeight: FontWeight.bold,
+              fontSize: 20,
+            ),
+          ),
+          centerTitle: true,
+        ),
+        body: !isInitialized
+            ? const Center(child: CircularProgressIndicator())
+            : Column(
+                children: [
+                  buildSearchField(
+                    context: context,
+                    controller: searchController,
+                    onFilterPressed: showFilterDialog,
+                  ),
+                  buildPrimaryTabBar(
+                    context: context,
+                    tabs: ['Pending', 'Upcoming', 'History'],
+                  ),
+                  Expanded(
+                    child: TabBarView(
+                      children: [
+                        buildPendingList(),
+                        buildUpcomingList(),
+                        buildHistoryList(),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+        bottomNavigationBar: EmpNavigationBar(
+          currentIndex: currentIndex,
+          onTap: onNavBarTap,
+        ),
+      ),
+    );
+  }
+
+  Widget buildPendingList() {
+    return ListenableBuilder(
+      listenable: controller,
+      builder: (context, child) {
+        if (controller.isLoadingCustomer) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        final viewModels = controller.filteredPendingRequests;
+
+        if (viewModels.isEmpty) {
+          return const Center(
+            child: Text(
+              'No pending requests match your filters.',
+              style: TextStyle(color: Colors.grey, fontSize: 16),
+            ),
+          );
+        }
+
+        return ListView.builder(
+          padding: const EdgeInsets.all(12),
+          itemCount: viewModels.length,
+          itemBuilder: (context, index) {
+            final requestViewModel = viewModels[index];
+            final date = DateFormat(
+              'dd MMM yyyy',
+            ).format(requestViewModel.scheduledDateTime);
+            final time = DateFormat(
+              'hh:mm a',
+            ).format(requestViewModel.scheduledDateTime);
+
+            final pendingDetails = [
+              MapEntry('Location', requestViewModel.requestModel.reqAddress),
+              MapEntry('Booking Date', date),
+              MapEntry('Start Time', time),
+              MapEntry('Service', requestViewModel.title),
+              MapEntry('Handyman Name', requestViewModel.handymanName),
+              MapEntry('Status', requestViewModel.reqStatus),
+            ];
+
+            final now = DateTime.now();
+            final scheduledDate = DateUtils.dateOnly(
+              requestViewModel.scheduledDateTime,
+            );
+            final today = DateUtils.dateOnly(now);
+            final differenceInDays = scheduledDate.difference(today).inDays;
+
+            final List<Widget> pendingActions = [];
+            if (differenceInDays >= 3) {
+              pendingActions.addAll([
+                OutlinedButton(
+                  onPressed: () =>
+                      controller.rescheduleRequest(requestViewModel.reqID),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 10,
+                    ),
+                    foregroundColor: Theme.of(context).colorScheme.primary,
+                    side: BorderSide(
+                      color: Theme.of(context).colorScheme.primary,
+                      width: 1.5,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: const Text('Reschedule'),
+                ),
+                OutlinedButton(
+                  onPressed: () =>
+                      controller.cancelRequest(requestViewModel.reqID),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 10,
+                    ),
+                    foregroundColor: Theme.of(context).colorScheme.error,
+                    side: const BorderSide(color: Colors.red, width: 1.5),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: const Text('Cancel'),
+                ),
+              ]);
+            }
+
+            return GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ChangeNotifierProvider.value(
+                      value: controller,
+                      child: EmpRequestDetailScreen(
+                        reqID: requestViewModel.reqID,
+                        controller: controller,
+                      ),
+                    ),
+                  ),
+                );
+              },
+              child: EmpInfoCard(
+                icon: requestViewModel.icon,
+                reqID: requestViewModel.reqID,
+                details: pendingDetails,
+                onViewDetails: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => ChangeNotifierProvider.value(
+                        value: controller,
+                        child: EmpRequestDetailScreen(
+                          reqID: requestViewModel.reqID,
+                          controller: controller,
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget buildUpcomingList() {
+    return ListenableBuilder(
+      listenable: controller,
+      builder: (context, child) {
+        if (controller.isLoadingCustomer) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        final viewModels = controller.filteredUpcomingRequests;
+
+        if (viewModels.isEmpty) {
+          return const Center(
+            child: Text(
+              'No upcoming requests match your filters.',
+              style: TextStyle(color: Colors.grey, fontSize: 16),
+            ),
+          );
+        }
+
+        return ListView.builder(
+          padding: const EdgeInsets.all(12),
+          itemCount: viewModels.length,
+          itemBuilder: (context, index) {
+            final requestViewModel = viewModels[index];
+            final date = DateFormat(
+              'dd MMM yyyy',
+            ).format(requestViewModel.scheduledDateTime);
+            final time = DateFormat(
+              'hh:mm a',
+            ).format(requestViewModel.scheduledDateTime);
+
+            final upcomingDetails = [
+              MapEntry('Location', requestViewModel.requestModel.reqAddress),
+              MapEntry('Booking Date', date),
+              MapEntry('Start Time', time),
+              MapEntry('Service', requestViewModel.title),
+              MapEntry('Handyman Name', requestViewModel.handymanName),
+              MapEntry('Status', requestViewModel.reqStatus),
+            ];
+
+            final now = DateTime.now();
+            final scheduledDate = DateUtils.dateOnly(
+              requestViewModel.scheduledDateTime,
+            );
+            final today = DateUtils.dateOnly(now);
+            final differenceInDays = scheduledDate.difference(today).inDays;
+            final status = requestViewModel.reqStatus.toLowerCase();
+
+            final List<Widget> upcomingActions = [];
+            if (status == 'confirmed' && differenceInDays >= 3) {
+              upcomingActions.addAll([
+                OutlinedButton(
+                  onPressed: () =>
+                      controller.rescheduleRequest(requestViewModel.reqID),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 10,
+                    ),
+                    foregroundColor: Theme.of(context).colorScheme.primary,
+                    side: BorderSide(
+                      color: Theme.of(context).colorScheme.primary,
+                      width: 1.5,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: const Text('Reschedule'),
+                ),
+                OutlinedButton(
+                  onPressed: () =>
+                      controller.cancelRequest(requestViewModel.reqID),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 10,
+                    ),
+                    foregroundColor: Theme.of(context).colorScheme.error,
+                    side: const BorderSide(color: Colors.red, width: 1.5),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: const Text('Cancel'),
+                ),
+              ]);
+            }
+
+            return GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ChangeNotifierProvider.value(
+                      value: controller,
+                      child: EmpRequestDetailScreen(
+                        reqID: requestViewModel.reqID,
+                        controller: controller,
+                      ),
+                    ),
+                  ),
+                );
+              },
+              child: EmpInfoCard(
+                icon: requestViewModel.icon,
+                reqID: requestViewModel.reqID,
+                details: upcomingDetails,
+                onViewDetails: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => ChangeNotifierProvider.value(
+                        value: controller,
+                        child: EmpRequestDetailScreen(
+                          reqID: requestViewModel.reqID,
+                          controller: controller,
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget buildHistoryList() {
+    return ListenableBuilder(
+      listenable: controller,
+      builder: (context, child) {
+        if (controller.isLoadingCustomer) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        final viewModels = controller.filteredHistoryRequests;
+
+        if (viewModels.isEmpty) {
+          return const Center(
+            child: Text(
+              'No past service requests match your filters.',
+              style: TextStyle(color: Colors.grey, fontSize: 16),
+            ),
+          );
+        }
+
+        return ListView.builder(
+          padding: const EdgeInsets.all(16.0),
+          itemCount: viewModels.length,
+          itemBuilder: (context, index) {
+            final requestViewModel = viewModels[index];
+            final date = DateFormat(
+              'dd MMM yyyy',
+            ).format(requestViewModel.scheduledDateTime);
+            final time = DateFormat(
+              'hh:mm a',
+            ).format(requestViewModel.scheduledDateTime);
+
+            final historyDetails = [
+              MapEntry('Location', requestViewModel.requestModel.reqAddress),
+              MapEntry('Booking Date', date),
+              MapEntry('Start Time', time),
+              MapEntry('Service', requestViewModel.title),
+              MapEntry('Handyman Name', requestViewModel.handymanName),
+              MapEntry('Status', requestViewModel.reqStatus),
+            ];
+
+            if (requestViewModel.paymentStatus != null) {
+              historyDetails.add(
+                MapEntry('Payment Status', requestViewModel.paymentStatus!),
+              );
+            }
+
+            return GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ChangeNotifierProvider.value(
+                      value: controller,
+                      child: EmpRequestDetailScreen(
+                        reqID: requestViewModel.reqID,
+                        controller: controller,
+                      ),
+                    ),
+                  ),
+                );
+              },
+              child: EmpInfoCard(
+                icon: requestViewModel.icon,
+                reqID: requestViewModel.reqID,
+                details: historyDetails,
+                onViewDetails: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => ChangeNotifierProvider.value(
+                        value: controller,
+                        child: EmpRequestDetailScreen(
+                          reqID: requestViewModel.reqID,
+                          controller: controller,
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+}

@@ -36,8 +36,6 @@ class UserController {
 
   final storage = const FlutterSecureStorage();
   bool rememberMe = false;
-
-  // Callback function to display a SnackBar
   final Function(String) showErrorSnackBar;
 
   UserController({required this.showErrorSnackBar});
@@ -113,19 +111,34 @@ class UserController {
     }
   }
 
+  Future<String?> getEmpType(String userID) async {
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('Employee')
+          .where('userID', isEqualTo: userID)
+          .limit(1)
+          .get();
+
+      if (snapshot.docs.isEmpty) return null;
+
+      return snapshot.docs.first['empType'] as String?;
+    } catch (e) {
+      print('Error fetching empType: $e');
+      return null;
+    }
+  }
+
   // Login
   Future<void> login(
     BuildContext context,
     void Function(void Function()) setState,
   ) async {
-    // Validate form input
     if (formKey.currentState?.validate() ?? false) {
       setState(() {
         isLoading = true;
       });
 
       try {
-        // Attempt to log in with email and password
         UserModel? user = await authService.loginWithEmailAndPassword(
           emailController.text.trim().toLowerCase(),
           currentPasswordController.text.trim(),
@@ -148,6 +161,9 @@ class UserController {
               ), // Customer homepage
             );
           } else if (user.userType == 'employee') {
+            final empType = await getEmpType(user.userID);
+            await storage.write(key: 'empType', value: empType ?? 'handyman');
+
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
@@ -161,11 +177,10 @@ class UserController {
           showErrorSnackBar('User data not found. Please contact support.');
         }
       } catch (e) {
-        // Handle specific Firebase errors or unexpected errors
         showErrorSnackBar(e.toString());
       } finally {
         setState(() {
-          isLoading = false; // Hide loading indicator
+          isLoading = false;
         });
       }
     } else {
@@ -173,48 +188,44 @@ class UserController {
     }
   }
 
-Future<void> logout(
-  BuildContext context,
-  void Function(void Function()) setState,
-) async {
-  setState(() {
-    isLoading = true;
-  });
+  Future<void> logout(
+    BuildContext context,
+    void Function(void Function()) setState,
+  ) async {
+    setState(() {
+      isLoading = true;
+    });
 
-  try {
-    // Sign out from Firebase
-    await authService.auth.signOut();
-
-    // Sign out from Google if signed in
     try {
-      if (await authService.googleSignIn.isSignedIn()) {
-        await authService.googleSignIn.signOut();
+      await authService.auth.signOut();
+
+      try {
+        if (await authService.googleSignIn.isSignedIn()) {
+          await authService.googleSignIn.signOut();
+        }
+      } catch (e) {
+        print('Google Sign-Out failed, but continuing logout: $e');
+      }
+
+      if (context.mounted) {
+        Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (context) => const LoginScreen()),
+          (Route<dynamic> route) => false,
+        );
       }
     } catch (e) {
-      print('Google Sign-Out failed, but continuing logout: $e');
-    }
-
-    // Navigate to login screen - use pushAndRemoveUntil to clear navigation stack
-    if (context.mounted) {
-      Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (context) => const LoginScreen()),
-        (Route<dynamic> route) => false,
-      );
-    }
-  } catch (e) {
-    print('Error during logout: $e');
-    if (context.mounted) {
-      showErrorSnackBar('Error logging out: $e');
-    }
-  } finally {
-    // Only update state if still mounted
-    if (context.mounted) {
-      setState(() {
-        isLoading = false;
-      });
+      print('Error during logout: $e');
+      if (context.mounted) {
+        showErrorSnackBar('Error logging out: $e');
+      }
+    } finally {
+      if (context.mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
     }
   }
-}
 
   Future<void> signInWithGoogle(
     BuildContext context,
@@ -232,7 +243,7 @@ Future<void> logout(
             context,
             MaterialPageRoute(
               builder: (context) => CustNavigationBar(
-                currentIndex: 0, 
+                currentIndex: 0,
                 onTap: (index) {
                   print("Tapped index: $index");
                 },
@@ -266,7 +277,6 @@ Future<void> logout(
     });
 
     try {
-      // Check for duplicate email and phone before registration
       bool isEmailTaken = await userService.isEmailTaken(
         emailController.text.trim().toLowerCase(),
         '',
@@ -285,7 +295,6 @@ Future<void> logout(
         return;
       }
 
-      // 1. Create Firebase Auth account
       final authResult = await FirebaseAuth.instance
           .createUserWithEmailAndPassword(
             email: emailController.text.trim(),
@@ -293,11 +302,8 @@ Future<void> logout(
           );
 
       final authID = authResult.user!.uid;
-
-      // 2. Generate custom userID
       final userID = await generateUserId();
 
-      // 3. Create UserModel
       final user = UserModel(
         userID: userID,
         userEmail: emailController.text.trim().toLowerCase(),
@@ -309,13 +315,10 @@ Future<void> logout(
         authID: authID,
       );
 
-      // 4. Save user in Firestore
       await userService.addUser(user);
 
-      // 5. Also create Customer entry if userType == customer
       if (user.userType == "customer") {
-        final customerID =
-            "C${userID.substring(1)}"; // e.g. match userID U0001 -> C0001
+        final customerID = "C${userID.substring(1)}";
 
         final customer = CustomerModel(
           custID: customerID,
@@ -343,12 +346,11 @@ Future<void> logout(
       showErrorSnackBar("Unexpected error: $e");
     } finally {
       setState(() {
-        isLoading = false; // Hide loading indicator
+        isLoading = false;
       });
     }
   }
 
-  // NEW: Sends a verification link to the new email address
   Future<void> sendUpdateEmailVerification(String newEmail) async {
     try {
       User? authUser = FirebaseAuth.instance.currentUser;
@@ -370,7 +372,6 @@ Future<void> logout(
       } else {
         showErrorSnackBar('An error occurred: ${e.message}');
       }
-      // Re-throw the exception to be caught in the UI layer for state management
       rethrow;
     }
   }
@@ -380,7 +381,7 @@ Future<void> logout(
       return userService.isEmailTaken(email, excludeUserID);
     } catch (e) {
       showErrorSnackBar(e.toString());
-      return true; // Assume taken if error
+      return true;
     }
   }
 
@@ -389,12 +390,10 @@ Future<void> logout(
       return userService.isPhoneTaken(phone, excludeUserID);
     } catch (e) {
       showErrorSnackBar(e.toString());
-      return true; // Assume taken if error
+      return true;
     }
   }
 
-  // MODIFIED: Updates user profile data in Firestore.
-  // Assumes Firebase Auth email has already been updated via the verification link.
   Future<void> updateProfile({
     required String userID,
     required String name,
@@ -403,14 +402,21 @@ Future<void> logout(
     required String contact,
     required void Function(void Function()) setState,
     required BuildContext context,
+    required String userType,
   }) async {
     if (Validator.validateName(name) != null) {
       showErrorSnackBar(Validator.validateName(name)!);
       return;
     }
-    if (Validator.validateEmail(email) != null) {
-      showErrorSnackBar(Validator.validateEmail(email)!);
-      return;
+    if (userType == 'customer') {
+      if (email == null || email.isEmpty) {
+        showErrorSnackBar('Email address is required.');
+        return;
+      }
+      if (Validator.validateEmail(email) != null) {
+        showErrorSnackBar(Validator.validateEmail(email)!);
+        return;
+      }
     }
     if (Validator.validateContact(contact) != null) {
       showErrorSnackBar(Validator.validateContact(contact)!);
@@ -422,7 +428,6 @@ Future<void> logout(
     });
 
     try {
-      // Check for duplicate phone (excluding current user)
       bool isPhoneTaken = await userService.isPhoneTaken(contact, userID);
       if (isPhoneTaken) {
         showErrorSnackBar('This phone number is already registered.');
@@ -434,15 +439,13 @@ Future<void> logout(
         throw Exception('No user is currently signed in');
       }
 
-      // Create a map of the data to update in Firestore
       final user = UserModel(
         userID: userID,
-        userEmail: email, // The new, verified email
+        userEmail: email,
         userName: name,
         userGender: gender,
         userContact: contact,
-        userType: 'customer',
-        // These fields might not need updating, adjust as necessary
+        userType: userType,
         userCreatedAt: DateTime.now(),
         authID: authUser.uid,
       );
@@ -450,7 +453,15 @@ Future<void> logout(
       await userService.updateUser(user);
       print('Firestore profile data updated successfully.');
 
-      showErrorSnackBar('✅ Profile updated successfully!');
+      showSuccessDialog(
+        context,
+        title: 'Successful',
+        message: 'Your profile has been successfully updated.',
+        primaryButtonText: 'OK',
+        onPrimary: () {
+          Navigator.of(context).pop(); // Close success dialog
+        },
+      );
     } catch (e) {
       showErrorSnackBar('Failed to update profile: $e');
     } finally {
@@ -461,7 +472,8 @@ Future<void> logout(
   }
 
   // Handle password change
-  Future<void> changePassword({
+  Future<String?> changePassword({
+    required BuildContext context,
     required String currentPassword,
     required String newPassword,
     required String confirmNewPassword,
@@ -470,48 +482,55 @@ Future<void> logout(
     if (currentPassword.isEmpty ||
         newPassword.isEmpty ||
         confirmNewPassword.isEmpty) {
-      showErrorSnackBar('All password fields are required');
-      return;
+      return 'All password fields are required';
     }
 
     if (newPassword != confirmNewPassword) {
-      showErrorSnackBar('New password and confirm password do not match');
-      return;
+      return 'New password and confirm password do not match';
     }
 
     if (Validator.validatePassword(newPassword) != null) {
-      showErrorSnackBar(Validator.validatePassword(newPassword)!);
-      return;
+      return Validator.validatePassword(newPassword);
     }
 
-    setState(() {
-      isLoading = true;
-    });
+    setState(() => isLoading = true);
+    showLoadingDialog(context, 'Updating your password...');
 
     try {
       await authService.changePassword(currentPassword, newPassword);
-      showErrorSnackBar('Password changed successfully');
+      if (context.mounted) {
+        Navigator.of(context).pop(); // Close loading dialog
+        Navigator.of(context).pop(); // Close change password popup
+
+        showSuccessDialog(
+          context,
+          title: 'Successful',
+          message: 'Your password has been successfully updated.',
+          primaryButtonText: 'OK',
+          onPrimary: () {
+            Navigator.of(context).pop(); // Close success dialog
+          },
+        );
+      }
       currentPasswordController.clear();
       newPasswordController.clear();
       confirmPasswordController.clear();
+      return null;
     } on FirebaseAuthException catch (e) {
-      String errorMessage;
+      if (context.mounted) Navigator.of(context).pop(); // Close loading dialog
       switch (e.code) {
         case 'invalid-credential':
-          errorMessage = 'Current password is incorrect';
-          break;
+          return 'Current password is incorrect';
         case 'requires-recent-login':
-          errorMessage = 'Please log in again to change your password';
-          break;
+          return 'Please log in again to change your password';
         case 'weak-password':
-          errorMessage = 'New password is too weak';
-          break;
+          return 'New password is too weak';
         default:
-          errorMessage = e.message ?? 'Failed to change password';
+          return e.message ?? 'Failed to change password';
       }
-      showErrorSnackBar(errorMessage);
     } catch (e) {
-      showErrorSnackBar('Failed to change password. Please try again.');
+      if (context.mounted) Navigator.of(context).pop(); // Close loading dialog
+      return 'Something went wrong. Please try again later.';
     } finally {
       setState(() {
         isLoading = false;

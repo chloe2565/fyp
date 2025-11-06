@@ -294,7 +294,7 @@ class CustomDropdownMultiState extends State<CustomDropdownMulti> {
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(
                   color: errorText != null
-                      ? Colors.red
+                      ? Theme.of(context).colorScheme.error
                       : isOpen
                           ? Theme.of(context).primaryColor
                           : Colors.grey.shade300,
@@ -333,8 +333,8 @@ class CustomDropdownMultiState extends State<CustomDropdownMulti> {
             padding: const EdgeInsets.only(top: 4, left: 12),
             child: Text(
               errorText!,
-              style: const TextStyle(
-                color: Colors.red,
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.error,
                 fontSize: 12,
               ),
             ),

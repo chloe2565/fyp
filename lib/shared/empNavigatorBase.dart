@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class EmpNavigationBar extends StatefulWidget {
   final int currentIndex;
@@ -16,6 +17,7 @@ class EmpNavigationBar extends StatefulWidget {
 
 class EmpNavigationBarState extends State<EmpNavigationBar> {
   final Map<int, GlobalKey> itemKeys = {3: GlobalKey()};
+  final storage = const FlutterSecureStorage();
 
   Future<void> showMoreMenu(BuildContext context) async {
     final renderBox = context.findRenderObject() as RenderBox?;
@@ -23,37 +25,50 @@ class EmpNavigationBarState extends State<EmpNavigationBar> {
 
     final offset = renderBox.localToGlobal(Offset.zero);
     final size = renderBox.size;
+    final empType = await storage.read(key: 'empType') ?? 'handyman';
 
+    final List<PopupMenuItem<String>> items = [
+      const PopupMenuItem(value: 'empAllService', child: Text('Service')),
+      const PopupMenuItem(value: 'empProfile', child: Text('Profile')),
+      const PopupMenuItem(value: 'settings', child: Text('Settings')),
+    ];
+
+    if (empType == 'admin') {
+      items.insert(
+        1,
+        const PopupMenuItem(
+          value: 'empBillPayment',
+          child: Text('Bill and Payment'),
+        ),
+      );
+    }
+
+    final menuHeight = 55 * items.length;
     final value = await showMenu<String>(
       context: context,
       position: RelativeRect.fromLTRB(
         offset.dx,
-        offset.dy - 217,
+        offset.dy - menuHeight,
         offset.dx + size.width,
         offset.dy,
       ),
-      items: const [
-        PopupMenuItem(value: 'empAllService', child: Text('Service')),
-        PopupMenuItem(value: 'billPayment', child: Text('Bill and Payment')),
-        PopupMenuItem(value: 'profile', child: Text('Profile')),
-        PopupMenuItem(value: 'settings', child: Text('Settings')),
-      ],
+      items: items,
     );
 
     if (value == null) return;
 
     switch (value) {
-      case 'profile':
-        Navigator.pushNamed(context, '/profile');
+      case 'empAllService':
+        Navigator.pushNamed(context, '/empAllService');
+        break;
+      case 'empBillPayment':
+        Navigator.pushNamed(context, '/empBillPayment');
+        break;
+      case 'empProfile':
+        Navigator.pushNamed(context, '/empProfile');
         break;
       case 'settings':
         Navigator.pushNamed(context, '/settings');
-        break;
-      case 'billPayment':
-        Navigator.pushNamed(context, '/billPayment');
-        break;
-      case 'empAllService':
-        Navigator.pushNamed(context, '/empAllService');
         break;
     }
   }
@@ -81,7 +96,10 @@ class EmpNavigationBarState extends State<EmpNavigationBar> {
       selectedFontSize: 12,
       unselectedFontSize: 12,
       items: [
-        const BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Dashboard'),
+        const BottomNavigationBarItem(
+          icon: Icon(Icons.home),
+          label: 'Dashboard',
+        ),
         const BottomNavigationBarItem(
           icon: Icon(Icons.description),
           label: 'Requests',

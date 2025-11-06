@@ -3,6 +3,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:fyp/modules/customer/billPaymentHistory.dart';
 import 'package:fyp/modules/employee/allService.dart';
 import 'package:fyp/modules/employee/homepage.dart';
+import 'package:fyp/modules/employee/serviceReq.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 import 'modules/customer/favoriteHandyman.dart';
@@ -11,6 +12,8 @@ import 'modules/customer/rateReviewHistory.dart';
 import 'modules/customer/reqHistory.dart';
 import 'modules/customer/register.dart';
 import 'modules/customer/homepage.dart';
+import 'modules/employee/billPayment.dart';
+import 'modules/employee/empProfile.dart';
 import 'service/firebase_options.dart';
 import 'shared/theme.dart';
 import 'login.dart';
@@ -50,8 +53,10 @@ class MyApp extends StatelessWidget {
         '/billPayment': (context) => const BillPaymentHistoryScreen(),
         '/empHome': (context) => const EmpHomepage(),
         '/empAllService': (context) => const EmpAllServicesScreen(),
-        // '/empRequest': (context) => const EmpHomepage(),
+        '/empRequest': (context) => const EmpRequestScreen(),
+        '/empBillPayment': (context) => const EmpBillPaymentScreen(),
         // '/empEmployee': (context) => const EmpEmlpoyee(),
+        '/empProfile': (context) => const EmpProfileScreen(),
       },
     );
   }

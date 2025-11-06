@@ -307,8 +307,8 @@ class EmpAddServiceScreenState extends State<EmpAddServiceScreen> {
                         padding: const EdgeInsets.only(top: 8),
                         child: Text(
                           errorMessage!,
-                          style: const TextStyle(
-                            color: Colors.red,
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.error,
                             fontSize: 12,
                           ),
                         ),

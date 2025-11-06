@@ -3,6 +3,7 @@ class BillDetailViewModel {
   final double totalPrice;
   final String billStatus;
   final String billingID;
+  final String? adminRemark;
 
   // From ServiceRequestModel
   final String customerAddress;
@@ -27,6 +28,7 @@ class BillDetailViewModel {
   final double outstationFee;
 
   BillDetailViewModel({
+    this.adminRemark,
     required this.totalPrice,
     required this.billStatus,
     required this.billingID,
@@ -39,7 +41,8 @@ class BillDetailViewModel {
     this.serviceBasePrice,
     required this.handymanName,
     this.paymentTimestamp,
-  }) : outstationFee = 15;
+    required this.outstationFee,
+  });
 
   bool get isPaymentPending {
     final status = billStatus.toLowerCase();

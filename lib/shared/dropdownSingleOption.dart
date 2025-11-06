@@ -48,6 +48,14 @@ class CustomDropdownSingleState extends State<CustomDropdownSingle> {
     }
   }
 
+  void validateWithValue(String? newValue) {
+    if (widget.validator != null) {
+      setState(() {
+        errorText = widget.validator!(newValue);
+      });
+    }
+  }
+
   void toggleDropdown() {
     if (!widget.enabled) return;
 
@@ -80,7 +88,10 @@ class CustomDropdownSingleState extends State<CustomDropdownSingle> {
 
     // Calculate actual dropdown height
     final itemHeight = 48.0;
-    final calculatedHeight = (widget.items.length * itemHeight).clamp(50.0, maxDropdownHeight);
+    final calculatedHeight = (widget.items.length * itemHeight).clamp(
+      50.0,
+      maxDropdownHeight,
+    );
     final actualHeight = showAbove
         ? (spaceAbove < calculatedHeight ? spaceAbove : calculatedHeight)
         : (spaceBelow < calculatedHeight ? spaceBelow : calculatedHeight);
@@ -131,7 +142,7 @@ class CustomDropdownSingleState extends State<CustomDropdownSingle> {
                             widget.onChanged(item);
                             removeOverlay();
                             setState(() => isOpen = false);
-                            validate();
+                            validateWithValue(item);
                           },
                           child: Container(
                             padding: const EdgeInsets.symmetric(
@@ -197,10 +208,10 @@ class CustomDropdownSingleState extends State<CustomDropdownSingle> {
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(
                   color: errorText != null
-                      ? Colors.red
+                      ? Theme.of(context).colorScheme.error
                       : isOpen
-                          ? Theme.of(context).primaryColor
-                          : Colors.grey.shade300,
+                      ? Theme.of(context).primaryColor
+                      : Colors.grey.shade300,
                 ),
               ),
               child: Row(
@@ -210,12 +221,14 @@ class CustomDropdownSingleState extends State<CustomDropdownSingle> {
                     child: Text(
                       widget.value != null
                           ? widget.value![0].toUpperCase() +
-                              widget.value!.substring(1)
+                                widget.value!.substring(1)
                           : widget.hint ?? 'Select',
                       style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w500,
-                        color: widget.value != null ? Colors.black : Colors.grey,
+                        color: widget.value != null
+                            ? Colors.black
+                            : Colors.grey,
                       ),
                     ),
                   ),
@@ -235,8 +248,8 @@ class CustomDropdownSingleState extends State<CustomDropdownSingle> {
             padding: const EdgeInsets.only(top: 4, left: 12),
             child: Text(
               errorText!,
-              style: const TextStyle(
-                color: Colors.red,
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.error,
                 fontSize: 12,
               ),
             ),

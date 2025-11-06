@@ -299,6 +299,7 @@ class EditProfileScreenState extends State<EditProfileScreen>
           contact: phoneController.text.trim(),
           setState: setState,
           context: context,
+          userType: 'customer',
         );
 
         if (context.mounted) {
@@ -392,6 +393,7 @@ class EditProfileScreenState extends State<EditProfileScreen>
                         ),
                       ),
                       const SizedBox(height: 50),
+                      
                       TextFormField(
                         controller: nameController,
                         decoration: const InputDecoration(
@@ -406,6 +408,7 @@ class EditProfileScreenState extends State<EditProfileScreen>
                         validator: Validator.validateName,
                       ),
                       const SizedBox(height: 24),
+
                       TextFormField(
                         controller: emailController,
                         decoration: InputDecoration(
@@ -487,6 +490,7 @@ class EditProfileScreenState extends State<EditProfileScreen>
                           ),
                         ),
                       const SizedBox(height: 24),
+
                       Text(
                         'Gender',
                         style: TextStyle(
@@ -527,6 +531,7 @@ class EditProfileScreenState extends State<EditProfileScreen>
                         ],
                       ),
                       const SizedBox(height: 24),
+                      
                       TextFormField(
                         controller: phoneController,
                         decoration: const InputDecoration(
@@ -566,18 +571,8 @@ class EditProfileScreenState extends State<EditProfileScreen>
                           return null;
                         },
                       ),
-                      if (phoneError != null)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 8.0),
-                          child: Text(
-                            phoneError!,
-                            style: const TextStyle(
-                              color: Colors.red,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ),
                       const SizedBox(height: 50),
+
                       Row(
                         children: [
                           Expanded(

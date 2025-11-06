@@ -15,6 +15,7 @@ FilterOutput performFiltering(FilterInput input) {
 
   bool matchesSearch(RequestViewModel vm, String query) {
     if (query.isEmpty) return true;
+    if (vm.reqID.toLowerCase().contains(query)) return true;
     if (vm.title.toLowerCase().contains(query)) return true;
     if (vm.reqStatus.toLowerCase().contains(query)) return true;
     if (vm.details.any((entry) => entry.value.toLowerCase().contains(query))) {
@@ -23,41 +24,38 @@ FilterOutput performFiltering(FilterInput input) {
     if (vm.amountToPay?.toLowerCase().contains(query) ?? false) return true;
     if (vm.payDueDate?.toLowerCase().contains(query) ?? false) return true;
     if (vm.paymentStatus?.toLowerCase().contains(query) ?? false) return true;
-
     return false;
   }
 
+  // Filter Pending (for employee)
+  final filteredPending = input.allPending.where((vm) {
+    final searchMatch = input.searchQuery.isEmpty || matchesSearch(vm, lowerQuery);
+    final serviceMatch = input.selectedService == null || vm.title == input.selectedService;
+    final statusMatch = input.selectedStatus == null || vm.reqStatus.toLowerCase() == input.selectedStatus!.toLowerCase();
+    final dateMatch = input.selectedDate == null || DateUtils.isSameDay(vm.scheduledDateTime, input.selectedDate!);
+    return searchMatch && serviceMatch && statusMatch && dateMatch;
+  }).toList();
+
   // Filter Upcoming
   final filteredUpcoming = input.allUpcoming.where((vm) {
-    final searchMatch =
-        input.searchQuery.isEmpty || matchesSearch(vm, lowerQuery);
-    final serviceMatch =
-        input.selectedService == null || vm.title == input.selectedService;
-    final statusMatch =
-        input.selectedStatus == null ||
-        vm.reqStatus.toLowerCase() == input.selectedStatus!.toLowerCase();
-    final dateMatch =
-        input.selectedDate == null ||
-        DateUtils.isSameDay(vm.scheduledDateTime, input.selectedDate!);
+    final searchMatch = input.searchQuery.isEmpty || matchesSearch(vm, lowerQuery);
+    final serviceMatch = input.selectedService == null || vm.title == input.selectedService;
+    final statusMatch = input.selectedStatus == null || vm.reqStatus.toLowerCase() == input.selectedStatus!.toLowerCase();
+    final dateMatch = input.selectedDate == null || DateUtils.isSameDay(vm.scheduledDateTime, input.selectedDate!);
     return searchMatch && serviceMatch && statusMatch && dateMatch;
   }).toList();
 
   // Filter History
   final filteredHistory = input.allHistory.where((vm) {
-    final searchMatch =
-        input.searchQuery.isEmpty || matchesSearch(vm, lowerQuery);
-    final serviceMatch =
-        input.selectedService == null || vm.title == input.selectedService;
-    final statusMatch =
-        input.selectedStatus == null ||
-        vm.reqStatus.toLowerCase() == input.selectedStatus!.toLowerCase();
-    final dateMatch =
-        input.selectedDate == null ||
-        DateUtils.isSameDay(vm.scheduledDateTime, input.selectedDate!);
+    final searchMatch = input.searchQuery.isEmpty || matchesSearch(vm, lowerQuery);
+    final serviceMatch = input.selectedService == null || vm.title == input.selectedService;
+    final statusMatch = input.selectedStatus == null || vm.reqStatus.toLowerCase() == input.selectedStatus!.toLowerCase();
+    final dateMatch = input.selectedDate == null || DateUtils.isSameDay(vm.scheduledDateTime, input.selectedDate!);
     return searchMatch && serviceMatch && statusMatch && dateMatch;
   }).toList();
 
   return FilterOutput(
+    filteredPending: filteredPending,
     filteredUpcoming: filteredUpcoming,
     filteredHistory: filteredHistory,
   );
@@ -69,12 +67,21 @@ class ServiceRequestController extends ChangeNotifier {
   final db = FirestoreService.instance.db;
 
   String? currentCustomerID;
+  String? currentEmployeeID;
+  String? currentEmployeeType; 
   bool isLoadingCustomer = false;
   bool isFiltering = false;
+  
+  // For employee (3 lists)
+  List<RequestViewModel> allPendingRequests = [];
+  List<RequestViewModel> filteredPendingRequests = [];
+  
+  // For both customer and employee
   List<RequestViewModel> allUpcomingRequests = [];
   List<RequestViewModel> allHistoryRequests = [];
   List<RequestViewModel> filteredUpcomingRequests = [];
   List<RequestViewModel> filteredHistoryRequests = [];
+  
   List<String> allServiceNames = [];
   String searchQuery = '';
   String? selectedService;
@@ -85,19 +92,40 @@ class ServiceRequestController extends ChangeNotifier {
   Future<void> initialize() async {
     if (isLoadingCustomer) return;
     isLoadingCustomer = true;
-    notifyListeners(); // Notify start loading
+    notifyListeners();
     currentCustomerID = await user.getCurrentCustomerID();
 
     if (currentCustomerID == null) {
       print("Error: Could not find customer ID for logged in user.");
       isLoadingCustomer = false;
-      notifyListeners(); // Notify finish loading
+      notifyListeners();
       return;
     }
 
     await loadRequests();
   }
 
+  Future<void> initializeForEmployee() async {
+    if (isLoadingCustomer) return;
+    isLoadingCustomer = true;
+    notifyListeners();
+    
+    final empInfo = await user.getCurrentEmployeeInfo();
+
+    if (empInfo == null) {
+      print("Error: Could not find employee info for logged in user.");
+      isLoadingCustomer = false;
+      notifyListeners();
+      return;
+    }
+
+    currentEmployeeID = empInfo['empID'];
+    currentEmployeeType = empInfo['empType']; // 'admin' or 'handyman'
+
+    await loadRequestsForEmployee();
+  }
+
+  // Customer side
   Future<void> loadRequests() async {
     if (currentCustomerID == null) {
       return;
@@ -105,14 +133,41 @@ class ServiceRequestController extends ChangeNotifier {
     isLoadingCustomer = true;
     notifyListeners();
 
-    final rawUpcomingData = serviceRequest.getUpcomingRequests(
-      currentCustomerID!,
+    final rawUpcomingData = serviceRequest.getUpcomingRequests(currentCustomerID!);
+    final rawHistoryData = serviceRequest.getHistoryRequests(currentCustomerID!);
+    final allServices = await serviceRequest.getAllServices();
+
+    allUpcomingRequests = transformData(await rawUpcomingData);
+    allHistoryRequests = transformData(await rawHistoryData);
+    allServiceNames = allServices.map((s) => s.serviceName).toSet().toList();
+
+    await applyFiltersAndNotify();
+    isLoadingCustomer = false;
+  }
+
+  // Employee side
+  Future<void> loadRequestsForEmployee() async {
+    if (currentEmployeeID == null || currentEmployeeType == null) {
+      return;
+    }
+    isLoadingCustomer = true;
+    notifyListeners();
+
+    final rawPendingData = serviceRequest.getPendingRequestsForEmployee(
+      currentEmployeeID!,
+      currentEmployeeType!,
     );
-    final rawHistoryData = serviceRequest.getHistoryRequests(
-      currentCustomerID!,
+    final rawUpcomingData = serviceRequest.getUpcomingRequestsForEmployee(
+      currentEmployeeID!,
+      currentEmployeeType!,
+    );
+    final rawHistoryData = serviceRequest.getHistoryRequestsForEmployee(
+      currentEmployeeID!,
+      currentEmployeeType!,
     );
     final allServices = await serviceRequest.getAllServices();
 
+    allPendingRequests = transformData(await rawPendingData);
     allUpcomingRequests = transformData(await rawUpcomingData);
     allHistoryRequests = transformData(await rawHistoryData);
     allServiceNames = allServices.map((s) => s.serviceName).toSet().toList();
@@ -128,9 +183,7 @@ class ServiceRequestController extends ChangeNotifier {
       final billing = map['billing'] as BillingModel?;
       final String locationData = req.reqAddress;
       final handymanName = map['handymanName'] as String;
-      final bookingDate = DateFormat(
-        'MMMM dd, yyyy',
-      ).format(req.scheduledDateTime);
+      final bookingDate = DateFormat('MMMM dd, yyyy').format(req.scheduledDateTime);
       final startTime = DateFormat('hh:mm a').format(req.scheduledDateTime);
       String? formattedAmount;
       String? formattedDueDate;
@@ -157,7 +210,7 @@ class ServiceRequestController extends ChangeNotifier {
         amountToPay: formattedAmount,
         payDueDate: formattedDueDate,
         paymentStatus: formattedBillStatus,
-        requestModel: req, 
+        requestModel: req,
         handymanName: handymanName,
       );
     }).toList();
@@ -166,11 +219,9 @@ class ServiceRequestController extends ChangeNotifier {
 
   bool matchesSearch(RequestViewModel vm, String query) {
     if (query.isEmpty) return true;
-    // Check title
+    if (vm.reqID.toLowerCase().contains(query)) return true;
     if (vm.title.toLowerCase().contains(query)) return true;
-    // Check status
     if (vm.reqStatus.toLowerCase().contains(query)) return true;
-    // Check all location, date, time, handyman
     if (vm.details.any((entry) => entry.value.toLowerCase().contains(query))) {
       return true;
     }
@@ -214,6 +265,7 @@ class ServiceRequestController extends ChangeNotifier {
 
     try {
       final input = FilterInput(
+        allPending: List.unmodifiable(allPendingRequests),
         allUpcoming: List.unmodifiable(allUpcomingRequests),
         allHistory: List.unmodifiable(allHistoryRequests),
         searchQuery: searchQuery,
@@ -224,11 +276,12 @@ class ServiceRequestController extends ChangeNotifier {
 
       final FilterOutput output = await compute(performFiltering, input);
 
-      // Update lists back on the main thread
+      filteredPendingRequests = output.filteredPending;
       filteredUpcomingRequests = output.filteredUpcoming;
       filteredHistoryRequests = output.filteredHistory;
     } catch (e) {
       print("Error during background filtering: $e");
+      filteredPendingRequests = [];
       filteredUpcomingRequests = [];
       filteredHistoryRequests = [];
     } finally {
@@ -238,7 +291,7 @@ class ServiceRequestController extends ChangeNotifier {
   }
 
   RequestViewModel? getRequestById(String reqID) {
-    final allRequests = [...allUpcomingRequests, ...allHistoryRequests];
+    final allRequests = [...allPendingRequests, ...allUpcomingRequests, ...allHistoryRequests];
     try {
       final request = allRequests.firstWhere((vm) => vm.reqID == reqID);
       return request;
@@ -298,7 +351,11 @@ class ServiceRequestController extends ChangeNotifier {
   Future<void> cancelRequest(String reqID) async {
     try {
       await serviceRequest.cancelRequest(reqID);
-      loadRequests();
+      if (currentEmployeeID != null) {
+        loadRequestsForEmployee();
+      } else {
+        loadRequests();
+      }
     } catch (e) {
       print('Error cancelling request: $e');
     }
@@ -307,5 +364,4 @@ class ServiceRequestController extends ChangeNotifier {
   Future<void> rescheduleRequest(String reqID) async {
     await serviceRequest.rescheduleRequest(reqID);
   }
-  
 }

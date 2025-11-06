@@ -8,15 +8,14 @@ import '../../shared/helper.dart';
 import 'billDetail.dart';
 import 'paymentDetail.dart';
 
-class BillPaymentHistoryScreen extends StatefulWidget {
-  const BillPaymentHistoryScreen({super.key});
+class EmpRatingReviewScreen extends StatefulWidget {
+  const EmpRatingReviewScreen({super.key});
 
   @override
-  State<BillPaymentHistoryScreen> createState() =>
-      BillPaymentHistoryScreenState();
+  State<EmpRatingReviewScreen> createState() => EmpRatingReviewScreenState();
 }
 
-class BillPaymentHistoryScreenState extends State<BillPaymentHistoryScreen> {
+class EmpRatingReviewScreenState extends State<EmpRatingReviewScreen> {
   bool isInitialized = false;
   late BillController billingController;
   late PaymentController paymentController;
@@ -33,8 +32,8 @@ class BillPaymentHistoryScreenState extends State<BillPaymentHistoryScreen> {
 
   Future<void> initializeController() async {
     await Future.wait([
-      billingController.initialize(),
-      paymentController.initialize(),
+      billingController.initializeForEmployee(),
+      paymentController.initializeForEmployee(),
     ]);
     if (mounted) {
       setState(() {
@@ -75,12 +74,12 @@ class BillPaymentHistoryScreenState extends State<BillPaymentHistoryScreen> {
                   if (Navigator.canPop(context)) {
                     Navigator.pop(context);
                   } else {
-                    Navigator.pushReplacementNamed(context, '/custHome');
+                    Navigator.pushReplacementNamed(context, '/empHome');
                   }
                 },
               ),
               title: const Text(
-                'Bill and Payment History',
+                'Bill and Payment',
                 style: TextStyle(
                   color: Colors.black,
                   fontWeight: FontWeight.bold,
@@ -88,6 +87,18 @@ class BillPaymentHistoryScreenState extends State<BillPaymentHistoryScreen> {
                 ),
               ),
               centerTitle: true,
+              actions: [
+                IconButton(
+                  icon: const Icon(
+                    Icons.add_circle_outline,
+                    color: Colors.black,
+                    size: 28,
+                  ),
+                  onPressed: () {
+                    // TODO: Implement create new bill/payment action
+                  },
+                ),
+              ],
             ),
             body: !isInitialized
                 ? const Center(child: CircularProgressIndicator())
@@ -114,7 +125,6 @@ class BillPaymentHistoryScreenState extends State<BillPaymentHistoryScreen> {
     );
   }
 
-  // build billing list
   Widget buildBillingList() {
     if (billingController.isLoading) {
       return const Center(child: CircularProgressIndicator());
@@ -132,7 +142,7 @@ class BillPaymentHistoryScreenState extends State<BillPaymentHistoryScreen> {
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(16),
       itemCount: bills.length,
       itemBuilder: (context, index) {
         final bill = bills[index];
@@ -144,7 +154,7 @@ class BillPaymentHistoryScreenState extends State<BillPaymentHistoryScreen> {
               MaterialPageRoute(
                 builder: (context) => ChangeNotifierProvider.value(
                   value: billingController,
-                  child: BillDetailScreen(bill),
+                  child: EmpBillDetailScreen(bill: bill),
                 ),
               ),
             );
@@ -154,7 +164,6 @@ class BillPaymentHistoryScreenState extends State<BillPaymentHistoryScreen> {
     );
   }
 
-  // build payment list
   Widget buildPaymentList() {
     if (paymentController.isLoading) {
       return const Center(child: CircularProgressIndicator());
@@ -172,7 +181,7 @@ class BillPaymentHistoryScreenState extends State<BillPaymentHistoryScreen> {
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(16),
       itemCount: payments.length,
       itemBuilder: (context, index) {
         final payment = payments[index];
@@ -184,7 +193,7 @@ class BillPaymentHistoryScreenState extends State<BillPaymentHistoryScreen> {
               MaterialPageRoute(
                 builder: (context) => ChangeNotifierProvider.value(
                   value: paymentController,
-                  child: PaymentDetailScreen(payment),
+                  child: EmpPaymentDetailScreen(payment: payment),
                 ),
               ),
             );
@@ -195,7 +204,6 @@ class BillPaymentHistoryScreenState extends State<BillPaymentHistoryScreen> {
   }
 }
 
-// Billing card widget
 class BillingCard extends StatelessWidget {
   final BillingModel bill;
   final VoidCallback onTap;
@@ -206,168 +214,134 @@ class BillingCard extends StatelessWidget {
     locale: 'ms_MY',
     symbol: 'RM ',
   );
-  static final dateFormat = DateFormat.yMMMMd('en_US');
+
+  static final dateFormat = DateFormat('dd MMM yyyy');
+  static final timeFormat = DateFormat('hh:mm a');
 
   @override
   Widget build(BuildContext context) {
     final status = capitalizeFirst(bill.billStatus);
-    final statusColor = getStatusColor(bill.billStatus);
-    final isPaid = status == 'Paid';
-    final isCancelled = status == 'Cancelled';
-    final showPayButton = !isPaid && !isCancelled;
 
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Card(
-        margin: const EdgeInsets.only(bottom: 12),
-        elevation: 2,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: Row(
             children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Icon
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.blueGrey[50],
-                      borderRadius: BorderRadius.circular(10),
+              // Icon
+              Container(
+                width: 50,
+                height: 50,
+                decoration: BoxDecoration(
+                  color: Colors.blueGrey[50],
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(Icons.receipt_long, color: Colors.blueGrey),
+              ),
+              const SizedBox(width: 16),
+
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      bill.billingID,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
                     ),
-                    child: const Icon(
-                      Icons.receipt_long,
-                      color: Colors.blueGrey,
-                      size: 45,
+                    const SizedBox(height: 4),
+                    Text(
+                      'Service Request ID',
+                      style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      bill.reqID,
+                      style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 16),
+
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    currencyFormat.format(bill.billAmt),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
                     ),
                   ),
-                  const SizedBox(width: 16),
-
-                  // All text rows
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Billing ID: ${bill.billingID}',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        infoRow(
-                          Icons.attach_money,
-                          'Amount: ${currencyFormat.format(bill.billAmt)}',
-                        ),
-                        const SizedBox(height: 6),
-                        infoRow(
-                          Icons.calendar_today,
-                          'Due Date: ${dateFormat.format(bill.billDueDate)}',
-                        ),
-                        const SizedBox(height: 6),
-                        Row(
-                          children: [
-                            infoRow(
-                              isPaid
-                                  ? Icons.check_circle
-                                  : (isCancelled
-                                        ? Icons.cancel
-                                        : Icons.info_outline),
-                              'Status:',
-                              color: statusColor,
-                            ),
-                            const SizedBox(width: 8),
-                            buildStatusBadge(status),
-                          ],
-                        ),
-                      ],
-                    ),
+                  const SizedBox(height: 4),
+                  buildStatusBadge(status),
+                  const SizedBox(height: 4),
+                  Text(
+                    dateFormat.format(bill.billDueDate),
+                    style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                  ),
+                  Text(
+                    timeFormat.format(bill.billDueDate),
+                    style: TextStyle(color: Colors.grey[600], fontSize: 12),
                   ),
                 ],
               ),
-
-              if (showPayButton) ...[
-                const SizedBox(height: 16),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: ElevatedButton(
-                    onPressed: onTap,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Theme.of(context).primaryColor,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
-                    child: const Text('Pay Now'),
-                  ),
-                ),
-              ],
             ],
           ),
         ),
       ),
     );
   }
-
-  Widget infoRow(IconData icon, String text, {Color? color}) => Row(
-    children: [
-      Icon(icon, size: 16, color: color ?? Colors.grey[700]),
-      const SizedBox(width: 8),
-      Text(
-        text,
-        style: TextStyle(color: color ?? Colors.grey[600], fontSize: 14),
-      ),
-    ],
-  );
 }
 
 class PaymentCard extends StatelessWidget {
   final PaymentModel payment;
   final VoidCallback? onTap;
-  static final currencyFormat = NumberFormat.currency(
-    locale: 'ms_MY',
-    symbol: 'RM ',
-  );
-  static final dateFormat = DateFormat.yMMMMd('en_US');
 
   const PaymentCard({required this.payment, this.onTap, Key? key})
     : super(key: key);
 
+  static final currencyFormat = NumberFormat.currency(
+    locale: 'ms_MY',
+    symbol: 'RM ',
+  );
+  static final dateFormat = DateFormat('dd MMM yyyy');
+  static final timeFormat = DateFormat('hh:mm a');
+
   @override
   Widget build(BuildContext context) {
-    final timeFormat = DateFormat.jm(); // e.g., 11:21 AM
     final status = capitalizeFirst(payment.payStatus);
 
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Card(
-        margin: const EdgeInsets.only(bottom: 10.0),
-        elevation: 1.5,
-        shadowColor: Colors.black.withValues(alpha: 0.1),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12.0),
-        ),
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
+          padding: const EdgeInsets.all(16),
           child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                padding: const EdgeInsets.all(12.0),
+                width: 50,
+                height: 50,
                 decoration: BoxDecoration(
                   color: Colors.blueGrey[50],
-                  borderRadius: BorderRadius.circular(10.0),
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                child: Icon(Icons.paid, color: Colors.blueGrey[400], size: 28),
+                child: Icon(Icons.paid, color: Colors.blueGrey),
               ),
-              const SizedBox(width: 16.0),
+              const SizedBox(width: 16),
+
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -380,29 +354,22 @@ class PaymentCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 4),
-
                     Text(
                       'Billing ID',
                       style: TextStyle(color: Colors.grey[600], fontSize: 13),
                     ),
-                    const SizedBox(height: 8),
-
+                    const SizedBox(height: 4),
                     Text(
                       payment.billingID,
-                      style: TextStyle(
-                        color: Colors.grey[600],
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                      ),
+                      style: TextStyle(color: Colors.grey[600], fontSize: 13),
                     ),
-                    const SizedBox(height: 8),
                   ],
                 ),
               ),
-              const SizedBox(width: 8.0),
+              const SizedBox(width: 16),
+
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
-                mainAxisAlignment: MainAxisAlignment.start,
                 children: [
                   Text(
                     currencyFormat.format(payment.payAmt),
@@ -412,19 +379,11 @@ class PaymentCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 4),
-
                   buildStatusBadge(status),
                   const SizedBox(height: 4),
-
                   Text(
-                    dateFormat.format(payment.payCreatedAt),
-                    style: TextStyle(color: Colors.grey[600], fontSize: 13),
-                  ),
-                  const SizedBox(height: 4),
-                  
-                  Text(
-                    timeFormat.format(payment.payCreatedAt),
-                    style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                    '${dateFormat.format(payment.payCreatedAt)} ${timeFormat.format(payment.payCreatedAt)}',
+                    style: TextStyle(color: Colors.grey[600], fontSize: 12),
                   ),
                 ],
               ),

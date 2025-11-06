@@ -9,6 +9,7 @@ class BillService {
   final UserService userService = UserService();
   final PaymentService paymentService = PaymentService();
 
+  // Customer side
   Future<List<BillingModel>> getBills() async {
     try {
       final String? custID = await userService.getCurrentCustomerID();
@@ -37,9 +38,16 @@ class BillService {
           .where('reqID', whereIn: reqIDs)
           .get();
 
-      return billingQuery.docs
-          .map((doc) => BillingModel.fromMap(doc.data()))
-          .toList();
+      final filteredBills = billingQuery.docs.where((doc) {
+        return doc['billStatus'] != 'cancelled';
+      }).toList();
+
+      return filteredBills
+        .map((doc) => BillingModel.fromMap({
+              ...doc.data(),
+              'billID': doc.id, 
+            }))
+        .toList();
     } catch (e) {
       print("Error fetching bills: $e");
       return [];
@@ -103,6 +111,23 @@ class BillService {
 
       // Get Payment (if it exists)
       final payment = await paymentService.getPaymentForBill(bill.billingID);
+      const double FIXED_OUTSTATION_FEE = 15.00;
+      double billServicePrice;
+      double billOutstationFee;
+
+      if (bill.billAmt == 0) {
+        // Add
+        billServicePrice = service.servicePrice ?? 0.0;
+        billOutstationFee = FIXED_OUTSTATION_FEE;
+      } else {
+        // Edit
+        billOutstationFee = FIXED_OUTSTATION_FEE;
+        billServicePrice = bill.billAmt - FIXED_OUTSTATION_FEE;
+
+        if (billServicePrice < 0) {
+          billServicePrice = 0;
+        }
+      }
 
       return BillDetailViewModel(
         totalPrice: bill.billAmt,
@@ -114,13 +139,137 @@ class BillService {
         customerName: customerUser.userName,
         customerContact: customerUser.userContact,
         serviceName: service.serviceName,
-        serviceBasePrice: service.servicePrice ?? 0.0,
+        serviceBasePrice: billServicePrice,
+        outstationFee: billOutstationFee,
         handymanName: handymanUser.userName,
         paymentTimestamp: payment?.payCreatedAt,
+        adminRemark: bill.adminRemark,
       );
     } catch (e) {
       print("Error in getBillDetails: $e");
       rethrow;
+    }
+  }
+
+  // Employee side
+  Future<List<BillingModel>> empGetBills() async {
+    try {
+      final billingQuery = await db.collection('Billing').get();
+      return billingQuery.docs
+          .map((doc) => BillingModel.fromMap(doc.data()))
+          .toList();
+    } catch (e) {
+      print("Error fetching bills: $e");
+      return [];
+    }
+  }
+
+  Future<String> generateNextBillID() async {
+    const String prefix = 'BL';
+    const int padding = 4;
+
+    final query = await db
+        .collection('Billing')
+        .where('billingID', isGreaterThanOrEqualTo: prefix)
+        .where('billingID', isLessThan: '${prefix}Z')
+        .orderBy('billingID', descending: true)
+        .limit(1)
+        .get();
+
+    if (query.docs.isEmpty) {
+      return '$prefix${'1'.padLeft(padding, '0')}';
+    }
+
+    final lastID = query.docs.first.id;
+    try {
+      final numericPart = lastID.substring(prefix.length);
+      final lastNumber = int.parse(numericPart);
+      final nextNumber = lastNumber + 1;
+      return '$prefix${nextNumber.toString().padLeft(padding, '0')}';
+    } catch (e) {
+      print("Error parsing last bill ID '$lastID': $e");
+      return '$prefix${'1'.padLeft(padding, '0')}';
+    }
+  }
+
+  Future<List<ServiceRequestModel>> getCompleteServiceRequests() async {
+    try {
+      final query = await db
+          .collection('ServiceRequest')
+          .where('reqStatus', isEqualTo: 'completed')
+          .get();
+
+      return query.docs
+          .map((doc) => ServiceRequestModel.fromMap(doc.data()))
+          .toList();
+    } catch (e) {
+      print("Error fetching completed service requests: $e");
+      return [];
+    }
+  }
+
+  Future<void> addNewBill(BillingModel bill) async {
+    try {
+      await db.collection('Billing').doc(bill.billingID).set(bill.toMap());
+    } catch (e) {
+      print("Error adding new bill: $e");
+      rethrow;
+    }
+  }
+
+  Future<void> updateBillAndPayment(
+    String billingID,
+    Map<String, dynamic> billData,
+  ) async {
+    await db.runTransaction((transaction) async {
+      final billingRef = db.collection('Billing').doc(billingID);
+      transaction.update(billingRef, billData);
+      final paymentRef = await getPaymentRefForBill(billingID);
+
+      if (paymentRef != null) {
+        final paymentData = {
+          'payAmt': billData['billAmt'],
+          'payStatus': billData['billStatus'],
+        };
+
+        if (billData.containsKey('adminRemark')) {
+          paymentData['adminRemark'] = billData['adminRemark'];
+        }
+        transaction.update(paymentRef, paymentData);
+      }
+    });
+  }
+
+  Future<DocumentReference?> getPaymentRefForBill(String billingID) async {
+    try {
+      final query = await db
+          .collection('Payment')
+          .where('billingID', isEqualTo: billingID)
+          .limit(1)
+          .get();
+
+      if (query.docs.isNotEmpty) {
+        return query.docs.first.reference;
+      }
+      return null;
+    } catch (e) {
+      print("Error finding payment for bill $billingID: $e");
+      return null;
+    }
+  }
+
+  Future<List<BillingModel>> getPendingBills() async {
+    try {
+      final billingQuery = await db
+          .collection('Billing')
+          .where('billStatus', isEqualTo: 'pending')
+          .get();
+      return billingQuery.docs
+          .map((doc) => BillingModel.fromMap(doc.data()))
+          .toList();
+    } catch (e) {
+      print("Error fetching pending bills: $e");
+      return [];
     }
   }
 }

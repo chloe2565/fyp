@@ -91,16 +91,12 @@ class ProfileScreenState extends State<ProfileScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const SizedBox(height: 20),
                     // Profile Picture
-                    Container(
-                      height: 120,
-                      width: 120,
-                      decoration: const BoxDecoration(
-                        shape: BoxShape.circle,
-                        image: DecorationImage(
-                          image: AssetImage('assets/images/profile.jpg'),
-                          fit: BoxFit.contain,
+                    Center(
+                      child: CircleAvatar(
+                        radius: 55,
+                        backgroundImage: AssetImage(
+                          'assets/images/profile.jpg',
                         ),
                       ),
                     ),
@@ -219,40 +215,36 @@ class ProfileScreenState extends State<ProfileScreen> {
                     ),
                     const SizedBox(height: 16),
                     ElevatedButton(
-                      onPressed: userModel != null
-                          ? () {
-                              showChangePasswordDialog(
-                                context: context,
-                                currentPasswordController:
-                                    userController.currentPasswordController,
-                                newPasswordController:
-                                    userController.newPasswordController,
-                                confirmNewPasswordController:
-                                    userController.confirmPasswordController,
-                                onSubmit: () async {
-                                  await userController.changePassword(
-                                    currentPassword: userController
-                                        .currentPasswordController
-                                        .text
-                                        .trim(),
-                                    newPassword: userController
-                                        .newPasswordController
-                                        .text
-                                        .trim(),
-                                    confirmNewPassword: userController
-                                        .confirmPasswordController
-                                        .text
-                                        .trim(),
-                                    setState: setState,
-                                  );
-                                  if (userController.isLoading == false &&
-                                      context.mounted) {
-                                    Navigator.of(context).pop();
-                                  }
-                                },
-                              );
-                            }
-                          : null,
+                      onPressed: () {
+                        showChangePasswordDialog(
+                          context: context,
+                          currentPasswordController:
+                              userController.currentPasswordController,
+                          newPasswordController:
+                              userController.newPasswordController,
+                          confirmNewPasswordController:
+                              userController.confirmPasswordController,
+                          onSubmit: () async {
+                            final error = await userController.changePassword(
+                              context: context,
+                              currentPassword: userController
+                                  .currentPasswordController
+                                  .text
+                                  .trim(),
+                              newPassword: userController
+                                  .newPasswordController
+                                  .text
+                                  .trim(),
+                              confirmNewPassword: userController
+                                  .confirmPasswordController
+                                  .text
+                                  .trim(),
+                              setState: setState,
+                            );
+                            return error;
+                          },
+                        );
+                      },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFFFD722E),
                         padding: const EdgeInsets.symmetric(vertical: 14),
