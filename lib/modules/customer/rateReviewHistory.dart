@@ -163,7 +163,7 @@ class RatingReviewCard extends StatelessWidget {
         return;
       }
 
-      final result = await Navigator.push(
+      await Navigator.push(
         context,
         MaterialPageRoute(
           builder: (context) {
@@ -174,7 +174,7 @@ class RatingReviewCard extends StatelessWidget {
           },
         ),
       );
-    } catch (e, stackTrace) {
+    } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(
           context,

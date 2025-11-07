@@ -107,7 +107,7 @@ class EmpPaymentDetailScreenState extends State<EmpPaymentDetailScreen> {
           ),
           buildDetailItem(
             'Outstation Fee (RM)',
-            currencyFormat.format(vm.outstationFee ?? 0.00),
+            currencyFormat.format(vm.outstationFee),
           ),
           buildDetailItem(
             'Total Price (RM)',

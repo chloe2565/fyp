@@ -95,9 +95,14 @@ class ProfileScreenState extends State<ProfileScreen> {
                     Center(
                       child: CircleAvatar(
                         radius: 55,
-                        backgroundImage: AssetImage(
-                          'assets/images/profile.jpg',
-                        ),
+                        backgroundImage:
+                            (userModel!.userPicName != null &&
+                                userModel!.userPicName!.isNotEmpty)
+                            ? AssetImage(
+                                'assets/images/${userModel!.userPicName}',
+                              )
+                            : const AssetImage('assets/images/profile.jpg')
+                                  as ImageProvider,
                       ),
                     ),
                     const SizedBox(height: 50),
@@ -141,6 +146,7 @@ class ProfileScreenState extends State<ProfileScreen> {
                                               : Gender.female,
                                           initialPhoneNumber:
                                               userModel!.userContact,
+                                          initialUserPicName: userModel!.userPicName,
                                           userID: userModel!.userID,
                                         ),
                                       ),
@@ -176,29 +182,50 @@ class ProfileScreenState extends State<ProfileScreen> {
                                       emailController:
                                           userController.emailController,
                                       onDelete: () async {
-                                        await userController.deleteAccount(
-                                          email: userController
-                                              .emailController
-                                              .text
-                                              .trim(),
-                                          setState: setState,
+                                        Navigator.of(context).pop();
+                                        showLoadingDialog(
+                                          context,
+                                          'Deleting your account...',
                                         );
-                                        if (userController.isLoading == false &&
-                                            context.mounted) {
-                                          Navigator.pushReplacement(
-                                            context,
-                                            MaterialPageRoute(
-                                              builder: (_) =>
-                                                  const LoginScreen(),
-                                            ),
+                                        
+                                        try {
+                                          await userController.deleteAccount(
+                                            email: userController
+                                                .emailController
+                                                .text
+                                                .trim(),
+                                            setState: setState,
                                           );
+                                          
+                                          if (context.mounted) {
+                                            // Close loading dialog
+                                            Navigator.of(context).pop();
+                                            Navigator.pushReplacement(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder: (_) =>
+                                                    const LoginScreen(),
+                                              ),
+                                            );
+                                          }
+                                        } catch (e) {
+                                          if (context.mounted) {
+                                            // Close loading dialog
+                                            Navigator.of(context).pop();
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              SnackBar(
+                                                content: Text('Failed to delete account: $e'),
+                                                backgroundColor: Colors.red,
+                                              ),
+                                            );
+                                          }
                                         }
                                       },
                                     );
                                   }
                                 : null,
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFFFF3D3D),
+                              backgroundColor: Theme.of(context).colorScheme.error,
                               padding: const EdgeInsets.symmetric(vertical: 14),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12),

@@ -51,6 +51,42 @@ class Validator {
     return null;
   }
 
+  static String? validateSalary(String? value) {
+    final salary = value?.trim() ?? '';
+
+    if (salary.isEmpty) {
+      return 'Salary is required';
+    }
+
+    if (salary.startsWith('0') && !salary.startsWith('0.')) {
+      return 'Salary cannot start with 0';
+    }
+
+    final salaryValue = double.tryParse(salary);
+
+    if (salaryValue == null) {
+      return 'Please enter a valid number';
+    }
+
+    if (salaryValue <= 0) {
+      return 'Salary must be greater than 0';
+    }
+
+    if (salaryValue > 999999.99) {
+      return 'Salary exceeds maximum allowed';
+    }
+
+    // Check for valid decimal places (max 2)
+    if (salary.contains('.')) {
+      final parts = salary.split('.');
+      if (parts[1].length > 2) {
+        return 'Maximum 2 decimal places allowed';
+      }
+    }
+
+    return null;
+  }
+
   static String? validatePassword(String? value) {
     final password = value ?? '';
 
@@ -123,6 +159,12 @@ class Formatter {
     }
 
     return number;
+  }
+
+  static String formatGender(String? genderCode) {
+    if (genderCode == 'M') return 'Male';
+    if (genderCode == 'F') return 'Female';
+    return 'N/A';
   }
 }
 
@@ -847,6 +889,8 @@ Color getStatusColor(String status) {
     case 'confirmed':
       return Color(0xFFFD722E);
     case 'departed':
+    case 'resigned':
+    case 'retrired':
       return Colors.blue;
     case 'completed':
     case 'paid':
@@ -1888,7 +1932,3 @@ class EmpInfoCard extends StatelessWidget {
     );
   }
 }
-
-
-
-

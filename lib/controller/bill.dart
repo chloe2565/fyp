@@ -204,7 +204,7 @@ class BillController with ChangeNotifier {
       servicePriceController.text = details.serviceBasePrice!.toStringAsFixed(
         2,
       );
-      outstationFeeController.text = (details.outstationFee ?? 0.0)
+      outstationFeeController.text = (details.outstationFee)
           .toStringAsFixed(2);
       totalPriceController.text = bill.billAmt.toStringAsFixed(2);
       servicePriceController.addListener(calculateTotalPrice);
@@ -255,8 +255,8 @@ class BillController with ChangeNotifier {
             servicePriceController.text = "";
           }
 
-          if (details.outstationFee != null && details.outstationFee! > 0) {
-            outstationFeeController.text = (details.outstationFee!)
+          if (details.outstationFee > 0) {
+            outstationFeeController.text = (details.outstationFee)
                 .toStringAsFixed(2);
           } else {
             outstationFeeController.text = "";

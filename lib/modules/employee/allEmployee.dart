@@ -1,88 +1,64 @@
 import 'package:flutter/material.dart';
-import '../../controller/service.dart';
-import '../../model/databaseModel.dart';
-import '../../shared/helper.dart';
-import '../../service/user.dart';
+import '../../controller/user.dart';
+import '../../controller/employee.dart';
+import 'addNewEmployee.dart';
+import 'employeeDetail.dart';
 
-class EmpAllEmployeeScreen extends StatefulWidget {
-  const EmpAllEmployeeScreen({super.key});
+class EmpEmployeeScreen extends StatefulWidget {
+  const EmpEmployeeScreen({super.key});
 
   @override
-  State<EmpAllEmployeeScreen> createState() => EmpAllEmployeeScreenState();
+  State<EmpEmployeeScreen> createState() => EmpEmployeeScreenState();
 }
 
-class EmpAllEmployeeScreenState extends State<EmpAllEmployeeScreen> {
+class EmpEmployeeScreenState extends State<EmpEmployeeScreen> {
   final TextEditingController searchController = TextEditingController();
-  final UserService userService = UserService();
-  late Future<List<ServiceModel>> servicesFuture;
-  List<ServiceModel> allServices = [];
-  List<ServiceModel> displayedServices = [];
-  bool isLoading = true;
-  bool isAdmin = false;
-  bool isLoadingRole = true;
+  late UserController userController;
+  final EmployeeController employeeController = EmployeeController();
 
   @override
   void initState() {
     super.initState();
+    userController = UserController(
+      showErrorSnackBar: (message) {
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(message)));
+        }
+      },
+    );
+    employeeController.addListener(onControllerUpdate);
     initializeScreenData();
-    searchController.addListener(filterServices);
+    searchController.addListener(() {
+      employeeController.searchEmployees(searchController.text);
+    });
+  }
+
+  void onControllerUpdate() {
+    setState(() {});
   }
 
   Future<void> initializeScreenData() async {
-    await loadEmployeeRole();
-    await loadServices();
-  }
-
-  Future<void> loadEmployeeRole() async {
-    final empInfo = await userService.getCurrentEmployeeInfo();
-    setState(() {
-      if (empInfo != null && empInfo['empType'] == 'admin') {
-        isAdmin = true;
-      }
-      isLoadingRole = false;
-    });
-  }
-
-  Future<void> loadServices() async {
-    setState(() {
-      isLoading = true;
-      servicesFuture = ServiceController().empGetAllServices();
-    });
-    try {
-      allServices = await servicesFuture;
-      filterServices();
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error loading services: $e')));
-      }
-    }
-    setState(() {
-      isLoading = false;
-    });
-  }
-
-  void filterServices() {
-    final query = searchController.text.toLowerCase();
-    setState(() {
-      displayedServices = allServices.where((service) {
-        final matchesName = service.serviceName.toLowerCase().contains(query);
-        final matchesID = service.serviceID.toLowerCase().contains(query);
-        return matchesName || matchesID;
-      }).toList();
-    });
+    await employeeController.loadPageData(userController);
   }
 
   @override
   void dispose() {
     searchController.dispose();
+    userController.dispose();
+    employeeController.removeListener(onControllerUpdate);
+    employeeController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    if (isLoadingRole || isLoading) {
+    if (employeeController.isLoadingRole) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    if (employeeController.isLoading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
@@ -94,32 +70,31 @@ class EmpAllEmployeeScreenState extends State<EmpAllEmployeeScreen> {
         ),
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         title: const Text(
-          'Service',
+          'Employees',
           style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
         elevation: 0,
         actions: [
-          if (isAdmin)
-            IconButton(
-              icon: const Icon(
-                Icons.add_circle_outline,
-                color: Colors.black,
-                size: 28,
-              ),
-              onPressed: () async {
-                await Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => EmpAddServiceScreen(
-                      onServiceAdded: () {
-                        loadServices();
-                      },
-                    ),
-                  ),
-                );
-              },
+          IconButton(
+            icon: const Icon(
+              Icons.add_circle_outline,
+              color: Colors.black,
+              size: 28,
             ),
+            onPressed: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => EmpAddEmployeeScreen(
+                    onEmployeeAdded: () {
+                      employeeController.loadEmployees();
+                    },
+                  ),
+                ),
+              );
+            },
+          ),
           const SizedBox(width: 8),
         ],
       ),
@@ -152,13 +127,13 @@ class EmpAllEmployeeScreenState extends State<EmpAllEmployeeScreen> {
             const SizedBox(height: 24),
             Expanded(
               child: RefreshIndicator(
-                onRefresh: loadServices,
-                child: displayedServices.isEmpty
+                onRefresh: employeeController.loadEmployees,
+                child: employeeController.displayedEmployees.isEmpty
                     ? Center(
                         child: Text(
                           searchController.text.isEmpty
-                              ? 'No services available.'
-                              : 'No services found.',
+                              ? 'No employees available.'
+                              : 'No employees found.',
                           style: const TextStyle(
                             color: Colors.grey,
                             fontSize: 16,
@@ -166,9 +141,10 @@ class EmpAllEmployeeScreenState extends State<EmpAllEmployeeScreen> {
                         ),
                       )
                     : ListView.builder(
-                        itemCount: displayedServices.length,
+                        itemCount: employeeController.displayedEmployees.length,
                         itemBuilder: (context, index) {
-                          final service = displayedServices[index];
+                          final employee =
+                              employeeController.displayedEmployees[index];
                           return Padding(
                             padding: const EdgeInsets.only(bottom: 16.0),
                             child: GestureDetector(
@@ -177,25 +153,18 @@ class EmpAllEmployeeScreenState extends State<EmpAllEmployeeScreen> {
                                   context,
                                   MaterialPageRoute(
                                     builder: (context) =>
-                                        EmpServiceDetailScreen(
-                                          service: service,
+                                        EmpEmployeeDetailScreen(
+                                          employee: employee,
                                           onDataChanged: () {
-                                            loadServices();
+                                            employeeController.loadEmployees();
                                           },
-                                          isAdmin: isAdmin,
                                         ),
                                   ),
                                 );
                               },
-                              child: ServiceListItemCard(
-                                title: service.serviceName,
-                                subtitle: service.serviceID,
-                                icon: ServiceHelper.getIconForService(
-                                  service.serviceName,
-                                ),
-                                color: ServiceHelper.getColorForService(
-                                  service.serviceName,
-                                ),
+                              child: EmployeeListItemCard(
+                                name: employee['userName'] as String? ?? 'N/A',
+                                userPicName: employee['userPicName'] as String?,
                               ),
                             ),
                           );
@@ -210,22 +179,20 @@ class EmpAllEmployeeScreenState extends State<EmpAllEmployeeScreen> {
   }
 }
 
-class ServiceListItemCard extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final IconData icon;
-  final Color color;
+class EmployeeListItemCard extends StatelessWidget {
+  final String name;
+  final String? userPicName;
 
-  const ServiceListItemCard({
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-    required this.color,
-    super.key,
-  });
+  const EmployeeListItemCard({required this.name, this.userPicName, super.key});
 
   @override
   Widget build(BuildContext context) {
+    ImageProvider? imageProvider;
+
+    if (userPicName != null && userPicName!.isNotEmpty) {
+      imageProvider = AssetImage('assets/images/${userPicName!}');
+    }
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -242,14 +209,14 @@ class ServiceListItemCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Container(
-            width: 55,
-            height: 55,
-            decoration: BoxDecoration(
-              color: color,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Icon(icon, color: Colors.black, size: 28),
+          // Avatar
+          CircleAvatar(
+            radius: 27.5,
+            backgroundColor: Colors.blue.shade200,
+            backgroundImage: imageProvider,
+            child: imageProvider == null
+                ? const Icon(Icons.person, color: Colors.white, size: 30)
+                : null,
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -257,22 +224,14 @@ class ServiceListItemCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  title,
+                  name,
                   style: const TextStyle(
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w600,
                     fontSize: 16,
+                    color: Colors.black,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  subtitle,
-                  style: const TextStyle(
-                    color: Colors.grey,
-                    fontWeight: FontWeight.w500,
-                    fontSize: 14,
-                  ),
                 ),
               ],
             ),

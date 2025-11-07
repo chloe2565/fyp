@@ -26,9 +26,14 @@ class EmpProfileScreenState extends State<EmpProfileScreen> {
     );
   }
 
+  Future<void> refreshProfile() async {
+    await controller.loadProfile();
+  }
+
   @override
   void dispose() {
     userCtrl.dispose();
+    controller.dispose();
     super.dispose();
   }
 
@@ -58,6 +63,7 @@ class EmpProfileScreenState extends State<EmpProfileScreen> {
           final user = controller.user!;
           final emp = controller.employee!;
           final isHandyman = emp.empType == 'handyman';
+          print("DEBUG: Current userPicName is: ${user.userPicName}");
 
           return SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
@@ -68,7 +74,12 @@ class EmpProfileScreenState extends State<EmpProfileScreen> {
                 Center(
                   child: CircleAvatar(
                     radius: 55,
-                    backgroundImage: AssetImage('assets/images/profile.jpg'),
+                    backgroundImage:
+                        (user.userPicName != null &&
+                            user.userPicName!.isNotEmpty)
+                        ? AssetImage('assets/images/${user.userPicName}')
+                        : const AssetImage('assets/images/profile.jpg')
+                              as ImageProvider,
                   ),
                 ),
                 const SizedBox(height: 30),
@@ -185,14 +196,16 @@ class EmpProfileScreenState extends State<EmpProfileScreen> {
                                   ? Gender.male
                                   : Gender.female,
                               initialPhoneNumber: user.userContact,
+                              initialUserPicName: user.userPicName,
                               userID: user.userID,
                               empID: emp.empID,
                               empType: emp.empType,
                               empStatus: emp.empStatus,
                               serviceAssigned: controller.handymanServiceNames,
+                              onProfileUpdated: refreshProfile,
                             ),
                           ),
-                        ).then((_) => controller.loadProfile()),
+                        ),
 
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Theme.of(

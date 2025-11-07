@@ -327,7 +327,7 @@ class ServiceService {
       final Set<String> empIdSet = {};
 
       for (var doc in handymanSnap.docs) {
-        final data = doc.data() as Map<String, dynamic>;
+        final data = doc.data();
         final empID = data['empID'] as String?;
         if (empID != null) {
           handymanData.add(data);
@@ -348,7 +348,7 @@ class ServiceService {
       final Set<String> userIdSet = {};
 
       for (var doc in empSnap.docs) {
-        final data = doc.data() as Map<String, dynamic>;
+        final data = doc.data();
         final userID = data['userID'] as String?;
         if (userID != null) {
           empData.add(data);
@@ -366,7 +366,7 @@ class ServiceService {
       final List<Map<String, dynamic>> userData = [];
       final List<String> userIDs = [];
       for (var doc in userSnap.docs) {
-        userData.add(doc.data() as Map<String, dynamic>);
+        userData.add(doc.data());
         userIDs.add(doc.id);
       }
 

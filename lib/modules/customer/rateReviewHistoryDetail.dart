@@ -268,8 +268,8 @@ class RateReviewHistoryDetailScreenState
           const SizedBox(height: 8),
 
           Text(
-            viewModel.reviewText?.isNotEmpty == true
-                ? viewModel.reviewText!
+            viewModel.reviewText.isNotEmpty == true
+                ? viewModel.reviewText
                 : 'No review text provided',
             style: TextStyle(color: Colors.grey, fontSize: 14),
           ),

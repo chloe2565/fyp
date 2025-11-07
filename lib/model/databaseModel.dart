@@ -695,7 +695,7 @@ class UserModel {
           ? (data['userCreatedAt'] as Timestamp).toDate()
           : DateTime.now()),
       authID: data['authID'] ?? '',
-      userPicName: data['userProfilePic'],
+      userPicName: data['userPicName'],
     );
   }
 

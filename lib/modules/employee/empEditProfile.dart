@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../controller/user.dart';
 import '../../shared/helper.dart';
 
@@ -9,11 +12,13 @@ class EmpEditProfileScreen extends StatefulWidget {
   final String initialEmail;
   final Gender initialGender;
   final String initialPhoneNumber;
+  final String? initialUserPicName;
   final String userID;
   final String empID;
   final String empType;
   final String empStatus;
   final List<String> serviceAssigned;
+  final VoidCallback onProfileUpdated;
 
   const EmpEditProfileScreen({
     super.key,
@@ -21,18 +26,20 @@ class EmpEditProfileScreen extends StatefulWidget {
     required this.initialEmail,
     required this.initialGender,
     required this.initialPhoneNumber,
+    this.initialUserPicName,
     required this.userID,
     required this.empID,
     required this.empType,
     required this.empStatus,
     this.serviceAssigned = const [],
+    required this.onProfileUpdated,
   });
 
   @override
-  State<EmpEditProfileScreen> createState() => _EmpEditProfileScreenState();
+  State<EmpEditProfileScreen> createState() => EmpEditProfileScreenState();
 }
 
-class _EmpEditProfileScreenState extends State<EmpEditProfileScreen> {
+class EmpEditProfileScreenState extends State<EmpEditProfileScreen> {
   final formKey = GlobalKey<FormState>();
   final nameController = TextEditingController();
   final phoneController = TextEditingController();
@@ -42,6 +49,9 @@ class _EmpEditProfileScreenState extends State<EmpEditProfileScreen> {
   String? phoneError;
 
   late UserController userController;
+  final ImagePicker picker = ImagePicker();
+  File? newProfileImage;
+  String? currentProfilePicName;
 
   @override
   void initState() {
@@ -62,6 +72,7 @@ class _EmpEditProfileScreenState extends State<EmpEditProfileScreen> {
         ? '0${widget.initialPhoneNumber.substring(3)}'
         : widget.initialPhoneNumber;
     genderItem = widget.initialGender;
+    currentProfilePicName = widget.initialUserPicName;
   }
 
   @override
@@ -72,10 +83,27 @@ class _EmpEditProfileScreenState extends State<EmpEditProfileScreen> {
     super.dispose();
   }
 
+Future<void> pickImage() async {
+    final XFile? pickedFile = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 80,
+    );
+    if (pickedFile != null) {
+      setState(() {
+        newProfileImage = File(pickedFile.path);
+      });
+    }
+  }
+
   Future<void> submitProfile() async {
     if (!formKey.currentState!.validate()) return;
 
     showLoadingDialog(context, 'Updating profile...');
+
+    String? newPicName;
+    if (newProfileImage != null) {
+      newPicName = newProfileImage!.path.split('/').last;
+    }
 
     try {
       await userController.updateProfile(
@@ -84,6 +112,7 @@ class _EmpEditProfileScreenState extends State<EmpEditProfileScreen> {
         email: widget.initialEmail,
         gender: genderItem == Gender.male ? 'M' : 'F',
         contact: phoneController.text.trim(),
+        newPicName: newPicName,
         setState: setState,
         context: context,
         userType: 'employee',
@@ -98,8 +127,9 @@ class _EmpEditProfileScreenState extends State<EmpEditProfileScreen> {
           title: "Successful",
           message: "Your profile has been updated successfully.",
           onPrimary: () {
-            Navigator.of(context).pop(); // Close success
+            widget.onProfileUpdated();
             Navigator.of(context).pop(); // Close loading
+            Navigator.of(context).pop(); // Close success
             Navigator.of(context).pop(); // Close edit screen
           },
         );
@@ -144,11 +174,40 @@ class _EmpEditProfileScreenState extends State<EmpEditProfileScreen> {
             children: [
               const SizedBox(height: 20),
               Center(
-                child: CircleAvatar(
-                  radius: 55,
-                  backgroundImage: const AssetImage(
-                    'assets/images/profile.jpg',
-                  ),
+                child: Stack(
+                  children: [
+                    CircleAvatar(
+                      radius: 55,
+                      backgroundImage: (newProfileImage != null
+                              ? FileImage(newProfileImage!)
+                              : (currentProfilePicName != null
+                                  ? AssetImage(
+                                      'assets/images/$currentProfilePicName')
+                                  : const AssetImage(
+                                      'assets/images/profile.jpg')))
+                          as ImageProvider,
+                    ),
+                    Positioned(
+                      bottom: 0,
+                      right: 0,
+                      child: GestureDetector(
+                        onTap: pickImage, 
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.primary,
+                            shape: BoxShape.circle,
+                            border: Border.all(width: 2, color: Colors.white),
+                          ),
+                          child: const Icon(
+                            Icons.edit,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: 40),

@@ -215,10 +215,7 @@ class ServiceRequestService {
           .toList();
 
       final serviceIds = requests.map((req) => req.serviceID).toSet().toList();
-      final handymanIds = requests
-          .map((req) => req.handymanID)
-          .toSet()
-          .toList();
+      requests.map((req) => req.handymanID).toSet().toList();
       final reqIds = requests.map((req) => req.reqID).toSet().toList();
 
       final serviceMap = await batchFetchServices(serviceIds);
@@ -297,10 +294,7 @@ class ServiceRequestService {
       }
 
       final serviceIds = requests.map((req) => req.serviceID).toSet().toList();
-      final handymanIds = requests
-          .map((req) => req.handymanID)
-          .toSet()
-          .toList();
+      requests.map((req) => req.handymanID).toSet().toList();
       final reqIds = requests.map((req) => req.reqID).toSet().toList();
 
       final serviceMap = await batchFetchServices(serviceIds);

@@ -149,12 +149,11 @@ class FavoriteService {
       }
 
       final reviewCountQuery = await db
-          .collection('ServiceRequest') 
+          .collection('ServiceRequest')
           .where('handymanID', isEqualTo: handymanID)
           .count()
           .get();
-          final int reviewCount = reviewCountQuery.count ?? 0;
-
+      final int reviewCount = reviewCountQuery.count ?? 0;
 
       // Get first listed skill
       final skillQuery = await db

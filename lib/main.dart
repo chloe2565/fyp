@@ -12,6 +12,7 @@ import 'modules/customer/rateReviewHistory.dart';
 import 'modules/customer/reqHistory.dart';
 import 'modules/customer/register.dart';
 import 'modules/customer/homepage.dart';
+import 'modules/employee/allEmployee.dart';
 import 'modules/employee/billPayment.dart';
 import 'modules/employee/empProfile.dart';
 import 'modules/employee/ratingReview.dart';
@@ -41,9 +42,9 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'Smart Handyman Service Optimization System',
       theme: customAppTheme,
-      initialRoute: '/login',
+      initialRoute: '/',
       routes: {
-        // '/': (context) => const WelcomeScreen(),
+        '/': (context) => const WelcomeScreen(),
         '/login': (context) => const LoginScreen(),
         '/register': (context) => const RegisterScreen(),
         '/custHome': (context) => const CustHomepage(),
@@ -57,7 +58,7 @@ class MyApp extends StatelessWidget {
         '/empRequest': (context) => const EmpRequestScreen(),
         '/empBillPayment': (context) => const EmpBillPaymentScreen(),
         '/empRating': (context) => const EmpRatingReviewScreen(),
-        // '/empEmployee': (context) => const EmpEmployee(),
+        '/empEmployee': (context) => const EmpEmployeeScreen(),
         '/empProfile': (context) => const EmpProfileScreen(),
       },
     );
@@ -74,53 +75,80 @@ class WelcomeScreen extends StatefulWidget {
 class WelcomeScreenState extends State<WelcomeScreen> {
   @override
   Widget build(BuildContext context) {
+    final primaryColor = Theme.of(context).colorScheme.primary;
+    final textTheme = Theme.of(context).textTheme;
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Welcome')),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: <Widget>[
-              Icon(
-                Icons.handyman,
-                size: 100,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-              const SizedBox(height: 24),
-              Text(
-                'Handyman Connect',
-                style: Theme.of(context).textTheme.headlineMedium,
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Your trusted solution for all your service needs.',
-                style: Theme.of(context).textTheme.bodyMedium,
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 48),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  onPressed: () {
-                    Navigator.pushNamed(context, '/login');
-                  },
-                  child: const Text('Log In'),
+      appBar: AppBar(
+        title: const Text('Welcome'),
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        elevation: 0,
+      ),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [primaryColor.withValues(alpha: 0.1), Colors.white],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: <Widget>[
+                Icon(
+                  Icons.auto_fix_high,
+                  size: 100,
+                  color: Theme.of(context).colorScheme.primary,
                 ),
-              ),
-              const SizedBox(height: 10),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton(
-                  onPressed: () {
-                    Navigator.pushNamed(context, '/register');
-                  },
-                  child: const Text('Sign Up'),
+                const SizedBox(height: 24),
+                Text(
+                  'Neurofix',
+                  style: textTheme.displayMedium?.copyWith(
+                    fontWeight: FontWeight.w900,
+                    color: primaryColor,
+                    letterSpacing: 2,
+                  ),
+                  textAlign: TextAlign.center,
                 ),
-              ),
-            ],
+                const SizedBox(height: 8),
+                Text(
+                  'Welcome to your smart service solution.',
+                  style: textTheme.titleMedium?.copyWith(
+                    color: Colors.grey.shade700,
+                    fontStyle: FontStyle.italic,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 48),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: () {
+                      Navigator.pushNamed(context, '/login');
+                    },
+                    child: const Text('Log In'),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: Colors.black,
+                    ),
+                    onPressed: () {
+                      Navigator.pushNamed(context, '/register');
+                    },
+                    child: const Text('Sign Up'),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

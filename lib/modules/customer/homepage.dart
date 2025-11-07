@@ -50,7 +50,6 @@ class CustHomepageState extends State<CustHomepage> {
   );
 
   try {
-    // Call the actual logout method from controller
     await userController.logout(context, setState);
   } catch (e) {
     // Dismiss loading dialog
@@ -159,37 +158,37 @@ void dispose() {
           ],
         ),
         actions: [
-          Stack(
-            alignment: Alignment.topRight,
-            children: [
-              const Icon(
-                Icons.notifications_none_outlined,
-                color: Colors.black,
-                size: 30,
-              ),
-              Container(
-                margin: const EdgeInsets.only(top: 4, right: 2),
-                width: 15,
-                height: 15,
-                decoration: BoxDecoration(
-                  color: Colors.orange,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 2),
-                ),
-                child: const Center(
-                  child: Text(
-                    '1',
-                    style: TextStyle(
-                      fontSize: 8,
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(width: 16),
+          // Stack(
+          //   alignment: Alignment.topRight,
+          //   children: [
+          //     const Icon(
+          //       Icons.notifications_none_outlined,
+          //       color: Colors.black,
+          //       size: 30,
+          //     ),
+          //     Container(
+          //       margin: const EdgeInsets.only(top: 4, right: 2),
+          //       width: 15,
+          //       height: 15,
+          //       decoration: BoxDecoration(
+          //         color: Colors.orange,
+          //         shape: BoxShape.circle,
+          //         border: Border.all(color: Colors.white, width: 2),
+          //       ),
+          //       child: const Center(
+          //         child: Text(
+          //           '1',
+          //           style: TextStyle(
+          //             fontSize: 8,
+          //             color: Colors.white,
+          //             fontWeight: FontWeight.bold,
+          //           ),
+          //         ),
+          //       ),
+          //     ),
+          //   ],
+          // ),
+          // const SizedBox(width: 16),
           Container(
             decoration: BoxDecoration(
               color: isMenuOpen ? Colors.grey.shade300 : Colors.transparent,

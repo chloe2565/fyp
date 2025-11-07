@@ -135,7 +135,7 @@ class PaymentController with ChangeNotifier {
     selectedMediaProof = null;
     createdAtController.text = dateTimeFormat.format(payment.payCreatedAt);
     paymentStatusController.text = payment.payStatus;
-    adminRemarkController.text = payment.adminRemark ?? '';
+    adminRemarkController.text = payment.adminRemark;
 
     isLoadingAddData = false;
     notifyListeners();

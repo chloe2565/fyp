@@ -19,7 +19,7 @@ class AllServicesScreenState extends State<AllServicesScreen> {
   bool isLoading = true;
 
   double minPrice = 0;
-  double maxPrice = 100; 
+  double maxPrice = 100;
 
   @override
   void initState() {
@@ -46,7 +46,8 @@ class AllServicesScreenState extends State<AllServicesScreen> {
     setState(() {
       displayedServices = allServices.where((service) {
         final matchesName = service.serviceName.toLowerCase().contains(query);
-        final matchesPrice = service.servicePrice != null &&
+        final matchesPrice =
+            service.servicePrice != null &&
             service.servicePrice! >= minPrice &&
             service.servicePrice! <= maxPrice;
         return matchesName && matchesPrice;
@@ -115,8 +116,10 @@ class AllServicesScreenState extends State<AllServicesScreen> {
           icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: const Text('Services',
-            style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Services',
+          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+        ),
         centerTitle: true,
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
@@ -138,8 +141,9 @@ class AllServicesScreenState extends State<AllServicesScreen> {
                   onPressed: showFilterDialog,
                 ),
                 border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide.none),
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide.none,
+                ),
                 filled: true,
                 fillColor: Colors.grey.shade100,
               ),
@@ -148,6 +152,13 @@ class AllServicesScreenState extends State<AllServicesScreen> {
             Expanded(
               child: isLoading
                   ? const Center(child: CircularProgressIndicator())
+                  : displayedServices.isEmpty && !searchController.text.isEmpty
+                  ? const Center(
+                      child: Text(
+                        'No matched services.',
+                        style: TextStyle(fontSize: 16, color: Colors.grey),
+                      ),
+                    )
                   : ListView.builder(
                       itemCount: displayedServices.length,
                       itemBuilder: (context, index) {
@@ -167,12 +178,14 @@ class AllServicesScreenState extends State<AllServicesScreen> {
                             child: ServiceListItemCard(
                               title: service.serviceName,
                               price: service.servicePrice != null
-                                ? 'RM ${service.servicePrice!.toStringAsFixed(0)} / hour'
-                                : 'Price not available',
+                                  ? 'RM ${service.servicePrice!.toStringAsFixed(0)} / hour'
+                                  : 'Price not available',
                               icon: ServiceHelper.getIconForService(
-                                  service.serviceName),
+                                service.serviceName,
+                              ),
                               color: ServiceHelper.getColorForService(
-                                  service.serviceName),
+                                service.serviceName,
+                              ),
                             ),
                           ),
                         );

@@ -1,4 +1,3 @@
-// homepage.dart
 import 'package:flutter/material.dart';
 import '../../controller/user.dart';
 import '../../controller/empHomepage.dart';
@@ -26,15 +25,15 @@ class EmpHomepageState extends State<EmpHomepage> {
     userController = UserController(
       showErrorSnackBar: (message) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(message)),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(message)));
         }
       },
     );
     dashboardController = DashboardController();
     userFuture = getCurrentUser();
-    
+
     // Load dashboard data
     dashboardController.loadDashboardData();
   }
@@ -46,9 +45,7 @@ class EmpHomepageState extends State<EmpHomepage> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => const Center(
-        child: CircularProgressIndicator(),
-      ),
+      builder: (context) => const Center(child: CircularProgressIndicator()),
     );
 
     try {
@@ -56,9 +53,9 @@ class EmpHomepageState extends State<EmpHomepage> {
     } catch (e) {
       if (mounted) {
         Navigator.of(context).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Logout failed: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Logout failed: $e')));
       }
     }
   }
@@ -123,10 +120,9 @@ class EmpHomepageState extends State<EmpHomepage> {
               children: [
                 Text(
                   'Good Morning,',
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodyMedium
-                      ?.copyWith(color: Colors.grey.shade600),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodyMedium?.copyWith(color: Colors.grey.shade600),
                 ),
                 FutureBuilder<UserModel?>(
                   future: userFuture,
@@ -157,37 +153,37 @@ class EmpHomepageState extends State<EmpHomepage> {
           ],
         ),
         actions: [
-          Stack(
-            alignment: Alignment.topRight,
-            children: [
-              const Icon(
-                Icons.notifications_none_outlined,
-                color: Colors.black,
-                size: 30,
-              ),
-              Container(
-                margin: const EdgeInsets.only(top: 4, right: 2),
-                width: 15,
-                height: 15,
-                decoration: BoxDecoration(
-                  color: Colors.orange,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 2),
-                ),
-                child: const Center(
-                  child: Text(
-                    '1',
-                    style: TextStyle(
-                      fontSize: 8,
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(width: 16),
+          // Stack(
+          //   alignment: Alignment.topRight,
+          //   children: [
+          //     const Icon(
+          //       Icons.notifications_none_outlined,
+          //       color: Colors.black,
+          //       size: 30,
+          //     ),
+          //     Container(
+          //       margin: const EdgeInsets.only(top: 4, right: 2),
+          //       width: 15,
+          //       height: 15,
+          //       decoration: BoxDecoration(
+          //         color: Colors.orange,
+          //         shape: BoxShape.circle,
+          //         border: Border.all(color: Colors.white, width: 2),
+          //       ),
+          //       child: const Center(
+          //         child: Text(
+          //           '1',
+          //           style: TextStyle(
+          //             fontSize: 8,
+          //             color: Colors.white,
+          //             fontWeight: FontWeight.bold,
+          //           ),
+          //         ),
+          //       ),
+          //     ),
+          //   ],
+          // ),
+          // const SizedBox(width: 16),
           Container(
             decoration: BoxDecoration(
               color: isMenuOpen ? Colors.grey.shade300 : Colors.transparent,
@@ -239,7 +235,9 @@ class EmpHomepageState extends State<EmpHomepage> {
           }
 
           return RefreshIndicator(
-            onRefresh: () => dashboardController.loadDashboardData(),
+            onRefresh: () async {
+              await dashboardController.loadDashboardData();
+            },
             child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.all(16),
@@ -254,9 +252,7 @@ class EmpHomepageState extends State<EmpHomepage> {
                     dashboardController.handymanAvailability,
                   ),
                   const SizedBox(height: 16),
-                  buildTopServicesCard(
-                    dashboardController.topServices,
-                  ),
+                  buildTopServicesCard(dashboardController.topServices),
                 ],
               ),
             ),
@@ -281,10 +277,7 @@ class EmpHomepageState extends State<EmpHomepage> {
           children: [
             const Text(
               'Today Service Requests',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
             Row(
@@ -292,17 +285,11 @@ class EmpHomepageState extends State<EmpHomepage> {
               children: [
                 Text(
                   'Status',
-                  style: TextStyle(
-                    color: Colors.grey.shade600,
-                    fontSize: 14,
-                  ),
+                  style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
                 ),
                 Text(
                   'Number',
-                  style: TextStyle(
-                    color: Colors.grey.shade600,
-                    fontSize: 14,
-                  ),
+                  style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
                 ),
               ],
             ),
@@ -356,27 +343,18 @@ class EmpHomepageState extends State<EmpHomepage> {
               Container(
                 width: 8,
                 height: 8,
-                decoration: BoxDecoration(
-                  color: color,
-                  shape: BoxShape.circle,
-                ),
+                decoration: BoxDecoration(color: color, shape: BoxShape.circle),
               ),
               const SizedBox(width: 8),
               Text(
                 label,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey.shade700,
-                ),
+                style: TextStyle(fontSize: 14, color: Colors.grey.shade700),
               ),
             ],
           ),
           Text(
             count.toString(),
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-            ),
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
           ),
         ],
       ),
@@ -394,10 +372,7 @@ class EmpHomepageState extends State<EmpHomepage> {
           children: [
             const Text(
               'Today Handymen Availability',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
             Row(
@@ -405,17 +380,11 @@ class EmpHomepageState extends State<EmpHomepage> {
               children: [
                 Text(
                   'Status',
-                  style: TextStyle(
-                    color: Colors.grey.shade600,
-                    fontSize: 14,
-                  ),
+                  style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
                 ),
                 Text(
                   'Number',
-                  style: TextStyle(
-                    color: Colors.grey.shade600,
-                    fontSize: 14,
-                  ),
+                  style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
                 ),
               ],
             ),
@@ -467,10 +436,7 @@ class EmpHomepageState extends State<EmpHomepage> {
           children: [
             const Text(
               'Monthly Top 3 Popular Services',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
             Row(
@@ -478,17 +444,11 @@ class EmpHomepageState extends State<EmpHomepage> {
               children: [
                 Text(
                   'Services',
-                  style: TextStyle(
-                    color: Colors.grey.shade600,
-                    fontSize: 14,
-                  ),
+                  style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
                 ),
                 Text(
                   'Number',
-                  style: TextStyle(
-                    color: Colors.grey.shade600,
-                    fontSize: 14,
-                  ),
+                  style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
                 ),
               ],
             ),
@@ -502,28 +462,30 @@ class EmpHomepageState extends State<EmpHomepage> {
                 ),
               )
             else
-              ...services.entries.map((entry) => Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 6),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          entry.key,
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey.shade700,
-                          ),
+              ...services.entries.map(
+                (entry) => Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        entry.key,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey.shade700,
                         ),
-                        Text(
-                          entry.value.toString(),
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                          ),
+                      ),
+                      Text(
+                        entry.value.toString(),
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
                         ),
-                      ],
-                    ),
-                  )),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             const SizedBox(height: 12),
             Align(
               alignment: Alignment.centerRight,

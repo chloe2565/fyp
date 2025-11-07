@@ -36,7 +36,7 @@ class UserService {
         print("User not logged in");
         return null;
       }
-      
+
       final userQuery = await usersCollection
           .where('authID', isEqualTo: userAuth.uid)
           .limit(1)
@@ -75,7 +75,7 @@ class UserService {
         print("User not logged in");
         return null;
       }
-      
+
       final userQuery = await usersCollection
           .where('authID', isEqualTo: userAuth.uid)
           .limit(1)
@@ -101,8 +101,8 @@ class UserService {
       }
 
       final empDoc = employeeQuery.docs.first;
-      final empData = empDoc.data() as Map<String, dynamic>;
-      
+      final empData = empDoc.data();
+
       return {
         'empID': empDoc.id,
         'empType': empData['empType'] as String, // 'admin' or 'handyman'
@@ -154,7 +154,7 @@ class UserService {
         return null;
       }
 
-      return providerQuery.docs.first.id; 
+      return providerQuery.docs.first.id;
     } catch (e) {
       print("Error fetching provider ID: $e");
       return null;
@@ -177,12 +177,42 @@ class UserService {
 
   Future<bool> isEmailTaken(String email, String excludeUserID) async {
     try {
-      QuerySnapshot query = await usersCollection
-          .where('userEmail', isEqualTo: email.trim().toLowerCase())
-          .where(FieldPath.documentId, isNotEqualTo: excludeUserID)
-          .limit(1)
-          .get();
-      return query.docs.isNotEmpty;
+      Query query = usersCollection.where(
+        'userEmail',
+        isEqualTo: email.trim().toLowerCase(),
+      );
+
+      if (excludeUserID.isNotEmpty) {
+        query = query.where(FieldPath.documentId, isNotEqualTo: excludeUserID);
+      }
+
+      QuerySnapshot querySnapshot = await query.get();
+
+      if (querySnapshot.docs.isEmpty) {
+        return false;
+      }
+
+      for (var doc in querySnapshot.docs) {
+        String userID = doc.id;
+
+        QuerySnapshot customerSnapshot = await usersCollection.firestore
+            .collection('Customer')
+            .where('userID', isEqualTo: userID)
+            .limit(1)
+            .get();
+
+        if (customerSnapshot.docs.isNotEmpty) {
+          String custStatus =
+              customerSnapshot.docs.first.get('custStatus') ?? 'active';
+          if (custStatus == 'active') {
+            return true;
+          }
+        } else {
+          return true;
+        }
+      }
+
+      return false;
     } catch (e) {
       print('Error checking email: $e');
       throw Exception('Failed to check email: $e');
@@ -191,12 +221,41 @@ class UserService {
 
   Future<bool> isPhoneTaken(String phone, String excludeUserID) async {
     try {
-      QuerySnapshot query = await usersCollection
-          .where('userContact', isEqualTo: phone.trim())
-          .where(FieldPath.documentId, isNotEqualTo: excludeUserID)
-          .limit(1)
-          .get();
-      return query.docs.isNotEmpty;
+      Query query = usersCollection.where(
+        'userContact',
+        isEqualTo: phone.trim(),
+      );
+
+      if (excludeUserID.isNotEmpty) {
+        query = query.where(FieldPath.documentId, isNotEqualTo: excludeUserID);
+      }
+
+      QuerySnapshot querySnapshot = await query.get();
+
+      if (querySnapshot.docs.isEmpty) {
+        return false;
+      }
+
+      for (var doc in querySnapshot.docs) {
+        String userID = doc.id;
+        QuerySnapshot customerSnapshot = await usersCollection.firestore
+            .collection('Customer')
+            .where('userID', isEqualTo: userID)
+            .limit(1)
+            .get();
+
+        if (customerSnapshot.docs.isNotEmpty) {
+          String custStatus =
+              customerSnapshot.docs.first.get('custStatus') ?? 'active';
+
+          if (custStatus == 'active') {
+            return true;
+          }
+        } else {
+          return true;
+        }
+      }
+      return false;
     } catch (e) {
       print('Error checking phone: $e');
       throw Exception('Failed to check phone: $e');
@@ -215,13 +274,13 @@ class UserService {
   }
 
   // Update user (only changes)
-  Future<void> updateUser(UserModel user) async {
+  Future<void> updateUser(String userID, Map<String, dynamic> updates) async {
     try {
-      await usersCollection.doc(user.userID).update(user.toMap());
-      print("User ${user.userID} updated successfully.");
+      await usersCollection.doc(userID).update(updates);
+      print("User $userID fields updated successfully.");
     } catch (e) {
-      print('Error updating user: $e');
-      throw Exception('Failed to update user: $e');
+      print('Error updating user fields: $e');
+      throw Exception('Failed to update user fields: $e');
     }
   }
 

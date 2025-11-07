@@ -152,7 +152,7 @@ class RatingReviewCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final request = reviewData['request'] as ServiceRequestModel;
     final review = reviewData['review'] as RatingReviewModel;
-    final rating = review.ratingNum ?? 0.0;
+    final rating = review.ratingNum;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),

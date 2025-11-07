@@ -70,7 +70,7 @@ class EmpEditBillScreenState extends State<EmpEditBillScreen> {
       servicePriceController.text = details.serviceBasePrice!.toStringAsFixed(
         2,
       );
-      outstationFeeController.text = (details.outstationFee ?? 0.0)
+      outstationFeeController.text = (details.outstationFee)
           .toStringAsFixed(2);
       totalPriceController.text = bill.billAmt.toStringAsFixed(2);
     } catch (e) {

@@ -36,16 +36,15 @@ class LoginScreenState extends State<LoginScreen> {
     setState(() {
       controller.isLoading = true;
     });
-    
+
     await controller.loadSavedCredentials();
-    
+
     if (mounted) {
       setState(() {
         controller.isLoading = false;
       });
     }
   }
-
 
   @override
   void dispose() {
@@ -59,13 +58,14 @@ class LoginScreenState extends State<LoginScreen> {
       children: [
         Scaffold(
           appBar: AppBar(
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back, color: Colors.black),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
             backgroundColor: Theme.of(context).scaffoldBackgroundColor,
             iconTheme: const IconThemeData(color: Colors.black),
           ),
-          body: LoginList(
-            controller: controller,
-            parentSetState: setState,
-          ),
+          body: LoginList(controller: controller, parentSetState: setState),
         ),
         if (controller.isLoading)
           Positioned.fill(
@@ -133,9 +133,7 @@ class LoginListState extends State<LoginList> {
                       labelText: 'Enter your email',
                       prefixIcon: Icon(
                         Icons.email_outlined,
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.onSurfaceVariant,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                       errorMaxLines: 3,
                     ),
@@ -153,18 +151,14 @@ class LoginListState extends State<LoginList> {
                       labelText: 'Enter your password',
                       prefixIcon: Icon(
                         Icons.lock_outline,
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.onSurfaceVariant,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                       suffixIcon: IconButton(
                         icon: Icon(
                           widget.controller.obscureCurrentPassword
                               ? Icons.visibility_off_outlined
                               : Icons.visibility_outlined,
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.onSurfaceVariant,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                         onPressed: () {
                           setState(() {
@@ -181,7 +175,7 @@ class LoginListState extends State<LoginList> {
                 ],
               ),
             ),
-            
+
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               crossAxisAlignment: CrossAxisAlignment.center,
@@ -227,11 +221,11 @@ class LoginListState extends State<LoginList> {
                   child: Text(
                     'Forgot Password?',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).colorScheme.primary,
-                          fontWeight: FontWeight.w600,
-                          decoration: TextDecoration.underline,
-                          decorationColor: Theme.of(context).colorScheme.primary,
-                        ),
+                      color: Theme.of(context).colorScheme.primary,
+                      fontWeight: FontWeight.w600,
+                      decoration: TextDecoration.underline,
+                      decorationColor: Theme.of(context).colorScheme.primary,
+                    ),
                   ),
                 ),
               ],
@@ -245,9 +239,9 @@ class LoginListState extends State<LoginList> {
                 onPressed: widget.controller.isLoading
                     ? null
                     : () => widget.controller.login(
-                          context,
-                          widget.parentSetState,
-                        ),
+                        context,
+                        widget.parentSetState,
+                      ),
                 child: const Text('Login'),
               ),
             ),
@@ -278,27 +272,27 @@ class LoginListState extends State<LoginList> {
             const SizedBox(height: 15),
 
             // "Continue with Google" button
-            OutlinedButton(
-              onPressed: () => widget.controller.signInWithGoogle(
-                context,
-                widget.parentSetState,
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: <Widget>[
-                  Image.asset(
-                    'assets/images/google_icon.png',
-                    height: 20,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Continue with Google',
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 15),
+            // OutlinedButton(
+            //   onPressed: () => widget.controller.signInWithGoogle(
+            //     context,
+            //     widget.parentSetState,
+            //   ),
+            //   child: Row(
+            //     mainAxisAlignment: MainAxisAlignment.center,
+            //     children: <Widget>[
+            //       Image.asset(
+            //         'assets/images/google_icon.png',
+            //         height: 20,
+            //       ),
+            //       const SizedBox(width: 8),
+            //       Text(
+            //         'Continue with Google',
+            //         style: Theme.of(context).textTheme.bodyMedium,
+            //       ),
+            //     ],
+            //   ),
+            // ),
+            // const SizedBox(height: 15),
 
             // "Don't have an account? Sign Up" text
             Row(
@@ -320,13 +314,11 @@ class LoginListState extends State<LoginList> {
                   child: Text(
                     'Sign Up',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).colorScheme.primary,
-                          fontWeight: FontWeight.w600,
-                          decoration: TextDecoration.underline,
-                          decorationColor: Theme.of(
-                            context,
-                          ).colorScheme.primary,
-                        ),
+                      color: Theme.of(context).colorScheme.primary,
+                      fontWeight: FontWeight.w600,
+                      decoration: TextDecoration.underline,
+                      decorationColor: Theme.of(context).colorScheme.primary,
+                    ),
                   ),
                 ),
               ],

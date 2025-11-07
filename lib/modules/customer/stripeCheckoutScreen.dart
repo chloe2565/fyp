@@ -39,14 +39,11 @@ class StripeCheckoutScreenState extends State<StripeCheckoutScreen> {
   }
 
   Future<void> initiatePayment() async {
-    bool isLoadingDialogShowing = false;
     showLoadingDialog(context, "Connecting to payment gateway...");
 
     try {
       final String userId = widget.firebaseAuthId;
       final int amountInCents = (widget.billingModel.billAmt * 100).toInt();
-
-      if (userId == null) throw Exception("User not logged in");
 
       final response = await supabase.functions.invoke(
         'create-payment-intent',

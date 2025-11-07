@@ -400,6 +400,7 @@ class UserController {
     required String email,
     required String gender,
     required String contact,
+    String? newPicName,
     required void Function(void Function()) setState,
     required BuildContext context,
     required String userType,
@@ -409,7 +410,7 @@ class UserController {
       return;
     }
     if (userType == 'customer') {
-      if (email == null || email.isEmpty) {
+      if (email.isEmpty) {
         showErrorSnackBar('Email address is required.');
         return;
       }
@@ -439,18 +440,23 @@ class UserController {
         throw Exception('No user is currently signed in');
       }
 
-      final user = UserModel(
-        userID: userID,
-        userEmail: email,
-        userName: name,
-        userGender: gender,
-        userContact: contact,
-        userType: userType,
-        userCreatedAt: DateTime.now(),
-        authID: authUser.uid,
-      );
+final Map<String, dynamic> userUpdates = {
+      'userName': name,
+      'userGender': gender,
+      'userContact': contact,
+    };
 
-      await userService.updateUser(user);
+    // Only update email if it's a customer
+    if (userType == 'customer') {
+      userUpdates['userEmail'] = email;
+    }
+
+    // Only update the picture if a new one was provided
+    if (newPicName != null) {
+      userUpdates['userPicName'] = newPicName;
+    }
+
+      await userService.updateUser(userID, userUpdates);
       print('Firestore profile data updated successfully.');
 
       showSuccessDialog(
@@ -538,7 +544,7 @@ class UserController {
     }
   }
 
-  // Handle account deletion
+  // Handle account deactivation
   Future<void> deleteAccount({
     required String email,
     required void Function(void Function()) setState,

@@ -265,7 +265,7 @@ Widget buildServiceRequestCard(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
-                    'RM ${viewModel.serviceBasePrice.toStringAsFixed(2) ?? 0.00} / hour',
+                    'RM ${viewModel.serviceBasePrice.toStringAsFixed(2)} / hour',
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                   ),
                 ],
@@ -321,7 +321,7 @@ Widget buildPaymentSummaryCard(
         buildPriceRow(
           context,
           'Service Price',
-          currencyFormat.format(viewModel.serviceBasePrice ?? 0.0),
+          currencyFormat.format(viewModel.serviceBasePrice),
         ),
         const SizedBox(height: 12),
 
@@ -352,13 +352,13 @@ Widget buildPaymentSummaryCard(
           dateFormat.format(viewModel.serviceCompleteTimestamp),
         ),
 
-        if (viewModel.paymentTimestamp != null) ...[
-          const SizedBox(height: 12),
-          buildTimeRow(
-            'Payment Time',
-            dateFormat.format(viewModel.paymentTimestamp),
-          ),
-        ],
+        ...[
+        const SizedBox(height: 12),
+        buildTimeRow(
+          'Payment Time',
+          dateFormat.format(viewModel.paymentTimestamp),
+        ),
+      ],
       ],
     ),
   );

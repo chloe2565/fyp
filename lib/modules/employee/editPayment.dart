@@ -53,7 +53,7 @@ class EmpEditPaymentScreenState extends State<EmpEditPaymentScreen> {
     totalPriceController.text = payment.payAmt.toStringAsFixed(2);
     createdAtController.text = dateTimeFormat.format(payment.payCreatedAt);
     paymentStatusController.text = payment.payStatus;
-    adminRemarkController.text = payment.adminRemark ?? '';
+    adminRemarkController.text = payment.adminRemark;
   }
 
   @override
