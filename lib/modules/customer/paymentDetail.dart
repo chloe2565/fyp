@@ -34,7 +34,7 @@ class PaymentDetailScreenState extends State<PaymentDetailScreen> {
           'Payment Record Details',
           style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
         ),
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
@@ -353,12 +353,12 @@ Widget buildPaymentSummaryCard(
         ),
 
         ...[
-        const SizedBox(height: 12),
-        buildTimeRow(
-          'Payment Time',
-          dateFormat.format(viewModel.paymentTimestamp),
-        ),
-      ],
+          const SizedBox(height: 12),
+          buildTimeRow(
+            'Payment Time',
+            dateFormat.format(viewModel.paymentTimestamp),
+          ),
+        ],
       ],
     ),
   );

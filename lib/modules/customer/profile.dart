@@ -72,7 +72,7 @@ class ProfileScreenState extends State<ProfileScreen> {
           style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
       ),
       backgroundColor: Colors.white,
@@ -146,7 +146,8 @@ class ProfileScreenState extends State<ProfileScreen> {
                                               : Gender.female,
                                           initialPhoneNumber:
                                               userModel!.userContact,
-                                          initialUserPicName: userModel!.userPicName,
+                                          initialUserPicName:
+                                              userModel!.userPicName,
                                           userID: userModel!.userID,
                                         ),
                                       ),
@@ -187,7 +188,7 @@ class ProfileScreenState extends State<ProfileScreen> {
                                           context,
                                           'Deleting your account...',
                                         );
-                                        
+
                                         try {
                                           await userController.deleteAccount(
                                             email: userController
@@ -196,7 +197,7 @@ class ProfileScreenState extends State<ProfileScreen> {
                                                 .trim(),
                                             setState: setState,
                                           );
-                                          
+
                                           if (context.mounted) {
                                             // Close loading dialog
                                             Navigator.of(context).pop();
@@ -212,9 +213,13 @@ class ProfileScreenState extends State<ProfileScreen> {
                                           if (context.mounted) {
                                             // Close loading dialog
                                             Navigator.of(context).pop();
-                                            ScaffoldMessenger.of(context).showSnackBar(
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
                                               SnackBar(
-                                                content: Text('Failed to delete account: $e'),
+                                                content: Text(
+                                                  'Failed to delete account: $e',
+                                                ),
                                                 backgroundColor: Colors.red,
                                               ),
                                             );
@@ -225,7 +230,9 @@ class ProfileScreenState extends State<ProfileScreen> {
                                   }
                                 : null,
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Theme.of(context).colorScheme.error,
+                              backgroundColor: Theme.of(
+                                context,
+                              ).colorScheme.error,
                               padding: const EdgeInsets.symmetric(vertical: 14),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12),

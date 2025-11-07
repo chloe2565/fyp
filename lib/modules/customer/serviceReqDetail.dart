@@ -29,7 +29,8 @@ class ServiceRequestDetailsScreen extends StatefulWidget {
       ServiceRequestDetailsScreenState();
 }
 
-class ServiceRequestDetailsScreenState extends State<ServiceRequestDetailsScreen> {
+class ServiceRequestDetailsScreenState
+    extends State<ServiceRequestDetailsScreen> {
   final formKey = GlobalKey<FormState>();
   final TextEditingController locationController = TextEditingController();
   final TextEditingController dateController = TextEditingController();
@@ -298,7 +299,7 @@ class ServiceRequestDetailsScreenState extends State<ServiceRequestDetailsScreen
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
         leading: const BackButton(color: Colors.black),
         title: Text(

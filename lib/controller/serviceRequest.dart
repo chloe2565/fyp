@@ -27,30 +27,103 @@ FilterOutput performFiltering(FilterInput input) {
     return false;
   }
 
+  // Helper function to check if date is within range
+  bool isDateInRange(DateTime scheduleDate, DateTime? startDate, DateTime? endDate) {
+    if (startDate == null && endDate == null) return true;
+    
+    final scheduleOnly = DateUtils.dateOnly(scheduleDate);
+    
+    if (startDate != null && endDate != null) {
+      final start = DateUtils.dateOnly(startDate);
+      final end = DateUtils.dateOnly(endDate);
+      return (scheduleOnly.isAtSameMomentAs(start) || scheduleOnly.isAfter(start)) &&
+             (scheduleOnly.isAtSameMomentAs(end) || scheduleOnly.isBefore(end));
+    } else if (startDate != null) {
+      final start = DateUtils.dateOnly(startDate);
+      return scheduleOnly.isAtSameMomentAs(start) || scheduleOnly.isAfter(start);
+    } else if (endDate != null) {
+      final end = DateUtils.dateOnly(endDate);
+      return scheduleOnly.isAtSameMomentAs(end) || scheduleOnly.isBefore(end);
+    }
+    
+    return true;
+  }
+
   // Filter Pending (for employee)
   final filteredPending = input.allPending.where((vm) {
-    final searchMatch = input.searchQuery.isEmpty || matchesSearch(vm, lowerQuery);
-    final serviceMatch = input.selectedService == null || vm.title == input.selectedService;
-    final statusMatch = input.selectedStatus == null || vm.reqStatus.toLowerCase() == input.selectedStatus!.toLowerCase();
-    final dateMatch = input.selectedDate == null || DateUtils.isSameDay(vm.scheduledDateTime, input.selectedDate!);
+    final searchMatch =
+        input.searchQuery.isEmpty || matchesSearch(vm, lowerQuery);
+
+    final serviceMatch =
+        input.selectedServices.isEmpty ||
+        input.selectedServices.values.any(
+          (serviceName) => vm.title == serviceName,
+        );
+
+    final statusMatch =
+        input.selectedStatuses.isEmpty ||
+        input.selectedStatuses.keys.any(
+          (status) => vm.reqStatus.toLowerCase() == status.toLowerCase(),
+        );
+
+    final dateMatch = isDateInRange(
+      vm.scheduledDateTime,
+      input.startDate,
+      input.endDate,
+    );
+
     return searchMatch && serviceMatch && statusMatch && dateMatch;
   }).toList();
 
   // Filter Upcoming
   final filteredUpcoming = input.allUpcoming.where((vm) {
-    final searchMatch = input.searchQuery.isEmpty || matchesSearch(vm, lowerQuery);
-    final serviceMatch = input.selectedService == null || vm.title == input.selectedService;
-    final statusMatch = input.selectedStatus == null || vm.reqStatus.toLowerCase() == input.selectedStatus!.toLowerCase();
-    final dateMatch = input.selectedDate == null || DateUtils.isSameDay(vm.scheduledDateTime, input.selectedDate!);
+    final searchMatch =
+        input.searchQuery.isEmpty || matchesSearch(vm, lowerQuery);
+
+    final serviceMatch =
+        input.selectedServices.isEmpty ||
+        input.selectedServices.values.any(
+          (serviceName) => vm.title == serviceName,
+        );
+
+    final statusMatch =
+        input.selectedStatuses.isEmpty ||
+        input.selectedStatuses.keys.any(
+          (status) => vm.reqStatus.toLowerCase() == status.toLowerCase(),
+        );
+
+    final dateMatch = isDateInRange(
+      vm.scheduledDateTime,
+      input.startDate,
+      input.endDate,
+    );
+
     return searchMatch && serviceMatch && statusMatch && dateMatch;
   }).toList();
 
   // Filter History
   final filteredHistory = input.allHistory.where((vm) {
-    final searchMatch = input.searchQuery.isEmpty || matchesSearch(vm, lowerQuery);
-    final serviceMatch = input.selectedService == null || vm.title == input.selectedService;
-    final statusMatch = input.selectedStatus == null || vm.reqStatus.toLowerCase() == input.selectedStatus!.toLowerCase();
-    final dateMatch = input.selectedDate == null || DateUtils.isSameDay(vm.scheduledDateTime, input.selectedDate!);
+    final searchMatch =
+        input.searchQuery.isEmpty || matchesSearch(vm, lowerQuery);
+
+    final serviceMatch =
+        input.selectedServices.isEmpty ||
+        input.selectedServices.values.any(
+          (serviceName) => vm.title == serviceName,
+        );
+
+    final statusMatch =
+        input.selectedStatuses.isEmpty ||
+        input.selectedStatuses.keys.any(
+          (status) => vm.reqStatus.toLowerCase() == status.toLowerCase(),
+        );
+
+    final dateMatch = isDateInRange(
+      vm.scheduledDateTime,
+      input.startDate,
+      input.endDate,
+    );
+
     return searchMatch && serviceMatch && statusMatch && dateMatch;
   }).toList();
 
@@ -68,25 +141,27 @@ class ServiceRequestController extends ChangeNotifier {
 
   String? currentCustomerID;
   String? currentEmployeeID;
-  String? currentEmployeeType; 
+  String? currentEmployeeType;
   bool isLoadingCustomer = false;
   bool isFiltering = false;
-  
-  // For employee (3 lists)
+
+  // For employee
   List<RequestViewModel> allPendingRequests = [];
   List<RequestViewModel> filteredPendingRequests = [];
-  
+
   // For both customer and employee
   List<RequestViewModel> allUpcomingRequests = [];
   List<RequestViewModel> allHistoryRequests = [];
   List<RequestViewModel> filteredUpcomingRequests = [];
   List<RequestViewModel> filteredHistoryRequests = [];
-  
+
   List<String> allServiceNames = [];
   String searchQuery = '';
-  String? selectedService;
-  DateTime? selectedDate;
-  String? selectedStatus;
+  Map<String, String> selectedServices = {};
+  Map<String, String> selectedStatuses = {};
+  DateTime? startDate;
+  DateTime? endDate;
+
   Timer? searchDebounce;
 
   Future<void> initialize() async {
@@ -109,7 +184,7 @@ class ServiceRequestController extends ChangeNotifier {
     if (isLoadingCustomer) return;
     isLoadingCustomer = true;
     notifyListeners();
-    
+
     final empInfo = await user.getCurrentEmployeeInfo();
 
     if (empInfo == null) {
@@ -133,8 +208,12 @@ class ServiceRequestController extends ChangeNotifier {
     isLoadingCustomer = true;
     notifyListeners();
 
-    final rawUpcomingData = serviceRequest.getUpcomingRequests(currentCustomerID!);
-    final rawHistoryData = serviceRequest.getHistoryRequests(currentCustomerID!);
+    final rawUpcomingData = serviceRequest.getUpcomingRequests(
+      currentCustomerID!,
+    );
+    final rawHistoryData = serviceRequest.getHistoryRequests(
+      currentCustomerID!,
+    );
     final allServices = await serviceRequest.getAllServices();
 
     allUpcomingRequests = transformData(await rawUpcomingData);
@@ -183,7 +262,9 @@ class ServiceRequestController extends ChangeNotifier {
       final billing = map['billing'] as BillingModel?;
       final String locationData = req.reqAddress;
       final handymanName = map['handymanName'] as String;
-      final bookingDate = DateFormat('MMMM dd, yyyy').format(req.scheduledDateTime);
+      final bookingDate = DateFormat(
+        'MMMM dd, yyyy',
+      ).format(req.scheduledDateTime);
       final startTime = DateFormat('hh:mm a').format(req.scheduledDateTime);
       String? formattedAmount;
       String? formattedDueDate;
@@ -191,7 +272,9 @@ class ServiceRequestController extends ChangeNotifier {
 
       if (billing != null) {
         formattedAmount = 'RM ${billing.billAmt.toStringAsFixed(2)}';
-        formattedDueDate = DateFormat('MMMM dd, yyyy').format(billing.billDueDate);
+        formattedDueDate = DateFormat(
+          'MMMM dd, yyyy',
+        ).format(billing.billDueDate);
         formattedBillStatus = capitalizeFirst(billing.billStatus);
       }
 
@@ -239,22 +322,37 @@ class ServiceRequestController extends ChangeNotifier {
     });
   }
 
+  Future<void> applyMultiFilters({
+    Map<String, String>? services,
+    Map<String, String>? statuses,
+    DateTime? startDate,
+    DateTime? endDate,
+  }) async {
+    selectedServices = services ?? {};
+    selectedStatuses = statuses ?? {};
+    this.startDate = startDate;
+    this.endDate = endDate;
+    await applyFiltersAndNotify();
+  }
+
   Future<void> applyFilters({
     String? service,
     DateTime? date,
     String? status,
   }) async {
-    selectedService = service;
-    selectedDate = date;
-    selectedStatus = status;
+    selectedServices = service != null ? {service: service} : {};
+    selectedStatuses = status != null ? {status: status} : {};
+    startDate = date;
+    endDate = date;
     await applyFiltersAndNotify();
   }
 
   Future<void> clearFilters() async {
     searchQuery = '';
-    selectedService = null;
-    selectedDate = null;
-    selectedStatus = null;
+    selectedServices = {};
+    selectedStatuses = {};
+    startDate = null;
+    endDate = null;
     await applyFiltersAndNotify();
   }
 
@@ -269,9 +367,10 @@ class ServiceRequestController extends ChangeNotifier {
         allUpcoming: List.unmodifiable(allUpcomingRequests),
         allHistory: List.unmodifiable(allHistoryRequests),
         searchQuery: searchQuery,
-        selectedService: selectedService,
-        selectedDate: selectedDate,
-        selectedStatus: selectedStatus,
+        selectedServices: selectedServices,
+        selectedStatuses: selectedStatuses,
+        startDate: startDate,
+        endDate: endDate,
       );
 
       final FilterOutput output = await compute(performFiltering, input);
@@ -291,7 +390,11 @@ class ServiceRequestController extends ChangeNotifier {
   }
 
   RequestViewModel? getRequestById(String reqID) {
-    final allRequests = [...allPendingRequests, ...allUpcomingRequests, ...allHistoryRequests];
+    final allRequests = [
+      ...allPendingRequests,
+      ...allUpcomingRequests,
+      ...allHistoryRequests,
+    ];
     try {
       final request = allRequests.firstWhere((vm) => vm.reqID == reqID);
       return request;

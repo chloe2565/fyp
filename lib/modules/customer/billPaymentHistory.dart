@@ -67,7 +67,7 @@ class BillPaymentHistoryScreenState extends State<BillPaymentHistoryScreen> {
         builder: (context, child) {
           return Scaffold(
             appBar: AppBar(
-              backgroundColor: Colors.white,
+              backgroundColor: Theme.of(context).scaffoldBackgroundColor,
               elevation: 0,
               leading: IconButton(
                 icon: const Icon(Icons.arrow_back, color: Colors.black),
@@ -421,7 +421,7 @@ class PaymentCard extends StatelessWidget {
                     style: TextStyle(color: Colors.grey[600], fontSize: 13),
                   ),
                   const SizedBox(height: 4),
-                  
+
                   Text(
                     timeFormat.format(payment.payCreatedAt),
                     style: TextStyle(color: Colors.grey[600], fontSize: 13),

@@ -59,7 +59,7 @@ class EditRateReviewScreenState extends State<EditRateReviewScreen> {
           'Rate the Service Request',
           style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
         ),
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
@@ -67,7 +67,6 @@ class EditRateReviewScreenState extends State<EditRateReviewScreen> {
         ),
         centerTitle: true,
       ),
-      backgroundColor: Colors.grey[50],
       body: isLoadingForm
           ? const Center(child: CircularProgressIndicator())
           : formError != null

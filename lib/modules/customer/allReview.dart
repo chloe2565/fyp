@@ -23,7 +23,6 @@ class AllReviewsScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('All Reviews'),
-        backgroundColor: Colors.white,
         elevation: 1,
         iconTheme: const IconThemeData(color: Colors.black),
         titleTextStyle: const TextStyle(
@@ -32,6 +31,7 @@ class AllReviewsScreen extends StatelessWidget {
           fontSize: 20,
         ),
         centerTitle: true,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       ),
       body: CustomScrollView(
         slivers: [

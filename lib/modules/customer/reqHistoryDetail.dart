@@ -26,7 +26,7 @@ class RequestHistoryDetailScreen extends StatelessWidget {
         return Scaffold(
           appBar: AppBar(
             title: const Text('Request Details'),
-            backgroundColor: Colors.white,
+            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
             elevation: 0,
             iconTheme: const IconThemeData(color: Colors.black),
             titleTextStyle: const TextStyle(

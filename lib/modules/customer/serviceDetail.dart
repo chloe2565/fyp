@@ -147,7 +147,7 @@ class ServiceDetailScreenState extends State<ServiceDetailScreen> {
           width: currentPage == index ? 24.0 : 8.0,
           decoration: BoxDecoration(
             color: currentPage == index
-                ? const Color(0xFFFF7643) 
+                ? const Color(0xFFFF7643)
                 : Colors.grey.shade300,
             borderRadius: BorderRadius.circular(5),
           ),
@@ -179,9 +179,9 @@ class ServiceDetailScreenState extends State<ServiceDetailScreen> {
     }
 
     return Scaffold(
-      backgroundColor: Colors.grey[50], 
+      backgroundColor: Colors.grey[50],
       appBar: AppBar(
-        backgroundColor: Colors.white, 
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
         leading: const BackButton(color: Colors.black),
         title: Text(

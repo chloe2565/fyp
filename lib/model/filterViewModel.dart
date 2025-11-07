@@ -1,29 +1,31 @@
 import '../../model/serviceRequestViewModel.dart';
 
 class FilterInput {
-  final List<RequestViewModel> allPending;   // Used by admin only
-  final List<RequestViewModel> allUpcoming;  // Used by both
-  final List<RequestViewModel> allHistory;   // Used by both
+  final List<RequestViewModel> allPending;
+  final List<RequestViewModel> allUpcoming;
+  final List<RequestViewModel> allHistory;
   final String searchQuery;
-  final String? selectedService;
-  final DateTime? selectedDate;
-  final String? selectedStatus;
+  final Map<String, String> selectedServices;
+  final Map<String, String> selectedStatuses;
+  final DateTime? startDate;
+  final DateTime? endDate;
 
   FilterInput({
     required this.allPending,
     required this.allUpcoming,
     required this.allHistory,
     required this.searchQuery,
-    this.selectedService,
-    this.selectedDate,
-    this.selectedStatus,
+    required this.selectedServices,
+    required this.selectedStatuses,
+    this.startDate,
+    this.endDate,
   });
 }
 
 class FilterOutput {
-  final List<RequestViewModel> filteredPending;   // Used by admin only
-  final List<RequestViewModel> filteredUpcoming;  // Used by both
-  final List<RequestViewModel> filteredHistory;   // Used by both
+  final List<RequestViewModel> filteredPending;
+  final List<RequestViewModel> filteredUpcoming;
+  final List<RequestViewModel> filteredHistory;
 
   FilterOutput({
     required this.filteredPending,

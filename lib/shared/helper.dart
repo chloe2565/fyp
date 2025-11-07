@@ -140,6 +140,100 @@ class Validator {
     }
     return null;
   }
+
+  static String? validatePriceRange({
+    required String? minText,
+    required String? maxText,
+    required bool isMinField,
+  }) {
+    final min = double.tryParse(minText ?? '');
+    final max = double.tryParse(maxText ?? '');
+
+    if (isMinField) {
+      if (minText == null || minText.isEmpty) return null;
+      if (min == null) return 'Enter a valid number';
+      if (min < 0) return 'Minimum cannot be negative';
+      if (max != null && min > max) return 'Min cannot exceed max';
+    }
+
+    if (!isMinField) {
+      if (maxText == null || maxText.isEmpty) return null;
+      if (max == null) return 'Enter a valid number';
+      if (max < 0) return 'Maximum cannot be negative';
+
+      // If min is 0 → max cannot be 0
+      if (min == 0 && max == 0) {
+        return 'Max cannot be 0 if min is 0';
+      }
+    }
+    return null;
+  }
+
+  static DateRangeValidation validateDateRange({
+    DateTime? startDate,
+    DateTime? endDate,
+    bool allowFutureDates = false,
+  }) {
+    String? startError;
+    String? endError;
+    if (startDate == null && endDate == null) {
+      return DateRangeValidation();
+    }
+
+    // Validate start date
+    if (startDate != null && !allowFutureDates) {
+      final today = DateUtils.dateOnly(DateTime.now());
+      final start = DateUtils.dateOnly(startDate);
+      if (start.isAfter(today)) {
+        startError = 'Start date cannot be in the future';
+      }
+    }
+
+    // Validate end date
+    if (endDate != null && !allowFutureDates) {
+      final today = DateUtils.dateOnly(DateTime.now());
+      final end = DateUtils.dateOnly(endDate);
+      if (end.isAfter(today)) {
+        endError = 'End date cannot be in the future';
+      }
+    }
+
+    // End date cannot be earlier than start date
+    if (startDate != null && endDate != null) {
+      final start = DateUtils.dateOnly(startDate);
+      final end = DateUtils.dateOnly(endDate);
+
+      if (end.isBefore(start)) {
+        endError = 'End date cannot be earlier than start date';
+      }
+    }
+
+    return DateRangeValidation(
+      startDateError: startError,
+      endDateError: endError,
+    );
+  }
+
+  static bool isValidDateRange({
+    DateTime? startDate,
+    DateTime? endDate,
+    bool allowFutureDates = false,
+  }) {
+    return validateDateRange(
+      startDate: startDate,
+      endDate: endDate,
+      allowFutureDates: allowFutureDates,
+    ).isValid;
+  }
+}
+
+class DateRangeValidation {
+  final String? startDateError;
+  final String? endDateError;
+  final bool isValid;
+
+  DateRangeValidation({this.startDateError, this.endDateError})
+    : isValid = startDateError == null && endDateError == null;
 }
 
 class Formatter {
@@ -165,6 +259,25 @@ class Formatter {
     if (genderCode == 'M') return 'Male';
     if (genderCode == 'F') return 'Female';
     return 'N/A';
+  }
+
+  static String formatDateRange(DateTime? startDate, DateTime? endDate) {
+    if (startDate == null && endDate == null) return '';
+
+    final format = DateFormat('dd MMM yyyy');
+
+    if (startDate != null && endDate != null) {
+      if (DateUtils.isSameDay(startDate, endDate)) {
+        return format.format(startDate);
+      }
+      return '${format.format(startDate)} - ${format.format(endDate)}';
+    } else if (startDate != null) {
+      return 'From ${format.format(startDate)}';
+    } else if (endDate != null) {
+      return 'Until ${format.format(endDate)}';
+    }
+
+    return '';
   }
 }
 

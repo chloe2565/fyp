@@ -43,7 +43,7 @@ class FavoriteScreenState extends State<FavoriteScreen> {
         break;
       case 2:
         break;
-      case 3: 
+      case 3:
         routeToPush = '/rating';
         break;
       // More menu (index 4) is handled in the navigation bar itself
@@ -85,7 +85,7 @@ class FavoriteScreenState extends State<FavoriteScreen> {
                 fontSize: 20,
               ),
             ),
-            backgroundColor: Colors.white,
+            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
             elevation: 1,
             centerTitle: true,
           ),
@@ -203,8 +203,7 @@ class FavoriteItemCard extends StatelessWidget {
     final HandymanModel handyman = detailsMap['handyman'] as HandymanModel;
     // final SkillModel skill = detailsMap['skill'] as SkillModel;
     final String? userPicName = detailsMap['userPicName'] as String?;
-    final String handymanName =
-        detailsMap['handymanName'] as String;
+    final String handymanName = detailsMap['handymanName'] as String;
     final int reviewCount = detailsMap['reviewCount'] as int;
 
     return Card(

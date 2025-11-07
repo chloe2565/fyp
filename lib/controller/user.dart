@@ -1,7 +1,9 @@
+import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import '../model/databaseModel.dart';
 import '../modules/employee/homepage.dart';
 import '../service/auth_service.dart';
@@ -37,6 +39,7 @@ class UserController {
   final storage = const FlutterSecureStorage();
   bool rememberMe = false;
   final Function(String) showErrorSnackBar;
+  static const String BACKEND_URL = 'https://fyp-backend-738r.onrender.com';
 
   UserController({required this.showErrorSnackBar});
 
@@ -351,29 +354,307 @@ class UserController {
     }
   }
 
-  Future<void> sendUpdateEmailVerification(String newEmail) async {
+  Future<String?> sendEmailChangeVerification({
+    required String userID,
+    required String newEmail,
+    required String userName,
+  }) async {
     try {
-      User? authUser = FirebaseAuth.instance.currentUser;
-      if (authUser == null) {
-        throw Exception('No user is currently signed in');
-      }
-
-      await authUser.verifyBeforeUpdateEmail(newEmail);
-      showErrorSnackBar(
-        'A verification link has been sent to $newEmail. Please check your inbox to complete the change.',
+      final response = await http.post(
+        Uri.parse('$BACKEND_URL/send-email-change-verification'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'user_id': userID,
+          'new_email': newEmail,
+          'user_name': userName,
+        }),
       );
-    } on FirebaseAuthException catch (e) {
-      if (e.code == 'requires-recent-login') {
-        showErrorSnackBar(
-          'This action is sensitive and requires recent authentication. Please log in again before retrying.',
-        );
-      } else if (e.code == 'email-already-in-use') {
-        showErrorSnackBar('This email is already in use by another account.');
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['status'] == 'success') {
+          return data['token'];
+        } else {
+          throw Exception(
+            data['message'] ?? 'Failed to send verification email',
+          );
+        }
       } else {
-        showErrorSnackBar('An error occurred: ${e.message}');
+        final errorData = jsonDecode(response.body);
+        throw Exception(errorData['message'] ?? 'Server error');
+      }
+    } catch (e) {
+      showErrorSnackBar('Error sending verification email: $e');
+      rethrow;
+    }
+  }
+
+  /// Check if email verification link has been clicked
+  Future<Map<String, dynamic>> checkEmailVerification(String token) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$BACKEND_URL/check-email-verification'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'token': token}),
+      );
+
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        if (data['status'] == 'success') {
+          return {
+            'verified': true,
+            'new_email': data['new_email'],
+            'user_id': data['user_id'],
+          };
+        } else if (data['status'] == 'pending') {
+          return {'verified': false};
+        }
+      }
+      throw Exception(data['message'] ?? 'Verification check failed');
+    } catch (e) {
+      if (e.toString().contains('expired')) {
+        throw Exception('expired');
       }
       rethrow;
     }
+  }
+
+  Future<bool> updateFirebaseAuthEmail({
+    required String newEmail,
+    required String currentEmail,
+    required BuildContext context,
+  }) async {
+    final passwordController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    bool success = false;
+    bool obscurePassword = true;
+
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            title: Center(
+              child: Text(
+                'Confirm Email Change',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ),
+            content: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Please enter current password to confirm:',
+                    style: TextStyle(fontWeight: FontWeight.w500),
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: passwordController,
+                    obscureText: obscurePassword,
+                    enabled: true,
+                    style: Theme.of(context).textTheme.bodySmall,
+                    decoration: InputDecoration(
+                      labelText: 'Current Password',
+                      border: const OutlineInputBorder(),
+                      prefixIcon: const Icon(Icons.lock_outline),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          obscurePassword
+                              ? Icons.visibility_off
+                              : Icons.visibility,
+                        ),
+                        onPressed: () {
+                          setDialogState(() {
+                            obscurePassword = !obscurePassword;
+                          });
+                        },
+                      ),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Password is required';
+                      }
+                      return null;
+                    },
+                  ),
+                ],
+              ),
+            ),
+
+            actionsPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 16,
+            ),
+            actionsAlignment: MainAxisAlignment.spaceBetween,
+
+            actions: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Theme.of(
+                          context,
+                        ).colorScheme.secondary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                      },
+                      child: const Text(
+                        'Cancel',
+                        style: TextStyle(fontSize: 16),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Theme.of(context).colorScheme.primary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      onPressed: () async {
+                        if (!(formKey.currentState?.validate() ?? false))
+                          return;
+                        showLoadingDialog(context, 'Updating email...');
+
+                        try {
+                          User? currentUser = FirebaseAuth.instance.currentUser;
+                          if (currentUser == null) {
+                            throw Exception('No user signed in');
+                          }
+
+                          String password = passwordController.text.trim();
+                          String oldAuthID = currentUser.uid;
+
+                          // Re-authenticate with current credentials to verify password
+                          final currentCredential =
+                              EmailAuthProvider.credential(
+                                email: currentEmail,
+                                password: password,
+                              );
+                          await currentUser.reauthenticateWithCredential(
+                            currentCredential,
+                          );
+
+                          // Sign out current user
+                          await FirebaseAuth.instance.signOut();
+
+                          // Create new auth account with new email
+                          UserCredential newUserCredential = await FirebaseAuth
+                              .instance
+                              .createUserWithEmailAndPassword(
+                                email: newEmail,
+                                password: password,
+                              );
+
+                          String newAuthID = newUserCredential.user!.uid;
+
+                          // Update Firestore User document with new authID
+                          await FirebaseFirestore.instance
+                              .collection('User')
+                              .where('authID', isEqualTo: oldAuthID)
+                              .get()
+                              .then((snapshot) async {
+                                if (snapshot.docs.isNotEmpty) {
+                                  String userDocID = snapshot.docs.first.id;
+                                  await FirebaseFirestore.instance
+                                      .collection('User')
+                                      .doc(userDocID)
+                                      .update({
+                                        'authID': newAuthID,
+                                        'userEmail': newEmail,
+                                      });
+                                }
+                              });
+
+                          // Delete old auth account
+                          await FirebaseAuth.instance
+                              .signInWithEmailAndPassword(
+                                email: currentEmail,
+                                password: password,
+                              );
+                          User? oldUser = FirebaseAuth.instance.currentUser;
+                          await oldUser?.delete();
+
+                          // Sign back in with new credentials
+                          await FirebaseAuth.instance
+                              .signInWithEmailAndPassword(
+                                email: newEmail,
+                                password: password,
+                              );
+
+                          success = true;
+
+                          Navigator.pop(context); // Close loading dialog
+                          Navigator.pop(ctx); // Close email update dialog
+                        } on FirebaseAuthException catch (e) {
+                          Navigator.pop(context); // Close loading dialog
+
+                          String errorMessage = 'Authentication failed';
+                          if (e.code == 'wrong-password' ||
+                              e.code == 'invalid-credential') {
+                            errorMessage = 'Incorrect password';
+                          } else if (e.code == 'email-already-in-use') {
+                            errorMessage = 'This email is already in use';
+                          } else if (e.code == 'too-many-requests') {
+                            errorMessage =
+                                'Too many attempts. Please try again later';
+                          } else {
+                            errorMessage =
+                                e.message ?? 'Unknown error occurred';
+                          }
+
+                          ScaffoldMessenger.of(ctx).showSnackBar(
+                            SnackBar(
+                              content: Text(errorMessage),
+                              backgroundColor: Colors.red,
+                              duration: const Duration(seconds: 4),
+                            ),
+                          );
+                        } catch (e) {
+                          Navigator.pop(context); // Close loading dialog
+
+                          ScaffoldMessenger.of(ctx).showSnackBar(
+                            SnackBar(
+                              content: Text('Error: ${e.toString()}'),
+                              backgroundColor: Colors.red,
+                              duration: const Duration(seconds: 4),
+                            ),
+                          );
+                        }
+                      },
+                      child: const Text(
+                        'Confirm',
+                        style: TextStyle(fontSize: 16),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          );
+        },
+      ),
+    );
+
+    passwordController.dispose();
+    return success;
   }
 
   Future<bool> isEmailTaken(String email, String excludeUserID) async {
@@ -440,21 +721,21 @@ class UserController {
         throw Exception('No user is currently signed in');
       }
 
-final Map<String, dynamic> userUpdates = {
-      'userName': name,
-      'userGender': gender,
-      'userContact': contact,
-    };
+      final Map<String, dynamic> userUpdates = {
+        'userName': name,
+        'userGender': gender,
+        'userContact': contact,
+      };
 
-    // Only update email if it's a customer
-    if (userType == 'customer') {
-      userUpdates['userEmail'] = email;
-    }
+      // Only update email if it's a customer
+      if (userType == 'customer') {
+        userUpdates['userEmail'] = email;
+      }
 
-    // Only update the picture if a new one was provided
-    if (newPicName != null) {
-      userUpdates['userPicName'] = newPicName;
-    }
+      // Only update the picture if a new one was provided
+      if (newPicName != null) {
+        userUpdates['userPicName'] = newPicName;
+      }
 
       await userService.updateUser(userID, userUpdates);
       print('Firestore profile data updated successfully.');

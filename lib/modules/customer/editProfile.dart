@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:io';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../controller/user.dart';
@@ -46,6 +45,7 @@ class EditProfileScreenState extends State<EditProfileScreen>
   String? originalContact;
   String? emailError;
   String? phoneError;
+  String? verificationToken;
 
   late UserController userController;
   final ImagePicker picker = ImagePicker();
@@ -95,7 +95,7 @@ class EditProfileScreenState extends State<EditProfileScreen>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed && isVerificationEmailSent) {
-      checkEmailUpdate();
+      checkEmailVerification();
     }
   }
 
@@ -124,17 +124,25 @@ class EditProfileScreenState extends State<EditProfileScreen>
     });
 
     try {
-      await userController.sendUpdateEmailVerification(
-        emailController.text.trim(),
+      final token = await userController.sendEmailChangeVerification(
+        userID: widget.userID,
+        newEmail: emailController.text.trim(),
+        userName: nameController.text.trim(),
       );
-      setState(() {
-        isVerificationEmailSent = true;
-        emailError = 'Verification email sent. Check your new email\'s inbox.';
-      });
-      startVerificationTimer();
+
+      if (token != null) {
+        setState(() {
+          verificationToken = token;
+          isVerificationEmailSent = true;
+          emailError =
+              'Verification email sent. Check your inbox and click the link.';
+        });
+        startVerificationTimer();
+      }
     } catch (e) {
       setState(() {
         isVerificationEmailSent = false;
+        emailError = 'Failed to send verification email. Please try again.';
       });
     } finally {
       setState(() {
@@ -145,154 +153,71 @@ class EditProfileScreenState extends State<EditProfileScreen>
 
   void startVerificationTimer() {
     verificationTimer?.cancel();
-    verificationTimer = Timer.periodic(const Duration(seconds: 3), (
+    verificationTimer = Timer.periodic(const Duration(seconds: 5), (
       timer,
     ) async {
-      await checkEmailUpdate();
+      await checkEmailVerification();
     });
   }
 
-  Future<void> checkEmailUpdate() async {
-    try {
-      User? user = FirebaseAuth.instance.currentUser;
-      if (user != null) {
-        await user.getIdToken(true);
-        await user.reload();
-        user = FirebaseAuth.instance.currentUser;
+  Future<void> checkEmailVerification() async {
+    if (verificationToken == null) return;
 
-        if (user?.email?.toLowerCase() ==
-            emailController.text.trim().toLowerCase()) {
-          verificationTimer?.cancel();
-          if (mounted) {
-            setState(() {
-              isEmailVerified = true;
-              isVerificationEmailSent = false;
-              originalEmail = user?.email?.toLowerCase();
-              emailError = null;
-              emailController.text = user?.email ?? '';
-            });
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('✅ Email successfully verified and updated!'),
-                backgroundColor: Colors.green,
-              ),
-            );
-          }
+    try {
+      final result = await userController.checkEmailVerification(
+        verificationToken!,
+      );
+
+      if (result['verified'] == true) {
+        verificationTimer?.cancel();
+
+        // Update Firebase Auth email (creates new auth account)
+        final newEmail = result['new_email'];
+        final authUpdateSuccess = await userController.updateFirebaseAuthEmail(
+          newEmail: newEmail,
+          currentEmail: originalEmail!,
+          context: context,
+        );
+
+        if (authUpdateSuccess && mounted) {
+          setState(() {
+            isEmailVerified = true;
+            isVerificationEmailSent = false;
+            originalEmail = newEmail.toLowerCase();
+            emailError = null;
+            emailController.text = newEmail;
+            verificationToken = null;
+          });
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Email successfully verified and updated!'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 3),
+            ),
+          );
+        } else if (!authUpdateSuccess && mounted) {
+          // User cancelled or error occurred
+          setState(() {
+            isVerificationEmailSent = false;
+            emailError = 'Email change was not completed. Please try again.';
+            verificationToken = null;
+          });
         }
       }
     } catch (e) {
       print('Error checking email verification: $e');
-      if (e is FirebaseAuthException) {
-        if (e.code == 'user-token-expired' ||
-            e.code == 'invalid-credential' ||
-            e.code == 'user-mismatch') {
-          verificationTimer?.cancel();
-          if (mounted) {
-            showReauthDialog();
-          }
+      if (e.toString().contains('expired')) {
+        verificationTimer?.cancel();
+        if (mounted) {
+          setState(() {
+            isVerificationEmailSent = false;
+            emailError = 'Verification link expired. Please resend.';
+            verificationToken = null;
+          });
         }
       }
     }
-  }
-
-  void showReauthDialog() {
-    final passwordController = TextEditingController();
-    final formKey = GlobalKey<FormState>();
-
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Confirm Email Change'),
-        content: Form(
-          key: formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'To complete the email update, please enter your password for the new email.',
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: passwordController,
-                obscureText: true,
-                decoration: const InputDecoration(
-                  labelText: 'Password',
-                  border: OutlineInputBorder(),
-                ),
-                validator: Validator.validatePassword,
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              setState(() {
-                isVerificationEmailSent = false;
-                emailError = 'Verification timed out. Please try again.';
-              });
-            },
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (formKey.currentState?.validate() ?? false) {
-                try {
-                  final user = FirebaseAuth.instance.currentUser;
-                  final newEmail = emailController.text.trim();
-                  final credential = EmailAuthProvider.credential(
-                    email: newEmail,
-                    password: passwordController.text,
-                  );
-                  await user?.reauthenticateWithCredential(credential);
-                  await user?.getIdToken(true);
-                  await user?.reload();
-                  final updatedUser = FirebaseAuth.instance.currentUser;
-
-                  if (!mounted) return;
-                  Navigator.pop(ctx);
-
-                  if (updatedUser?.email?.toLowerCase() ==
-                      newEmail.toLowerCase()) {
-                    setState(() {
-                      isEmailVerified = true;
-                      isVerificationEmailSent = false;
-                      originalEmail = updatedUser?.email?.toLowerCase();
-                      emailError = null;
-                      emailController.text = updatedUser?.email ?? '';
-                    });
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          '✅ Email successfully verified and updated!',
-                        ),
-                        backgroundColor: Colors.green,
-                      ),
-                    );
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          'Email update not detected. Please try again.',
-                        ),
-                      ),
-                    );
-                  }
-                } catch (e) {
-                  if (!mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Failed: ${e.toString()}')),
-                  );
-                }
-              }
-            },
-            child: const Text('Confirm'),
-          ),
-        ],
-      ),
-    );
   }
 
   Future<void> submitProfile() async {
@@ -353,7 +278,7 @@ class EditProfileScreenState extends State<EditProfileScreen>
             context,
             title: "Error",
             message: "Failed to update profile. Please try again.",
-            onPressed: () => Navigator.of(context).pop(), // Close error dialog
+            onPressed: () => Navigator.of(context).pop(),
           );
         }
       }
@@ -377,7 +302,7 @@ class EditProfileScreenState extends State<EditProfileScreen>
           style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
       ),
       backgroundColor: Colors.white,
@@ -464,7 +389,7 @@ class EditProfileScreenState extends State<EditProfileScreen>
                                   icon: Icon(
                                     isVerificationEmailSent
                                         ? Icons.hourglass_top
-                                        : Icons.error_outline,
+                                        : Icons.send,
                                     color: Colors.orange,
                                   ),
                                   onPressed: isLoading
@@ -485,6 +410,7 @@ class EditProfileScreenState extends State<EditProfileScreen>
                       isEmailVerified = !isChanged;
                       isVerificationEmailSent = false;
                       verificationTimer?.cancel();
+                      verificationToken = null;
                     });
 
                     if (isChanged && Validator.validateEmail(value) == null) {
@@ -498,7 +424,8 @@ class EditProfileScreenState extends State<EditProfileScreen>
                         });
                       } else if (mounted) {
                         setState(() {
-                          emailError = 'Click the icon to verify new email';
+                          emailError =
+                              'Click the send icon to verify new email';
                         });
                       }
                     }
@@ -626,7 +553,9 @@ class EditProfileScreenState extends State<EditProfileScreen>
                       child: ElevatedButton(
                         onPressed: () => Navigator.of(context).pop(),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.grey.shade400,
+                          backgroundColor: Theme.of(
+                            context,
+                          ).colorScheme.secondary,
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),

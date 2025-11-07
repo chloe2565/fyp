@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../controller/ratingReview.dart';
 import '../../model/databaseModel.dart';
+import '../../shared/custNavigatorBase.dart';
 import '../../shared/helper.dart';
 import 'rateReviewHistoryDetail.dart';
 
@@ -16,6 +17,7 @@ class RateReviewHistoryScreen extends StatefulWidget {
 }
 
 class RateReviewHistoryScreenState extends State<RateReviewHistoryScreen> {
+  int currentIndex = 3;
   bool isInitialized = false;
   late RatingReviewController ratingReviewController;
   final TextEditingController searchController = TextEditingController();
@@ -50,6 +52,39 @@ class RateReviewHistoryScreenState extends State<RateReviewHistoryScreen> {
     super.dispose();
   }
 
+  void onNavBarTap(int index) async {
+    if (index == currentIndex) {
+      return;
+    }
+
+    String? routeToPush;
+
+    switch (index) {
+      case 0:
+        Navigator.pop(context);
+        return;
+      case 1:
+        routeToPush = '/request';
+        break;
+      case 2:
+        routeToPush = '/favorite';
+        break;
+      case 3:
+        break;
+      // More menu (index 4) is handled in the navigation bar itself
+    }
+
+    if (routeToPush != null) {
+      await Navigator.pushNamed(context, routeToPush);
+
+      if (mounted) {
+        setState(() {
+          currentIndex = 1;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider.value(
@@ -67,7 +102,7 @@ class RateReviewHistoryScreenState extends State<RateReviewHistoryScreen> {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                backgroundColor: Colors.white,
+                backgroundColor: Theme.of(context).scaffoldBackgroundColor,
                 elevation: 0,
                 leading: IconButton(
                   icon: const Icon(Icons.arrow_back, color: Colors.black),
@@ -103,6 +138,10 @@ class RateReviewHistoryScreenState extends State<RateReviewHistoryScreen> {
                         ),
                       ],
                     ),
+              bottomNavigationBar: CustNavigationBar(
+                currentIndex: currentIndex,
+                onTap: onNavBarTap,
+              ),
             ),
           );
         },

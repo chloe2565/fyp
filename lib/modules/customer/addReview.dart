@@ -59,15 +59,14 @@ class AddRateReviewScreenState extends State<AddRateReviewScreen> {
           'Rate the Service Request',
           style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
         ),
-        backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () => Navigator.of(context).pop(),
         ),
         centerTitle: true,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       ),
-      backgroundColor: Colors.grey[50],
       body: isLoadingForm
           ? const Center(child: CircularProgressIndicator())
           : formError != null

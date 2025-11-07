@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../controller/serviceRequest.dart';
 import '../../shared/helper.dart';
 import '../../shared/custNavigatorBase.dart';
+import '../../shared/serviceRequestFilterDialog.dart';
 import 'reqHistoryDetail.dart';
 
 class RequestHistoryScreen extends StatefulWidget {
@@ -61,10 +61,9 @@ class RequestHistoryScreenState extends State<RequestHistoryScreen> {
       case 2:
         routeToPush = '/favorite';
         break;
-      case 3: 
+      case 3:
         routeToPush = '/rating';
         break;
-      // More menu (index 4) is handled in the navigation bar itself
     }
 
     if (routeToPush != null) {
@@ -78,140 +77,14 @@ class RequestHistoryScreenState extends State<RequestHistoryScreen> {
     }
   }
 
-  void showFilterDialog() {
-    String? tempService = controller.selectedService;
-    DateTime? tempDate = controller.selectedDate;
-    String? tempStatus = controller.selectedStatus;
-    final allStatuses = [
-      'Pending',
-      'Confirmed',
-      'Departed',
-      'Completed',
-      'Cancelled',
-    ];
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (BuildContext context, StateSetter setModalState) {
-            return Padding(
-              padding: EdgeInsets.only(
-                bottom: MediaQuery.of(context).viewInsets.bottom,
-              ),
-              child: SingleChildScrollView(
-                child: Container(
-                  padding: const EdgeInsets.all(20),
-                  child: Wrap(
-                    runSpacing: 16,
-                    children: [
-                      const Text(
-                        'Filter By',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-
-                      // Service Name Filter
-                      DropdownButtonFormField<String>(
-                        initialValue: tempService,
-                        hint: const Text('Select Service'),
-                        items: controller.allServiceNames
-                            .map(
-                              (name) => DropdownMenuItem(
-                                value: name,
-                                child: Text(name),
-                              ),
-                            )
-                            .toList(),
-                        onChanged: (value) =>
-                            setModalState(() => tempService = value),
-                        decoration: const InputDecoration(
-                          labelText: 'Service Name',
-                        ),
-                      ),
-
-                      // Status Filter
-                      DropdownButtonFormField<String>(
-                        initialValue: tempStatus,
-                        hint: const Text('Select Status'),
-                        items: allStatuses
-                            .map(
-                              (name) => DropdownMenuItem(
-                                value: name.toLowerCase(),
-                                child: Text(name),
-                              ),
-                            )
-                            .toList(),
-                        onChanged: (value) =>
-                            setModalState(() => tempStatus = value),
-                        decoration: const InputDecoration(labelText: 'Status'),
-                      ),
-
-                      // Date Filter
-                      TextFormField(
-                        readOnly: true,
-                        controller: TextEditingController(
-                          text: tempDate == null
-                              ? ''
-                              : DateFormat('dd MMM yyyy').format(tempDate!),
-                        ),
-                        decoration: InputDecoration(
-                          labelText: 'Select Date',
-                          suffixIcon: Icon(Icons.calendar_today),
-                        ),
-                        onTap: () async {
-                          final pickedDate = await showDatePicker(
-                            context: context,
-                            initialDate: tempDate ?? DateTime.now(),
-                            firstDate: DateTime(2020),
-                            lastDate: DateTime(2030),
-                          );
-                          if (pickedDate != null) {
-                            setModalState(() => tempDate = pickedDate);
-                          }
-                        },
-                      ),
-
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          ElevatedButton(
-                            child: const Text('Clear Filters'),
-                            onPressed: () async {
-                              Navigator.pop(context);
-                              searchController.clear();
-                              await controller.clearFilters();
-                            },
-                          ),
-                          ElevatedButton(
-                            child: const Text('Apply'),
-                            onPressed: () async {
-                              Navigator.pop(context);
-                              await controller.applyFilters(
-                                service: tempService,
-                                date: tempDate,
-                                status: tempStatus,
-                              );
-                            },
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
+    final hasFilter =
+        controller.selectedServices.isNotEmpty ||
+        controller.selectedStatuses.isNotEmpty ||
+        controller.startDate != null ||
+        controller.endDate != null;
+
     return DefaultTabController(
       length: 2,
       child: ListenableBuilder(
@@ -219,7 +92,7 @@ class RequestHistoryScreenState extends State<RequestHistoryScreen> {
         builder: (context, child) {
           return Scaffold(
             appBar: AppBar(
-              backgroundColor: Colors.white,
+              backgroundColor: Theme.of(context).scaffoldBackgroundColor,
               elevation: 0,
               leading: IconButton(
                 icon: const Icon(Icons.arrow_back, color: Colors.black),
@@ -251,15 +124,37 @@ class RequestHistoryScreenState extends State<RequestHistoryScreen> {
                   )
                 : Column(
                     children: [
-                      buildSearchField(
-                        context: context,
-                        controller: searchController,
-                        onFilterPressed: showFilterDialog,
+                      // Search Field with Filter Button
+                      SearchFieldWithFilter(
+                        searchController: searchController,
+                        hasActiveFilters: hasFilter,
+                        onFilterPressed: () {
+                          showServiceRequestFilterDialog(
+                            context: context,
+                            controller: controller,
+                            onApply: (services, statuses, startDate, endDate) async {
+                              await controller.applyMultiFilters(
+                                services: services,
+                                statuses: statuses,
+                                startDate: startDate,
+                                endDate: endDate,
+                              );
+                            },
+                            onReset: () async {
+                              searchController.clear();
+                              await controller.clearFilters();
+                            },
+                          );
+                        },
                       ),
+
+                      FilterChipsDisplay(controller: controller),
+                      const SizedBox(height: 8),
                       buildPrimaryTabBar(
                         context: context,
                         tabs: ['Upcoming', 'History'],
                       ),
+
                       Expanded(
                         child: TabBarView(
                           children: [buildUpcomingList(), buildHistoryList()],
@@ -426,7 +321,7 @@ class RequestHistoryScreenState extends State<RequestHistoryScreen> {
                   value: controller,
                   child: RequestHistoryDetailScreen(
                     reqID: requestViewModel.reqID,
-                    controller: controller, 
+                    controller: controller,
                   ),
                 ),
               ),

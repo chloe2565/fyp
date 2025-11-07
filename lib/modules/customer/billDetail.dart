@@ -34,13 +34,13 @@ class BillDetailScreenState extends State<BillDetailScreen> {
           'Billing Details',
           style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
         ),
-        backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () => Navigator.of(context).pop(),
         ),
         centerTitle: true,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       ),
       body: Consumer<BillController>(
         builder: (context, controller, child) {
@@ -269,13 +269,17 @@ Widget buildServiceRequestCard(
                   const SizedBox(height: 4),
 
                   Text(
-                    bookingDateFormat.format(viewModel.serviceCompleteTimestamp),
+                    bookingDateFormat.format(
+                      viewModel.serviceCompleteTimestamp,
+                    ),
                     style: TextStyle(color: Colors.grey[600], fontSize: 12),
                   ),
                   const SizedBox(height: 4),
 
                   Text(
-                    bookingTimeFormat.format(viewModel.serviceCompleteTimestamp),
+                    bookingTimeFormat.format(
+                      viewModel.serviceCompleteTimestamp,
+                    ),
                     style: TextStyle(color: Colors.grey[600], fontSize: 12),
                   ),
                   const SizedBox(height: 4),
