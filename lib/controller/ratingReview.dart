@@ -126,7 +126,7 @@ class RatingReviewController with ChangeNotifier {
         final review = reviewData['review'] as RatingReviewModel?;
         if (review != null) {
           try {
-            final reply = await replyService.getReplyByRateID(review.rateID);
+            final reply = await replyService.getReplyForReview(review.rateID);
             reviewData['hasReply'] = reply != null;
             reviewData['reply'] = reply;
           } catch (e) {

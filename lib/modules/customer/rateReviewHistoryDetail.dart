@@ -58,7 +58,6 @@ class RateReviewHistoryDetailScreenState
           if (context.mounted) Navigator.of(context).pop(); // Close loading
 
           if (success && context.mounted) {
-            // Show success and pop back to history list
             showSuccessDialog(
               context,
               title: "Review Deleted",
@@ -67,7 +66,7 @@ class RateReviewHistoryDetailScreenState
               onPrimary: () {
                 Navigator.of(context)
                   ..pop() // Close success dialog
-                  ..pop(true); // Pop back to history list
+                  ..pop(true); // Pop back 
               },
             );
           } else if (context.mounted) {
@@ -167,6 +166,7 @@ class RateReviewHistoryDetailScreenState
     RatingReviewDetailViewModel viewModel,
   ) {
     final dateFormat = DateFormat('dd MMM yyyy');
+    final dateTimeFormat = DateFormat('dd MMM yyyy, hh:mm a');
     final Color primaryColor = Theme.of(context).primaryColor;
     final Color errorColor = Theme.of(context).colorScheme.error;
 
@@ -271,8 +271,20 @@ class RateReviewHistoryDetailScreenState
             viewModel.reviewText.isNotEmpty == true
                 ? viewModel.reviewText
                 : 'No review text provided',
-            style: TextStyle(color: Colors.grey, fontSize: 14),
+            style: const TextStyle(fontSize: 14),
           ),
+
+          const SizedBox(height: 16),
+
+          if (viewModel.reply != null) ...[
+            Text(
+              'Reply from Admin',
+              style: TextStyle(color: Colors.grey[600], fontSize: 14),
+            ),
+            const SizedBox(height: 8),
+            buildReplySection(viewModel.reply, dateTimeFormat),
+            const SizedBox(height: 8),
+          ],
 
           const SizedBox(height: 24),
 
@@ -387,6 +399,45 @@ class RateReviewHistoryDetailScreenState
           ),
         );
       },
+    );
+  }
+
+  Widget buildReplySection(ReviewReplyModel? reply, DateFormat dateTimeFormat) {
+    if (reply == null) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.grey[100],
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey[300]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            reply.replyText,
+            textAlign: TextAlign.justify,
+            style: const TextStyle(
+              color: Colors.black87,
+              fontSize: 15,
+              height: 1.5,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Replied on: ${dateTimeFormat.format(reply.replyCreatedAt)}',
+            style: TextStyle(
+              color: Colors.grey[600],
+              fontSize: 12,
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

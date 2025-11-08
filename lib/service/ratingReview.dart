@@ -226,7 +226,11 @@ class RatingReviewService {
           .get();
       final handymanUserFuture = fetchHandymanUserModels([request.handymanID]);
 
-      final results2 = await Future.wait([serviceFuture, handymanUserFuture, replyFuture]);
+      final results2 = await Future.wait([
+        serviceFuture,
+        handymanUserFuture,
+        replyFuture,
+      ]);
 
       final serviceDoc = results2[0] as DocumentSnapshot;
       final service = serviceDoc.exists

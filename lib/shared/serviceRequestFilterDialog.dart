@@ -93,7 +93,7 @@ class ServiceRequestFilterDialogState
                 children: [
                   const Center(
                     child: Text(
-                      'Filter Requests',
+                      'Filter',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,

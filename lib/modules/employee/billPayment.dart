@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:provider/provider.dart';
-import '../../controller/bill.dart';
-import '../../controller/payment.dart';
 import '../../model/databaseModel.dart';
+import '../../shared/billPaymentController.dart';
+import '../../shared/billPaymentFilterDialog.dart';
 import '../../shared/helper.dart';
 import 'addNewBill.dart';
 import 'addNewPayment.dart';
@@ -19,24 +18,28 @@ class EmpBillPaymentScreen extends StatefulWidget {
 
 class EmpBillPaymentScreenState extends State<EmpBillPaymentScreen> {
   bool isInitialized = false;
-  late BillController billingController;
-  late PaymentController paymentController;
+  late BillPaymentController controller;
   final TextEditingController searchController = TextEditingController();
+
+  DateTime? startDate;
+  DateTime? endDate;
+  double? minAmount;
+  double? maxAmount;
+  Map<String, String> statusFilter = {};
+  Map<String, String> paymentMethodFilter = {};
+
+  int _currentTabIndex = 0;
 
   @override
   void initState() {
     super.initState();
-    billingController = BillController();
-    paymentController = PaymentController();
+    controller = BillPaymentController();
     initializeController();
     searchController.addListener(onSearchChanged);
   }
 
   Future<void> initializeController() async {
-    await Future.wait([
-      billingController.initializeForEmployee(),
-      paymentController.initializeForEmployee(),
-    ]);
+    await controller.initializeForEmployee();
     if (mounted) {
       setState(() {
         isInitialized = true;
@@ -45,15 +48,91 @@ class EmpBillPaymentScreenState extends State<EmpBillPaymentScreen> {
   }
 
   void onSearchChanged() {
+    applyFilters();
+  }
+
+  void applyFilters() {
     final query = searchController.text;
-    billingController.onSearchChanged(query);
-    paymentController.onSearchChanged(query);
+
+    controller.applyFilters(
+      searchQuery: query,
+      startDate: startDate,
+      endDate: endDate,
+      minAmount: minAmount,
+      maxAmount: maxAmount,
+      statusFilter: statusFilter,
+      paymentMethodFilter: paymentMethodFilter,
+    );
+  }
+
+  void showFilterDialog() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) {
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+          ),
+          child: BillPaymentFilterDialog(
+            initialStartDate: startDate,
+            initialEndDate: endDate,
+            initialMinAmount: minAmount,
+            initialMaxAmount: maxAmount,
+            initialStatusFilter: statusFilter,
+            initialPaymentMethodFilter: paymentMethodFilter,
+            onApply:
+                ({
+                  DateTime? startDate,
+                  DateTime? endDate,
+                  double? minAmount,
+                  double? maxAmount,
+                  Map<String, String>? statusFilter,
+                  Map<String, String>? paymentMethodFilter,
+                }) {
+                  if (mounted) {
+                    setState(() {
+                      this.startDate = startDate;
+                      this.endDate = endDate;
+                      this.minAmount = minAmount;
+                      this.maxAmount = maxAmount;
+                      this.statusFilter = statusFilter ?? {};
+                      this.paymentMethodFilter = paymentMethodFilter ?? {};
+                    });
+                    applyFilters();
+                  }
+                },
+            onReset: () {
+              if (mounted) {
+                setState(() {
+                  startDate = null;
+                  endDate = null;
+                  minAmount = null;
+                  maxAmount = null;
+                  statusFilter = {};
+                  paymentMethodFilter = {};
+                });
+                applyFilters();
+              }
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  int get numberOfFilters {
+    int count = 0;
+    if (startDate != null || endDate != null) count++;
+    if (minAmount != null || maxAmount != null) count++;
+    if (statusFilter.isNotEmpty) count++;
+    if (paymentMethodFilter.isNotEmpty) count++;
+    return count;
   }
 
   @override
   void dispose() {
-    billingController.dispose();
-    paymentController.dispose();
+    controller.dispose();
     searchController.removeListener(onSearchChanged);
     searchController.dispose();
     super.dispose();
@@ -61,170 +140,205 @@ class EmpBillPaymentScreenState extends State<EmpBillPaymentScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final hasFilter = numberOfFilters > 0;
+
     return DefaultTabController(
       length: 2,
-      child: Scaffold(
-        appBar: AppBar(
-          elevation: 0,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.black),
-            onPressed: () {
-              if (Navigator.canPop(context)) {
-                Navigator.pop(context);
-              } else {
-                Navigator.pushReplacementNamed(context, '/empHome');
-              }
-            },
-          ),
-          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-          title: const Text(
-            'Bill and Payment',
-            style: TextStyle(
-              color: Colors.black,
-              fontWeight: FontWeight.bold,
-              fontSize: 20,
-            ),
-          ),
-          centerTitle: true,
-          actions: [
-            Builder(
-              builder: (context) => IconButton(
-                icon: const Icon(
-                  Icons.add_circle_outline,
-                  color: Colors.black,
-                  size: 28,
+      child: Builder(
+        builder: (BuildContext tabContext) {
+          final TabController tabController = DefaultTabController.of(
+            tabContext,
+          );
+          tabController.addListener(() {
+            if (!tabController.indexIsChanging && mounted) {
+              setState(() {
+                _currentTabIndex = tabController.index;
+              });
+            }
+          });
+
+          return ListenableBuilder(
+            listenable: controller,
+            builder: (context, child) {
+              return Scaffold(
+                appBar: AppBar(
+                  elevation: 0,
+                  leading: IconButton(
+                    icon: const Icon(Icons.arrow_back, color: Colors.black),
+                    onPressed: () {
+                      if (Navigator.canPop(context)) {
+                        Navigator.pop(context);
+                      } else {
+                        Navigator.pushReplacementNamed(context, '/empHome');
+                      }
+                    },
+                  ),
+                  backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+                  title: const Text(
+                    'Bill and Payment',
+                    style: TextStyle(
+                      color: Colors.black,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 20,
+                    ),
+                  ),
+                  centerTitle: true,
+                  actions: [
+                    Builder(
+                      builder: (context) => IconButton(
+                        icon: const Icon(
+                          Icons.add_circle_outline,
+                          color: Colors.black,
+                          size: 28,
+                        ),
+                        onPressed: () async {
+                          final RenderBox button =
+                              context.findRenderObject() as RenderBox;
+                          final RenderBox overlay =
+                              Overlay.of(context).context.findRenderObject()
+                                  as RenderBox;
+
+                          final RelativeRect position = RelativeRect.fromRect(
+                            Rect.fromPoints(
+                              button.localToGlobal(
+                                Offset(0, button.size.height),
+                              ),
+                              button.localToGlobal(
+                                button.size.bottomRight(Offset.zero),
+                              ),
+                            ),
+                            Offset.zero & overlay.size,
+                          );
+
+                          final selected = await showMenu<String>(
+                            context: context,
+                            position: position,
+                            items: [
+                              PopupMenuItem<String>(
+                                value: 'bill',
+                                child: Row(
+                                  children: const [
+                                    SizedBox(width: 8),
+                                    Text('Add Bill'),
+                                  ],
+                                ),
+                              ),
+                              PopupMenuItem<String>(
+                                value: 'payment',
+                                child: Row(
+                                  children: const [
+                                    SizedBox(width: 8),
+                                    Text('Add Payment'),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          );
+
+                          if (selected == 'bill') {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => EmpAddBillScreen(
+                                  onBillAdded: () {
+                                    initializeController();
+                                  },
+                                ),
+                              ),
+                            );
+                          } else if (selected == 'payment') {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => EmpAddPaymentScreen(
+                                  onPaymentAdded: () {
+                                    initializeController();
+                                  },
+                                ),
+                              ),
+                            );
+                          }
+                        },
+                      ),
+                    ),
+                  ],
                 ),
-                onPressed: () async {
-                  final RenderBox button =
-                      context.findRenderObject() as RenderBox;
-                  final RenderBox overlay =
-                      Overlay.of(context).context.findRenderObject()
-                          as RenderBox;
-
-                  final RelativeRect position = RelativeRect.fromRect(
-                    Rect.fromPoints(
-                      button.localToGlobal(Offset(0, button.size.height)),
-                      button.localToGlobal(
-                        button.size.bottomRight(Offset.zero),
+                body: !isInitialized
+                    ? const Center(child: CircularProgressIndicator())
+                    : Column(
+                        children: [
+                          buildSearchField(
+                            context: context,
+                            controller: searchController,
+                            onFilterPressed: showFilterDialog,
+                            hasFilter: hasFilter,
+                            numberOfFilters: numberOfFilters,
+                          ),
+                          const SizedBox(height: 16),
+                          buildPrimaryTabBar(
+                            context: context,
+                            tabs: ['Billing', 'Payment'],
+                          ),
+                          Expanded(
+                            child: TabBarView(
+                              children: [
+                                buildBillingList(),
+                                buildPaymentList(),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                    Offset.zero & overlay.size,
-                  );
-
-                  final selected = await showMenu<String>(
-                    context: context,
-                    position: position,
-                    items: [
-                      PopupMenuItem<String>(
-                        value: 'bill',
-                        child: Row(
-                          children: const [
-                            SizedBox(width: 8),
-                            Text('Add Bill'),
-                          ],
-                        ),
-                      ),
-                      PopupMenuItem<String>(
-                        value: 'payment',
-                        child: Row(
-                          children: const [
-                            SizedBox(width: 8),
-                            Text('Add Payment'),
-                          ],
-                        ),
-                      ),
-                    ],
-                  );
-
-                  if (selected == 'bill') {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => EmpAddBillScreen(
-                          onBillAdded: () {
-                            billingController.initializeForEmployee();
-                          },
-                        ),
-                      ),
-                    );
-                  } else if (selected == 'payment') {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => EmpAddPaymentScreen(
-                          onPaymentAdded: () {
-                            paymentController.initializeForEmployee();
-                          },
-                        ),
-                      ),
-                    );
-                  }
-                },
-              ),
-            ),
-          ],
-        ),
-        body: !isInitialized
-            ? const Center(child: CircularProgressIndicator())
-            : Column(
-                children: [
-                  buildSearchField(
-                    context: context,
-                    controller: searchController,
-                  ),
-                  buildPrimaryTabBar(
-                    context: context,
-                    tabs: ['Billing', 'Payment'],
-                  ),
-                  Expanded(
-                    child: TabBarView(
-                      children: [buildBillingList(), buildPaymentList()],
-                    ),
-                  ),
-                ],
-              ),
+              );
+            },
+          );
+        },
       ),
     );
   }
 
   Widget buildBillingList() {
-    return ListenableBuilder(
-      listenable: billingController,
-      builder: (context, child) {
-        if (billingController.isLoading) {
-          return const Center(child: CircularProgressIndicator());
-        }
+    if (controller.isLoadingBills) {
+      return const Center(child: CircularProgressIndicator());
+    }
 
-        final bills = billingController.filteredBills;
+    final bills = controller.filteredBills;
 
-        if (bills.isEmpty) {
-          return const Center(
-            child: Text(
-              'No billing records found.',
-              style: TextStyle(color: Colors.grey, fontSize: 16),
+    if (bills.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.search_off, size: 64, color: Colors.grey.shade400),
+            const SizedBox(height: 16),
+            Text(
+              searchController.text.isNotEmpty || numberOfFilters > 0
+                  ? 'No billing records found.'
+                  : 'No billing records found.',
+              style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
             ),
-          );
-        }
+          ],
+        ),
+      );
+    }
 
-        return ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: bills.length,
-          itemBuilder: (context, index) {
-            final bill = bills[index];
-            return BillingCard(
-              bill: bill,
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => EmpBillDetailScreen(bill: bill),
-                  ),
-                ).then((_) {
-                  print("Returned to Bill List, refreshing...");
-                  initializeController();
-                });
-              },
-            );
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: bills.length,
+      itemBuilder: (context, index) {
+        final bill = bills[index];
+        return BillingCard(
+          bill: bill,
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => EmpBillDetailScreen(bill: bill),
+              ),
+            ).then((_) {
+              print("Returned to Bill List, refreshing...");
+              initializeController();
+            });
           },
         );
       },
@@ -232,46 +346,47 @@ class EmpBillPaymentScreenState extends State<EmpBillPaymentScreen> {
   }
 
   Widget buildPaymentList() {
-    return ListenableBuilder(
-      listenable: paymentController,
-      builder: (context, child) {
-        if (paymentController.isLoading) {
-          return const Center(child: CircularProgressIndicator());
-        }
+    if (controller.isLoadingPayments) {
+      return const Center(child: CircularProgressIndicator());
+    }
 
-        final payments = paymentController.filteredPayments;
+    final payments = controller.filteredPayments;
 
-        if (payments.isEmpty) {
-          return const Center(
-            child: Text(
-              'No payment records found.',
-              style: TextStyle(color: Colors.grey, fontSize: 16),
+    if (payments.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.search_off, size: 64, color: Colors.grey.shade400),
+            const SizedBox(height: 16),
+            Text(
+              searchController.text.isNotEmpty || numberOfFilters > 0
+                  ? 'No payment records found.'
+                  : 'No payment records found.',
+              style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
             ),
-          );
-        }
+          ],
+        ),
+      );
+    }
 
-        return ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: payments.length,
-          itemBuilder: (context, index) {
-            final payment = payments[index];
-            return PaymentCard(
-              payment: payment,
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => ChangeNotifierProvider.value(
-                      value: paymentController,
-                      child: EmpPaymentDetailScreen(payment: payment),
-                    ),
-                  ),
-                ).then((_) {
-                  print("Returned to Payment List, refreshing...");
-                  initializeController();
-                });
-              },
-            );
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: payments.length,
+      itemBuilder: (context, index) {
+        final payment = payments[index];
+        return PaymentCard(
+          payment: payment,
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => EmpPaymentDetailScreen(payment: payment),
+              ),
+            ).then((_) {
+              print("Returned to Payment List, refreshing...");
+              initializeController();
+            });
           },
         );
       },

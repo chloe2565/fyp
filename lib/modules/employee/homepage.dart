@@ -186,7 +186,6 @@ class EmpHomepageState extends State<EmpHomepage> {
           // const SizedBox(width: 16),
           Container(
             decoration: BoxDecoration(
-              color: isMenuOpen ? Colors.grey.shade300 : Colors.transparent,
               borderRadius: BorderRadius.circular(12),
             ),
             child: PopupMenuButton<String>(
