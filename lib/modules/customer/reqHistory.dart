@@ -79,95 +79,117 @@ class RequestHistoryScreenState extends State<RequestHistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final hasFilter =
-        controller.selectedServices.isNotEmpty ||
-        controller.selectedStatuses.isNotEmpty ||
-        controller.startDate != null ||
-        controller.endDate != null;
-
     return DefaultTabController(
       length: 2,
-      child: ListenableBuilder(
-        listenable: controller,
-        builder: (context, child) {
-          return Scaffold(
-            appBar: AppBar(
-              backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-              elevation: 0,
-              leading: IconButton(
-                icon: const Icon(Icons.arrow_back, color: Colors.black),
-                onPressed: () {
-                  if (Navigator.canPop(context)) {
-                    Navigator.pop(context);
-                  } else {
-                    Navigator.pushReplacementNamed(context, '/custHome');
-                  }
-                },
-              ),
-              title: const Text(
-                'Service Request',
-                style: TextStyle(
-                  color: Colors.black,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 20,
-                ),
-              ),
-              centerTitle: true,
+      child: Scaffold(
+        appBar: AppBar(
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.black),
+            onPressed: () {
+              if (Navigator.canPop(context)) {
+                Navigator.pop(context);
+              } else {
+                Navigator.pushReplacementNamed(context, '/custHome');
+              }
+            },
+          ),
+          title: const Text(
+            'Service Request',
+            style: TextStyle(
+              color: Colors.black,
+              fontWeight: FontWeight.bold,
+              fontSize: 20,
             ),
-            body: !isInitialized
-                ? const Center(child: CircularProgressIndicator())
-                : controller.isFiltering
-                ? const Center(
-                    child: CircularProgressIndicator(
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.orange),
-                    ),
-                  )
-                : Column(
-                    children: [
-                      // Search Field with Filter Button
-                      SearchFieldWithFilter(
-                        searchController: searchController,
-                        hasActiveFilters: hasFilter,
+          ),
+          centerTitle: true,
+        ),
+        body: !isInitialized
+            ? const Center(child: CircularProgressIndicator())
+            : Column(
+                children: [
+                  ListenableBuilder(
+                    listenable: controller,
+                    builder: (context, child) {
+                      final int serviceFilterCount =
+                          controller.selectedServices.isNotEmpty ? 1 : 0;
+                      final int statusFilterCount =
+                          controller.selectedStatuses.isNotEmpty ? 1 : 0;
+                      final int dateRangeFilterCount =
+                          (controller.startDate != null ||
+                              controller.endDate != null)
+                          ? 1
+                          : 0;
+
+                      final int numberOfFilters =
+                          serviceFilterCount +
+                          statusFilterCount +
+                          dateRangeFilterCount;
+                      final hasFilter = numberOfFilters > 0;
+
+                      return buildSearchField(
+                        context: context,
+                        hintText: 'Search requests...',
+                        controller: searchController,
                         onFilterPressed: () {
                           showServiceRequestFilterDialog(
                             context: context,
                             controller: controller,
-                            onApply: (services, statuses, startDate, endDate) async {
-                              await controller.applyMultiFilters(
-                                services: services,
-                                statuses: statuses,
-                                startDate: startDate,
-                                endDate: endDate,
-                              );
-                            },
+                            onApply:
+                                (services, statuses, startDate, endDate) async {
+                                  await controller.applyMultiFilters(
+                                    services: services,
+                                    statuses: statuses,
+                                    startDate: startDate,
+                                    endDate: endDate,
+                                  );
+                                },
                             onReset: () async {
                               searchController.clear();
                               await controller.clearFilters();
                             },
                           );
                         },
-                      ),
-
-                      FilterChipsDisplay(controller: controller),
-                      const SizedBox(height: 8),
-                      buildPrimaryTabBar(
-                        context: context,
-                        tabs: ['Upcoming', 'History'],
-                      ),
-
-                      Expanded(
-                        child: TabBarView(
-                          children: [buildUpcomingList(), buildHistoryList()],
-                        ),
-                      ),
-                    ],
+                        hasFilter: hasFilter,
+                        numberOfFilters: numberOfFilters,
+                      );
+                    },
                   ),
-            bottomNavigationBar: CustNavigationBar(
-              currentIndex: currentIndex,
-              onTap: onNavBarTap,
-            ),
-          );
-        },
+
+                  // FilterChipsDisplay(controller: controller),
+                  const SizedBox(height: 8),
+                  buildPrimaryTabBar(
+                    context: context,
+                    tabs: ['Upcoming', 'History'],
+                  ),
+
+                  Expanded(
+                    child: ListenableBuilder(
+                      listenable: controller,
+                      builder: (context, child) {
+                        if (controller.isFiltering) {
+                          return const Center(
+                            child: CircularProgressIndicator(
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.orange,
+                              ),
+                            ),
+                          );
+                        }
+
+                        return TabBarView(
+                          children: [buildUpcomingList(), buildHistoryList()],
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+        bottomNavigationBar: CustNavigationBar(
+          currentIndex: currentIndex,
+          onTap: onNavBarTap,
+        ),
       ),
     );
   }

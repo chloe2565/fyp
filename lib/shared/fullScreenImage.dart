@@ -34,7 +34,7 @@ class FullScreenGalleryViewerState extends State<FullScreenGalleryViewer> {
     super.dispose();
   }
 
-  String _buildAssetPath(String picName) {
+  String buildAssetPath(String picName) {
     return '${widget.basePath}/${picName.trim().toLowerCase()}';
   }
 
@@ -61,7 +61,7 @@ class FullScreenGalleryViewerState extends State<FullScreenGalleryViewer> {
           });
         },
         itemBuilder: (context, index) {
-          final assetPath = _buildAssetPath(widget.imagePaths[index]);
+          final assetPath = buildAssetPath(widget.imagePaths[index]);
           return InteractiveViewer(
             panEnabled: true,
             minScale: 1.0,

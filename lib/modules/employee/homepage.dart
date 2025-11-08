@@ -119,7 +119,7 @@ class EmpHomepageState extends State<EmpHomepage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Good Morning,',
+                  'Welcome,',
                   style: Theme.of(
                     context,
                   ).textTheme.bodyMedium?.copyWith(color: Colors.grey.shade600),

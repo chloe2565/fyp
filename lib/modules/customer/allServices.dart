@@ -69,32 +69,38 @@ class AllServicesScreenState extends State<AllServicesScreen> {
         ? maxPrice.toInt().toString()
         : '';
 
-    showDialog(
+    showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       builder: (context) {
-        return FilterDialog(
-          minPriceController: minPriceController,
-          maxPriceController: maxPriceController,
-          onApply: (minVal, maxVal) {
-            if (mounted) {
-              setState(() {
-                minPrice = minVal;
-                maxPrice = maxVal;
-              });
-              filterServices();
-            }
-          },
-          onReset: () {
-            minPriceController.clear();
-            maxPriceController.clear();
-            if (mounted) {
-              setState(() {
-                minPrice = 0;
-                maxPrice = double.infinity;
-              });
-              filterServices();
-            }
-          },
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+          ),
+          child: FilterDialog(
+            minPriceController: minPriceController,
+            maxPriceController: maxPriceController,
+            onApply: (minVal, maxVal) {
+              if (mounted) {
+                setState(() {
+                  minPrice = minVal;
+                  maxPrice = maxVal;
+                });
+                filterServices();
+              }
+            },
+            onReset: () {
+              minPriceController.clear();
+              maxPriceController.clear();
+              if (mounted) {
+                setState(() {
+                  minPrice = 0;
+                  maxPrice = double.infinity;
+                });
+                filterServices();
+              }
+            },
+          ),
         );
       },
     );
@@ -111,7 +117,9 @@ class AllServicesScreenState extends State<AllServicesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final hasFilter = minPrice > 0 || maxPrice.isFinite;
+    final int numberOfFilters =
+        (minPrice > 0 ? 1 : 0) + (maxPrice.isFinite ? 1 : 0);
+    final hasFilter = numberOfFilters > 0;
 
     return Scaffold(
       appBar: AppBar(
@@ -127,149 +135,107 @@ class AllServicesScreenState extends State<AllServicesScreen> {
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
       ),
-      body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24.0),
-        child: Column(
-          children: [
-            const SizedBox(height: 16),
+      body: Column(
+        children: [
+          const SizedBox(height: 16),
+          buildSearchField(
+            context: context,
+            hintText: 'Search services...',
+            controller: searchController,
+            onFilterPressed: showFilterDialog,
+            hasFilter: hasFilter,
+            numberOfFilters: numberOfFilters,
+          ),
+          const SizedBox(height: 8),
 
-            TextFormField(
-              controller: searchController,
-              decoration: InputDecoration(
-                hintText: 'Search services...',
-                prefixIcon: const Icon(Icons.search, color: Colors.grey),
-                suffixIcon: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (hasFilter)
-                      Container(
-                        margin: const EdgeInsets.only(right: 8),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
+          // if (hasFilter)
+          //   Wrap(
+          //     children: [
+          //       Chip(
+          //         label: Text(
+          //           minPrice > 0
+          //               ? (maxPrice.isFinite
+          //                     ? 'RM${minPrice.toInt()} - RM${maxPrice.toInt()}/hr'
+          //                     : 'RM${minPrice.toInt()}+ /hr')
+          //               : 'Max RM${maxPrice.toInt()}/hr',
+          //           style: const TextStyle(fontSize: 13),
+          //         ),
+          //         backgroundColor: Colors.orange.shade100,
+          //         deleteIconColor: Colors.orange,
+          //         onDeleted: () {
+          //           setState(() {
+          //             minPrice = 0;
+          //             maxPrice = double.infinity;
+          //             minPriceController.clear();
+          //             maxPriceController.clear();
+          //           });
+          //           filterServices();
+          //         },
+          //       ),
+          //     ],
+          //   ),
+          // const SizedBox(height: 8),
+          Expanded(
+            child: isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : displayedServices.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.search_off,
+                          size: 64,
+                          color: Colors.grey.shade400,
                         ),
-                        decoration: BoxDecoration(
-                          color: Colors.orange,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          minPrice > 0
-                              ? (maxPrice.isFinite
-                                    ? '${minPrice.toInt()}–${maxPrice.toInt()}'
-                                    : '${minPrice.toInt()}+')
-                              : '≤${maxPrice.toInt()}',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
+                        const SizedBox(height: 16),
+                        Text(
+                          searchController.text.isNotEmpty || hasFilter
+                              ? 'No services found.'
+                              : 'No services available.',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.grey.shade600,
                           ),
                         ),
-                      ),
-                    IconButton(
-                      icon: const Icon(Icons.tune, color: Colors.orange),
-                      onPressed: showFilterDialog,
+                      ],
                     ),
-                  ],
-                ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide.none,
-                ),
-                filled: true,
-                fillColor: Colors.grey.shade100,
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            if (hasFilter)
-              Wrap(
-                children: [
-                  Chip(
-                    label: Text(
-                      minPrice > 0
-                          ? (maxPrice.isFinite
-                                ? 'RM${minPrice.toInt()} - RM${maxPrice.toInt()}/hr'
-                                : 'RM${minPrice.toInt()}+ /hr')
-                          : 'Max RM${maxPrice.toInt()}/hr',
-                      style: const TextStyle(fontSize: 13),
-                    ),
-                    backgroundColor: Colors.orange.shade100,
-                    deleteIconColor: Colors.orange,
-                    onDeleted: () {
-                      setState(() {
-                        minPrice = 0;
-                        maxPrice = double.infinity;
-                        minPriceController.clear();
-                        maxPriceController.clear();
-                      });
-                      filterServices();
+                  )
+                : ListView.builder(
+                    itemCount: displayedServices.length,
+                    itemBuilder: (context, index) {
+                      final service = displayedServices[index];
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16.0,
+                          vertical: 8.0,
+                        ),
+                        child: GestureDetector(
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  ServiceDetailScreen(service: service),
+                            ),
+                          ),
+                          child: ServiceListItemCard(
+                            title: service.serviceName,
+                            price: service.servicePrice != null
+                                ? 'RM ${service.servicePrice!.toStringAsFixed(0)} / hour'
+                                : 'Price not available',
+                            icon: ServiceHelper.getIconForService(
+                              service.serviceName,
+                            ),
+                            color: ServiceHelper.getColorForService(
+                              service.serviceName,
+                            ),
+                          ),
+                        ),
+                      );
                     },
                   ),
-                ],
-              ),
-
-            const SizedBox(height: 8),
-
-            Expanded(
-              child: isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : displayedServices.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.search_off,
-                            size: 64,
-                            color: Colors.grey.shade400,
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            searchController.text.isNotEmpty || hasFilter
-                                ? 'No services found.'
-                                : 'No services available.',
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: Colors.grey.shade600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    )
-                  : ListView.builder(
-                      itemCount: displayedServices.length,
-                      itemBuilder: (context, index) {
-                        final service = displayedServices[index];
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 16.0),
-                          child: GestureDetector(
-                            onTap: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) =>
-                                    ServiceDetailScreen(service: service),
-                              ),
-                            ),
-                            child: ServiceListItemCard(
-                              title: service.serviceName,
-                              price: service.servicePrice != null
-                                  ? 'RM ${service.servicePrice!.toStringAsFixed(0)} / hour'
-                                  : 'Price not available',
-                              icon: ServiceHelper.getIconForService(
-                                service.serviceName,
-                              ),
-                              color: ServiceHelper.getColorForService(
-                                service.serviceName,
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -312,7 +278,6 @@ class FilterDialogState extends State<FilterDialog> {
   }
 
   void validateInitial() {
-    // Initial validation without setState
     minError = Validator.validatePriceRange(
       minText: widget.minPriceController.text,
       maxText: widget.maxPriceController.text,
@@ -351,16 +316,11 @@ class FilterDialogState extends State<FilterDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.5,
       child: SingleChildScrollView(
         child: Padding(
-          padding: EdgeInsets.only(
-            left: 20,
-            right: 20,
-            top: 20,
-            bottom: MediaQuery.of(context).viewInsets.bottom + 20,
-          ),
+          padding: EdgeInsets.only(left: 20, right: 20, top: 20, bottom: 20),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -468,20 +428,10 @@ class FilterDialogState extends State<FilterDialog> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: (minError == null && maxError == null)
-                          ? () {
-                              final minVal =
-                                  double.tryParse(
-                                    widget.minPriceController.text,
-                                  ) ??
-                                  0;
-                              final maxVal = double.tryParse(
-                                widget.maxPriceController.text,
-                              );
-                              widget.onApply(minVal, maxVal ?? double.infinity);
-                              Navigator.pop(context);
-                            }
-                          : null,
+                      onPressed: () {
+                        widget.onReset();
+                        Navigator.pop(context);
+                      },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Theme.of(
                           context,

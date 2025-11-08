@@ -4,6 +4,7 @@ import '../../controller/ratingReview.dart';
 import '../../model/databaseModel.dart';
 import '../../shared/helper.dart';
 import 'ratingReviewDetail.dart';
+import '../../shared/empRatingReviewFilterDialog.dart';
 
 class EmpRatingReviewScreen extends StatefulWidget {
   const EmpRatingReviewScreen({super.key});
@@ -16,6 +17,13 @@ class EmpRatingReviewScreenState extends State<EmpRatingReviewScreen> {
   bool isInitialized = false;
   late RatingReviewController controller;
   final TextEditingController searchController = TextEditingController();
+
+  // Filter state
+  String? replyFilter;
+  DateTime? startDate;
+  DateTime? endDate;
+  double? minRating;
+  double? maxRating;
 
   @override
   void initState() {
@@ -35,8 +43,79 @@ class EmpRatingReviewScreenState extends State<EmpRatingReviewScreen> {
   }
 
   void onSearchChanged() {
+    applyFilters();
+  }
+
+  void applyFilters() {
     final query = searchController.text;
-    controller.onSearchChanged(query);
+    controller.applyFilters(
+      searchQuery: query,
+      replyFilter: replyFilter,
+      startDate: startDate,
+      endDate: endDate,
+      minRating: minRating,
+      maxRating: maxRating,
+    );
+  }
+
+  void showFilterDialog() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) {
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+          ),
+          child: RatingReviewFilterDialog(
+            initialReplyFilter: replyFilter,
+            initialStartDate: startDate,
+            initialEndDate: endDate,
+            initialMinRating: minRating,
+            initialMaxRating: maxRating,
+            onApply:
+                ({
+                  String? replyFilter,
+                  DateTime? startDate,
+                  DateTime? endDate,
+                  double? minRating,
+                  double? maxRating,
+                }) {
+                  if (mounted) {
+                    setState(() {
+                      this.replyFilter = replyFilter;
+                      this.startDate = startDate;
+                      this.endDate = endDate;
+                      this.minRating = minRating;
+                      this.maxRating = maxRating;
+                    });
+                    applyFilters();
+                  }
+                },
+            onReset: () {
+              if (mounted) {
+                setState(() {
+                  replyFilter = null;
+                  startDate = null;
+                  endDate = null;
+                  minRating = null;
+                  maxRating = null;
+                });
+                applyFilters();
+              }
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  int get numberOfFilters {
+    int count = 0;
+    if (replyFilter != null) count++;
+    if (startDate != null || endDate != null) count++;
+    if (minRating != null || maxRating != null) count++;
+    return count;
   }
 
   @override
@@ -49,6 +128,8 @@ class EmpRatingReviewScreenState extends State<EmpRatingReviewScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final hasFilter = numberOfFilters > 0;
+
     return ListenableBuilder(
       listenable: controller,
       builder: (context, child) {
@@ -80,10 +161,16 @@ class EmpRatingReviewScreenState extends State<EmpRatingReviewScreen> {
               ? const Center(child: CircularProgressIndicator())
               : Column(
                   children: [
+                    const SizedBox(height: 16),
                     buildSearchField(
                       context: context,
                       controller: searchController,
+                      hintText: 'Search reviews...',
+                      onFilterPressed: showFilterDialog,
+                      hasFilter: hasFilter,
+                      numberOfFilters: numberOfFilters,
                     ),
+                    const SizedBox(height: 8),
                     Expanded(child: buildRatingReviewList()),
                   ],
                 ),
@@ -100,10 +187,19 @@ class EmpRatingReviewScreenState extends State<EmpRatingReviewScreen> {
     final reviews = controller.filteredAllReviews;
 
     if (reviews.isEmpty) {
-      return const Center(
-        child: Text(
-          'No rating reviews found.',
-          style: TextStyle(color: Colors.grey, fontSize: 16),
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.search_off, size: 64, color: Colors.grey.shade400),
+            const SizedBox(height: 16),
+            Text(
+              searchController.text.isNotEmpty || numberOfFilters > 0
+                  ? 'No reviews found.'
+                  : 'No rating reviews found.',
+              style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
+            ),
+          ],
         ),
       );
     }
@@ -122,8 +218,9 @@ class EmpRatingReviewScreenState extends State<EmpRatingReviewScreen> {
                 builder: (context) => EmpRatingReviewDetailScreen(
                   reviewData: reviewData,
                   controller: controller,
-                  onReplyPosted: () {
-                    controller.initializeForEmployee();
+                  onReplyPosted: () async {
+                    await controller.initializeForEmployee();
+                    applyFilters();
                   },
                 ),
               ),

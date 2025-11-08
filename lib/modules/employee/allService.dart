@@ -117,32 +117,41 @@ class EmpAllServicesScreenState extends State<EmpAllServicesScreen> {
   }
 
   void showFilterDialog() {
-    showDialog(
+    showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (context) {
-        return FilterDialog(
-          selectedStatuses: Map.from(selectedStatuses),
-          selectedServiceNames: Map.from(selectedServiceNames),
-          availableStatuses: availableStatuses,
-          availableServiceNames: availableServiceNames,
-          onApply: (statuses, serviceNames) {
-            if (mounted) {
-              setState(() {
-                selectedStatuses = statuses;
-                selectedServiceNames = serviceNames;
-              });
-              filterServices();
-            }
-          },
-          onReset: () {
-            if (mounted) {
-              setState(() {
-                selectedStatuses.clear();
-                selectedServiceNames.clear();
-              });
-              filterServices();
-            }
-          },
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+          ),
+          child: FilterDialog(
+            selectedStatuses: Map.from(selectedStatuses),
+            selectedServiceNames: Map.from(selectedServiceNames),
+            availableStatuses: availableStatuses,
+            availableServiceNames: availableServiceNames,
+            onApply: (statuses, serviceNames) {
+              if (mounted) {
+                setState(() {
+                  selectedStatuses = statuses;
+                  selectedServiceNames = serviceNames;
+                });
+                filterServices();
+              }
+            },
+            onReset: () {
+              if (mounted) {
+                setState(() {
+                  selectedStatuses.clear();
+                  selectedServiceNames.clear();
+                });
+                filterServices();
+              }
+            },
+          ),
         );
       },
     );
@@ -160,9 +169,14 @@ class EmpAllServicesScreenState extends State<EmpAllServicesScreen> {
     if (isLoadingRole || isLoading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
-
-    final hasFilter =
-        selectedStatuses.isNotEmpty || selectedServiceNames.isNotEmpty;
+    int numberOfFilters = 0;
+    if (selectedStatuses.isNotEmpty) {
+      numberOfFilters++;
+    }
+    if (selectedServiceNames.isNotEmpty) {
+      numberOfFilters++;
+    }
+    final hasFilter = numberOfFilters > 0;
 
     return Scaffold(
       appBar: AppBar(
@@ -170,12 +184,12 @@ class EmpAllServicesScreenState extends State<EmpAllServicesScreen> {
           icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         title: const Text(
           'Service',
           style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
         actions: [
           if (isAdmin)
@@ -206,108 +220,74 @@ class EmpAllServicesScreenState extends State<EmpAllServicesScreen> {
         child: Column(
           children: [
             const SizedBox(height: 16),
-
-            // Search bar with filter icon
-            TextFormField(
+            buildSearchField(
+              context: context,
+              hintText: 'Search services...',
               controller: searchController,
-              decoration: InputDecoration(
-                hintText: 'Search services...',
-                hintStyle: const TextStyle(color: Colors.grey),
-                prefixIcon: const Icon(Icons.search, color: Colors.grey),
-                suffixIcon: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (hasFilter)
-                      Container(
-                        margin: const EdgeInsets.only(right: 8),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.orange,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                    IconButton(
-                      icon: Icon(Icons.tune, color: Colors.orange),
-                      onPressed: showFilterDialog,
-                    ),
-                  ],
-                ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide.none,
-                ),
-                filled: true,
-                fillColor: Colors.grey.shade100,
-              ),
+              onFilterPressed: showFilterDialog,
+              hasFilter: hasFilter,
+              numberOfFilters: numberOfFilters,
             ),
+            SizedBox(height: 16),
 
-            const SizedBox(height: 16),
-
-            // Active filters chips
-            if (hasFilter)
-              SizedBox(
-                width: double.infinity,
-                child: Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    // Service Name chips
-                    ...selectedServiceNames.values.map((serviceName) {
-                      return Chip(
-                        avatar: const Icon(
-                          Icons.build,
-                          size: 16,
-                          color: Colors.orange,
-                        ),
-                        label: Text(
-                          serviceName,
-                          style: const TextStyle(fontSize: 13),
-                        ),
-                        backgroundColor: Colors.orange.shade100,
-                        deleteIconColor: Colors.orange,
-                        onDeleted: () {
-                          setState(() {
-                            selectedServiceNames.removeWhere(
-                              (key, value) => value == serviceName,
-                            );
-                          });
-                          filterServices();
-                        },
-                      );
-                    }).toList(),
-                    // Status chips
-                    ...selectedStatuses.values.map((status) {
-                      return Chip(
-                        avatar: const Icon(
-                          Icons.info_outline,
-                          size: 16,
-                          color: Colors.blue,
-                        ),
-                        label: Text(
-                          status,
-                          style: const TextStyle(fontSize: 13),
-                        ),
-                        backgroundColor: Colors.blue.shade100,
-                        deleteIconColor: Colors.blue,
-                        onDeleted: () {
-                          setState(() {
-                            selectedStatuses.removeWhere(
-                              (key, value) => value == status,
-                            );
-                          });
-                          filterServices();
-                        },
-                      );
-                    }).toList(),
-                  ],
-                ),
-              ),
-
-            SizedBox(height: hasFilter ? 8 : 0),
-
+            // if (hasFilter)
+            //   SizedBox(
+            //     width: double.infinity,
+            //     child: Wrap(
+            //       spacing: 8,
+            //       runSpacing: 8,
+            //       children: [
+            //         // Service Name chips
+            //         ...selectedServiceNames.values.map((serviceName) {
+            //           return Chip(
+            //             avatar: const Icon(
+            //               Icons.build,
+            //               size: 16,
+            //               color: Colors.orange,
+            //             ),
+            //             label: Text(
+            //               serviceName,
+            //               style: const TextStyle(fontSize: 13),
+            //             ),
+            //             backgroundColor: Colors.orange.shade100,
+            //             deleteIconColor: Colors.orange,
+            //             onDeleted: () {
+            //               setState(() {
+            //                 selectedServiceNames.removeWhere(
+            //                   (key, value) => value == serviceName,
+            //                 );
+            //               });
+            //               filterServices();
+            //             },
+            //           );
+            //         }).toList(),
+            //         // Status chips
+            //         ...selectedStatuses.values.map((status) {
+            //           return Chip(
+            //             avatar: const Icon(
+            //               Icons.info_outline,
+            //               size: 16,
+            //               color: Colors.blue,
+            //             ),
+            //             label: Text(
+            //               status,
+            //               style: const TextStyle(fontSize: 13),
+            //             ),
+            //             backgroundColor: Colors.blue.shade100,
+            //             deleteIconColor: Colors.blue,
+            //             onDeleted: () {
+            //               setState(() {
+            //                 selectedStatuses.removeWhere(
+            //                   (key, value) => value == status,
+            //                 );
+            //               });
+            //               filterServices();
+            //             },
+            //           );
+            //         }).toList(),
+            //       ],
+            //     ),
+            //   ),
             Expanded(
               child: RefreshIndicator(
                 onRefresh: loadServices,
@@ -429,15 +409,17 @@ class FilterDialogState extends State<FilterDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+    return Container(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.8,
+      ),
       child: SingleChildScrollView(
         child: Padding(
-          padding: EdgeInsets.only(
+          padding: const EdgeInsets.only(
             left: 20,
             right: 20,
             top: 20,
-            bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+            bottom: 20,
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -583,6 +565,10 @@ class FilterDialogState extends State<FilterDialog> {
                   Expanded(
                     child: ElevatedButton(
                       onPressed: () {
+                        setState(() {
+                          tempSelectedStatuses.clear();
+                          tempSelectedServiceNames.clear();
+                        });
                         widget.onReset();
                         Navigator.pop(context);
                       },

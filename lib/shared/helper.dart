@@ -76,7 +76,6 @@ class Validator {
       return 'Salary exceeds maximum allowed';
     }
 
-    // Check for valid decimal places (max 2)
     if (salary.contains('.')) {
       final parts = salary.split('.');
       if (parts[1].length > 2) {
@@ -224,6 +223,29 @@ class Validator {
       endDate: endDate,
       allowFutureDates: allowFutureDates,
     ).isValid;
+  }
+
+  static String? validateRatingRange({
+    required String? minText,
+    required String? maxText,
+    required bool isMinField,
+  }) {
+    final min = double.tryParse(minText ?? '');
+    final max = double.tryParse(maxText ?? '');
+
+    if (isMinField) {
+      if (minText == null || minText.isEmpty) return null;
+      if (min == null) return 'Enter a valid number';
+      if (min < 0 || min > 5) return 'Rating must be 0.0 - 5.0';
+      if (max != null && min > max) return 'Min cannot exceed max';
+    } else {
+      if (maxText == null || maxText.isEmpty) return null;
+      if (max == null) return 'Enter a valid number';
+      if (max < 0 || max > 5) return 'Rating must be 0.0 - 5.0';
+      if (min != null && max < min) return 'Max cannot be less than min';
+    }
+    
+    return null;
   }
 }
 
@@ -813,26 +835,55 @@ Widget buildSearchField({
   String hintText = 'Search here...',
   VoidCallback? onFilterPressed,
   TextEditingController? controller,
+  bool hasFilter = false,
+  int numberOfFilters = 0,
 }) {
-  return Container(
-    padding: const EdgeInsets.fromLTRB(16.0, 8.0, 16.0, 16.0),
-    child: TextFormField(
-      controller: controller,
-      decoration: InputDecoration(
-        hintText: hintText,
-        hintStyle: const TextStyle(color: Colors.grey),
-        prefixIcon: const Icon(Icons.search, color: Colors.grey),
-        suffixIcon: IconButton(
-          icon: const Icon(Icons.tune),
-          color: Theme.of(context).colorScheme.primary,
-          onPressed: onFilterPressed,
+  return Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+    child: Container(
+      child: TextFormField(
+        controller: controller,
+        decoration: InputDecoration(
+          hintText: hintText,
+          hintStyle: const TextStyle(color: Colors.grey),
+          prefixIcon: const Icon(Icons.search, color: Colors.grey),
+          suffixIcon: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (hasFilter && numberOfFilters > 0)
+                Container(
+                  margin: const EdgeInsets.only(right: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.orange,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    '$numberOfFilters',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              IconButton(
+                icon: const Icon(Icons.tune),
+                color: Colors.orange,
+                onPressed: onFilterPressed,
+              ),
+            ],
+          ),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide.none,
+          ),
+          filled: true,
+          fillColor: Colors.grey.shade100,
         ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide.none,
-        ),
-        filled: true,
-        fillColor: Colors.grey.shade100,
       ),
     ),
   );
@@ -1015,6 +1066,28 @@ Color getStatusColor(String status) {
       return Colors.red;
     default:
       return Colors.grey;
+  }
+}
+
+Color getUrgencyColor(String urgency) {
+  switch (urgency.toLowerCase()) {
+    case 'urgent':
+      return Colors.red;
+    case 'high':
+      return Colors.orange;
+    default:
+      return Colors.green;
+  }
+}
+
+Color getComplexityColor(String complexity) {
+  switch (complexity.toLowerCase()) {
+    case 'high':
+      return Colors.red;
+    case 'medium':
+      return Colors.orange;
+    default:
+      return Colors.green;
   }
 }
 

@@ -3,7 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../controller/serviceRequest.dart';
 import '../../shared/empNavigatorBase.dart';
-import '../../shared/helper.dart';
+import '../../shared/helper.dart'; // Ensure buildSearchField is available here
 import '../../shared/serviceRequestFilterDialog.dart';
 import 'serviceReqDetail.dart';
 
@@ -77,17 +77,24 @@ class EmpRequestScreenState extends State<EmpRequestScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final hasFilter =
-        controller.selectedServices.isNotEmpty ||
-        controller.selectedStatuses.isNotEmpty ||
-        controller.startDate != null ||
-        controller.endDate != null;
-
     return DefaultTabController(
       length: 3,
       child: ListenableBuilder(
         listenable: controller,
         builder: (context, child) {
+          final int serviceFilterCount =
+              controller.selectedServices.isNotEmpty ? 1 : 0;
+          final int statusFilterCount =
+              controller.selectedStatuses.isNotEmpty ? 1 : 0;
+          final int dateRangeFilterCount =
+              (controller.startDate != null || controller.endDate != null)
+                  ? 1
+                  : 0;
+
+          final int numberOfFilters =
+              serviceFilterCount + statusFilterCount + dateRangeFilterCount;
+          final hasFilter = numberOfFilters > 0;
+
           return Scaffold(
             appBar: AppBar(
               elevation: 0,
@@ -115,55 +122,60 @@ class EmpRequestScreenState extends State<EmpRequestScreen> {
             body: !isInitialized
                 ? const Center(child: CircularProgressIndicator())
                 : controller.isFiltering
-                ? const Center(
-                    child: CircularProgressIndicator(
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.orange),
-                    ),
-                  )
-                : Column(
-                    children: [
-                      // Search Field with Filter Button
-                      SearchFieldWithFilter(
-                        searchController: searchController,
-                        hasActiveFilters: hasFilter,
-                        onFilterPressed: () {
-                          showServiceRequestFilterDialog(
+                    ? const Center(
+                        child: CircularProgressIndicator(
+                          valueColor:
+                              AlwaysStoppedAnimation<Color>(Colors.orange),
+                        ),
+                      )
+                    : Column(
+                        children: [
+                          // Search Field with Filter Button (Similar to reqHistory.dart)
+                          buildSearchField(
                             context: context,
-                            controller: controller,
-                            onApply: (services, statuses, startDate, endDate) async {
-                              await controller.applyMultiFilters(
-                                services: services,
-                                statuses: statuses,
-                                startDate: startDate,
-                                endDate: endDate,
+                            hintText: 'Search requests...',
+                            controller: searchController,
+                            onFilterPressed: () {
+                              showServiceRequestFilterDialog(
+                                context: context,
+                                controller: controller,
+                                onApply: (services, statuses, startDate,
+                                    endDate) async {
+                                  await controller.applyMultiFilters(
+                                    services: services,
+                                    statuses: statuses,
+                                    startDate: startDate,
+                                    endDate: endDate,
+                                  );
+                                },
+                                onReset: () async {
+                                  searchController.clear();
+                                  await controller.clearFilters();
+                                },
                               );
                             },
-                            onReset: () async {
-                              searchController.clear();
-                              await controller.clearFilters();
-                            },
-                          );
-                        },
-                      ),
+                            hasFilter: hasFilter,
+                            numberOfFilters: numberOfFilters,
+                          ),
 
-                      FilterChipsDisplay(controller: controller),
-                      const SizedBox(height: 8),
-                      buildPrimaryTabBar(
-                        context: context,
-                        tabs: ['Pending', 'Upcoming', 'History'],
-                      ),
+                          FilterChipsDisplay(controller: controller),
+                          const SizedBox(height: 8),
+                          buildPrimaryTabBar(
+                            context: context,
+                            tabs: ['Pending', 'Upcoming', 'History'],
+                          ),
 
-                      Expanded(
-                        child: TabBarView(
-                          children: [
-                            buildPendingList(),
-                            buildUpcomingList(),
-                            buildHistoryList(),
-                          ],
-                        ),
+                          Expanded(
+                            child: TabBarView(
+                              children: [
+                                buildPendingList(),
+                                buildUpcomingList(),
+                                buildHistoryList(),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
             bottomNavigationBar: EmpNavigationBar(
               currentIndex: currentIndex,
               onTap: onNavBarTap,

@@ -2,7 +2,7 @@ import 'package:flutter/foundation.dart';
 import '../service/empHomepage.dart';
 
 class DashboardController extends ChangeNotifier {
-  final DashboardService _dashboardService = DashboardService();
+  final DashboardService dashboardService = DashboardService();
 
   bool isLoading = false;
   String? errorMessage;
@@ -17,7 +17,7 @@ class DashboardController extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final data = await _dashboardService.getDashboardData();
+      final data = await dashboardService.getDashboardData();
       
       requestStatusCounts = data['requestStatusCounts'] ?? {};
       handymanAvailability = data['handymanAvailability'] ?? {};

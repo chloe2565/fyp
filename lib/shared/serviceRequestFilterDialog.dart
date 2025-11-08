@@ -78,16 +78,13 @@ class ServiceRequestFilterDialogState
 
   @override
   Widget build(BuildContext context) {
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+    return Container(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.8,
+      ),
       child: SingleChildScrollView(
         child: Padding(
-          padding: EdgeInsets.only(
-            left: 20,
-            right: 20,
-            top: 20,
-            bottom: MediaQuery.of(context).viewInsets.bottom + 20,
-          ),
+          padding: EdgeInsets.only(left: 20, right: 20, top: 20, bottom: 20),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -394,13 +391,22 @@ Future<void> showServiceRequestFilterDialog({
   onApply,
   required VoidCallback onReset,
 }) {
-  return showDialog(
+  return showModalBottomSheet(
     context: context,
+    isScrollControlled: true,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+    ),
     builder: (context) {
-      return ServiceRequestFilterDialog(
-        controller: controller,
-        onApply: onApply,
-        onReset: onReset,
+      return Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+        ),
+        child: ServiceRequestFilterDialog(
+          controller: controller,
+          onApply: onApply,
+          onReset: onReset,
+        ),
       );
     },
   );

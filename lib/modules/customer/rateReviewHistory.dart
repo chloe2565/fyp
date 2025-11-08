@@ -6,6 +6,7 @@ import '../../controller/ratingReview.dart';
 import '../../model/databaseModel.dart';
 import '../../shared/custNavigatorBase.dart';
 import '../../shared/helper.dart';
+import '../../shared/custRatingReviewFilterDialog.dart';
 import 'rateReviewHistoryDetail.dart';
 
 class RateReviewHistoryScreen extends StatefulWidget {
@@ -21,6 +22,12 @@ class RateReviewHistoryScreenState extends State<RateReviewHistoryScreen> {
   bool isInitialized = false;
   late RatingReviewController ratingReviewController;
   final TextEditingController searchController = TextEditingController();
+
+  Map<String, String> serviceFilter = {};
+  DateTime? startDate;
+  DateTime? endDate;
+  double? minRating;
+  double? maxRating;
 
   @override
   void initState() {
@@ -40,8 +47,80 @@ class RateReviewHistoryScreenState extends State<RateReviewHistoryScreen> {
   }
 
   void onSearchChanged() {
+    applyFilters();
+  }
+
+  void applyFilters() {
     final query = searchController.text;
-    ratingReviewController.onSearchChanged(query);
+    ratingReviewController.applyFilters(
+      searchQuery: query,
+      serviceFilter: serviceFilter,
+      startDate: startDate,
+      endDate: endDate,
+      minRating: minRating,
+      maxRating: maxRating,
+    );
+  }
+
+  void showFilterDialog() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) {
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+          ),
+          child: CustomerRatingReviewFilterDialog(
+            availableServices: ratingReviewController.allAvailableServices,
+            initialServiceFilter: serviceFilter,
+            initialStartDate: startDate,
+            initialEndDate: endDate,
+            initialMinRating: minRating,
+            initialMaxRating: maxRating,
+            onApply:
+                ({
+                  Map<String, String>? serviceFilter,
+                  DateTime? startDate,
+                  DateTime? endDate,
+                  double? minRating,
+                  double? maxRating,
+                }) {
+                  if (mounted) {
+                    setState(() {
+                      this.serviceFilter = serviceFilter ?? {};
+                      this.startDate = startDate;
+                      this.endDate = endDate;
+                      this.minRating = minRating;
+                      this.maxRating = maxRating;
+                    });
+                    applyFilters();
+                  }
+                },
+            onReset: () {
+              if (mounted) {
+                setState(() {
+                  serviceFilter = {};
+                  startDate = null;
+                  endDate = null;
+                  minRating = null;
+                  maxRating = null;
+                });
+                applyFilters();
+              }
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  int get numberOfFilters {
+    int count = 0;
+    if (serviceFilter.isNotEmpty) count++;
+    if (startDate != null || endDate != null) count++;
+    if (minRating != null || maxRating != null) count++;
+    return count;
   }
 
   @override
@@ -87,6 +166,8 @@ class RateReviewHistoryScreenState extends State<RateReviewHistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final hasFilter = numberOfFilters > 0;
+
     return ChangeNotifierProvider.value(
       value: ratingReviewController,
       child: Consumer<RatingReviewController>(
@@ -117,7 +198,11 @@ class RateReviewHistoryScreenState extends State<RateReviewHistoryScreen> {
                         buildSearchField(
                           context: context,
                           controller: searchController,
+                          onFilterPressed: showFilterDialog,
+                          hasFilter: hasFilter,
+                          numberOfFilters: numberOfFilters,
                         ),
+                        const SizedBox(height: 16),
                         buildPrimaryTabBar(
                           context: context,
                           tabs: ['Pending', 'History'],
@@ -153,23 +238,33 @@ class RateReviewHistoryScreenState extends State<RateReviewHistoryScreen> {
     List<Map<String, dynamic>> items, {
     required bool isPending,
   }) {
-    return items.isEmpty
-        ? Center(
-            child: Text(
-              isPending ? 'No pending reviews.' : 'No review history found.',
-              style: const TextStyle(color: Colors.grey, fontSize: 16),
+    if (items.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.search_off, size: 64, color: Colors.grey.shade400),
+            const SizedBox(height: 16),
+            Text(
+              searchController.text.isNotEmpty || numberOfFilters > 0
+                  ? 'No reviews found.'
+                  : isPending
+                  ? 'No pending reviews.'
+                  : 'No review history found.',
+              style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
             ),
-          )
-        : ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: items.length,
-            itemBuilder: (context, index) {
-              return RatingReviewCard(
-                itemData: items[index],
-                isPending: isPending,
-              );
-            },
-          );
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: items.length,
+      itemBuilder: (context, index) {
+        return RatingReviewCard(itemData: items[index], isPending: isPending);
+      },
+    );
   }
 }
 
@@ -269,7 +364,6 @@ class RatingReviewCard extends StatelessWidget {
           padding: const EdgeInsets.all(16.0),
           child: Column(
             children: [
-              // Icon, Service Name, Date
               Row(
                 children: [
                   Container(

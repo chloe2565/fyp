@@ -4,10 +4,11 @@ import '../../controller/serviceRequest.dart';
 import '../../model/serviceRequestViewModel.dart';
 import '../../shared/fullScreenImage.dart';
 import '../../shared/helper.dart';
+import '../../service/nlp_service.dart';
 import 'handymanServiceReqMap.dart';
 import 'providerServiceReqMap.dart';
 
-class EmpRequestDetailScreen extends StatelessWidget {
+class EmpRequestDetailScreen extends StatefulWidget {
   final String reqID;
   final ServiceRequestController controller;
 
@@ -18,11 +19,44 @@ class EmpRequestDetailScreen extends StatelessWidget {
   });
 
   @override
+  State<EmpRequestDetailScreen> createState() => EmpRequestDetailScreenState();
+}
+
+class EmpRequestDetailScreenState extends State<EmpRequestDetailScreen> {
+  ComprehensiveAnalysis? nlpAnalysis;
+  bool isLoadingAnalysis = false;
+
+  @override
+  void initState() {
+    super.initState();
+    loadNLPAnalysis();
+  }
+
+  Future<void> loadNLPAnalysis() async {
+    setState(() => isLoadingAnalysis = true);
+
+    final viewModel = widget.controller.getRequestById(widget.reqID);
+    if (viewModel != null && viewModel.requestModel.reqDesc.isNotEmpty) {
+      final analysis = await NLPService.analyzeDescription(
+        viewModel.requestModel.reqDesc,
+      );
+      setState(() {
+        nlpAnalysis = analysis;
+        isLoadingAnalysis = false;
+      });
+    } else {
+      setState(() => isLoadingAnalysis = false);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: controller,
+      listenable: widget.controller,
       builder: (context, child) {
-        final RequestViewModel? viewModel = controller.getRequestById(reqID);
+        final RequestViewModel? viewModel = widget.controller.getRequestById(
+          widget.reqID,
+        );
 
         return Scaffold(
           appBar: AppBar(
@@ -58,6 +92,27 @@ class EmpRequestDetailScreen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // NLP insight
+          if (nlpAnalysis != null) buildNLPInsightsCard(),
+          if (isLoadingAnalysis)
+            const Card(
+              child: Padding(
+                padding: EdgeInsets.all(8.0),
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                    SizedBox(width: 12),
+                    Text('Analyzing request...'),
+                  ],
+                ),
+              ),
+            ),
+          const SizedBox(height: 16),
+
           buildDetailItem(context, 'Service Request ID', viewModel.reqID),
           buildDetailItem(context, 'Service ID', model.serviceID),
           buildDetailItem(context, 'Customer ID', model.custID),
@@ -86,7 +141,6 @@ class EmpRequestDetailScreen extends StatelessWidget {
                 ? model.reqRemark!
                 : 'None',
           ),
-
           buildDetailItem(
             context,
             'Service Request Status',
@@ -107,9 +161,113 @@ class EmpRequestDetailScreen extends StatelessWidget {
           ),
           buildDetailItem(context, 'Handyman Assigned', viewModel.handymanName),
           const SizedBox(height: 20),
-          ...buildBottomActions(context, viewModel, controller),
+          ...buildBottomActions(context, viewModel, widget.controller),
           const SizedBox(height: 40),
         ],
+      ),
+    );
+  }
+
+  Widget buildNLPInsightsCard() {
+    if (nlpAnalysis == null) return const SizedBox.shrink();
+
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.lightbulb_outline,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(width: 8),
+                const Text(
+                  'Insights',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            Divider(height: 24, color: Colors.grey[400],),
+
+            // Urgency Badge
+            Row(
+              children: [
+                const Text(
+                  'Urgency: ',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: getUrgencyColor(nlpAnalysis!.urgency),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    nlpAnalysis!.urgency.toUpperCase(),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+
+            // Recommendations
+            if (nlpAnalysis!.recommendations.isNotEmpty) ...[
+              const Text(
+                'Recommendations:',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 8),
+              ...(nlpAnalysis!.recommendations.map(
+                (rec) => Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Text(rec, style: const TextStyle(fontSize: 13)),
+                      ),
+                    ],
+                  ),
+                ),
+              )),
+            ],
+
+            // Complexity
+            if (nlpAnalysis!.insights['complexity'] != null) ...[
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  const Text(
+                    'Complexity: ',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  Text(
+                    capitalizeFirst(nlpAnalysis!.insights['complexity']),
+                    style: TextStyle(
+                      color: getComplexityColor(
+                        nlpAnalysis!.insights['complexity'],
+                      ),
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }

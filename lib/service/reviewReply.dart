@@ -31,7 +31,7 @@ class ReviewReplyService {
           .get();
 
       if (query.docs.isEmpty) {
-        return null; // No reply found
+        return null; 
       }
       return ReviewReplyModel.fromMap(
         query.docs.first.data() as Map<String, dynamic>,
@@ -82,6 +82,25 @@ class ReviewReplyService {
     } catch (e) {
       print("Error deleting reply $replyID: $e");
       rethrow;
+    }
+  }
+
+  Future<ReviewReplyModel?> getReplyByRateID(String rateID) async {
+    try {
+      final QuerySnapshot snapshot = await reviewReplyCollection
+          .where('rateID', isEqualTo: rateID)
+          .limit(1)
+          .get();
+      
+      if (snapshot.docs.isEmpty) {
+        return null;
+      }
+      
+      final doc = snapshot.docs.first;
+      return ReviewReplyModel.fromMap(doc.data() as Map<String, dynamic>);
+    } catch (e) {
+      print("Error fetching reply by rateID: $e");
+      return null;
     }
   }
 }
