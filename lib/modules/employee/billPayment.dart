@@ -28,8 +28,6 @@ class EmpBillPaymentScreenState extends State<EmpBillPaymentScreen> {
   Map<String, String> statusFilter = {};
   Map<String, String> paymentMethodFilter = {};
 
-  int _currentTabIndex = 0;
-
   @override
   void initState() {
     super.initState();
@@ -152,7 +150,6 @@ class EmpBillPaymentScreenState extends State<EmpBillPaymentScreen> {
           tabController.addListener(() {
             if (!tabController.indexIsChanging && mounted) {
               setState(() {
-                _currentTabIndex = tabController.index;
               });
             }
           });

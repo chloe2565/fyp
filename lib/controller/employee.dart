@@ -30,6 +30,10 @@ class EmployeeController extends ChangeNotifier {
   List<Map<String, dynamic>> allEmployeesRaw = [];
   List<Map<String, dynamic>> displayedEmployees = [];
 
+  // Handyman availability
+  List<HandymanAvailabilityModel> handymanAvailabilities = [];
+  bool isLoadingAvailability = false;
+
   Future<void> loadPageData(UserController userController) async {
     isLoadingRole = true;
     notifyListeners();
@@ -255,6 +259,75 @@ class EmployeeController extends ChangeNotifier {
     } catch (e) {
       print('Error in updateEmployeeStatus controller: $e');
       rethrow;
+    }
+  }
+
+   Future<void> loadHandymanAvailability(
+    String handymanID,
+    DateTime weekStart,
+  ) async {
+    isLoadingAvailability = true;
+    notifyListeners();
+
+    try {
+      final weekEnd = weekStart.add(const Duration(days: 7));
+      handymanAvailabilities = await empService.getHandymanAvailability(
+        handymanID,
+        weekStart,
+        weekEnd,
+      );
+    } catch (e) {
+      print('Error loading handyman availability: $e');
+    }
+
+    isLoadingAvailability = false;
+    notifyListeners();
+  }
+
+  List<HandymanAvailabilityModel> getUnavailabilitiesForDate(DateTime date) {
+    final startOfDay = DateTime(date.year, date.month, date.day);
+    final endOfDay = startOfDay.add(const Duration(days: 1));
+
+    return handymanAvailabilities.where((avail) {
+      return (avail.availabilityStartDateTime.isBefore(endOfDay) &&
+          avail.availabilityEndDateTime.isAfter(startOfDay));
+    }).toList();
+  }
+
+  Future<void> addHandymanUnavailability(
+    String handymanID,
+    DateTime startDateTime,
+    DateTime endDateTime,
+  ) async {
+    try {
+      await empService.addHandymanUnavailability(
+        handymanID,
+        startDateTime,
+        endDateTime,
+      );
+    } catch (e) {
+      print('Error in addHandymanUnavailability controller: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> deleteHandymanUnavailability(String availabilityID) async {
+    try {
+      await empService.deleteHandymanUnavailability(availabilityID);
+    } catch (e) {
+      print('Error in deleteHandymanUnavailability controller: $e');
+      rethrow;
+    }
+  }
+
+  // Helper method to get handymanID from empID
+  Future<String?> getHandymanIDByEmpID(String empID) async {
+    try {
+      final handyman = await empService.getHandymanByEmpID(empID);
+      return handyman?.handymanID;
+    } catch (e) {
+      print('Error getting handymanID: $e');
+      return null;
     }
   }
 }

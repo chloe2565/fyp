@@ -518,4 +518,79 @@ class EmployeeService {
       rethrow;
     }
   }
+
+  // Get handyman availability for a date range
+  Future<List<HandymanAvailabilityModel>> getHandymanAvailability(
+    String handymanID,
+    DateTime startDate,
+    DateTime endDate,
+  ) async {
+    try {
+      final snap = await db
+          .collection('HandymanAvailability')
+          .where('handymanID', isEqualTo: handymanID)
+          .where('availabilityStartDateTime',
+              isGreaterThanOrEqualTo: Timestamp.fromDate(startDate))
+          .where('availabilityStartDateTime',
+              isLessThan: Timestamp.fromDate(endDate))
+          .orderBy('availabilityStartDateTime')
+          .get();
+
+      if (snap.docs.isEmpty) return [];
+
+      return snap.docs
+          .map((doc) => HandymanAvailabilityModel.fromMap(doc.data()))
+          .toList();
+    } catch (e) {
+      print('Error in getHandymanAvailability: $e');
+      return [];
+    }
+  }
+
+  // Generate availability ID
+  Future<String> generateAvailabilityID() async {
+    final snapshot = await db
+        .collection('HandymanAvailability')
+        .orderBy('availabilityID', descending: true)
+        .limit(1)
+        .get();
+
+    if (snapshot.docs.isEmpty) return 'AV0001';
+
+    final lastID = snapshot.docs.first.data()['availabilityID'] as String;
+    final number = int.parse(lastID.substring(2)) + 1;
+    return 'AV${number.toString().padLeft(4, '0')}';
+  }
+
+  // Add handyman unavailability
+  Future<void> addHandymanUnavailability(
+    String handymanID,
+    DateTime startDateTime,
+    DateTime endDateTime,
+  ) async {
+    try {
+      final availabilityID = await generateAvailabilityID();
+
+      await db.collection('HandymanAvailability').doc(availabilityID).set({
+        'availabilityID': availabilityID,
+        'handymanID': handymanID,
+        'availabilityStartDateTime': Timestamp.fromDate(startDateTime),
+        'availabilityEndDateTime': Timestamp.fromDate(endDateTime),
+        'availabilityCreatedAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      print('Error in addHandymanUnavailability: $e');
+      rethrow;
+    }
+  }
+
+  // Delete handyman unavailability
+  Future<void> deleteHandymanUnavailability(String availabilityID) async {
+    try {
+      await db.collection('HandymanAvailability').doc(availabilityID).delete();
+    } catch (e) {
+      print('Error in deleteHandymanUnavailability: $e');
+      rethrow;
+    }
+  }
 }

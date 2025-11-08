@@ -3,6 +3,7 @@ import '../../controller/employee.dart';
 import '../../shared/dropdownSingleOption.dart';
 import '../../shared/helper.dart';
 import 'editEmployee.dart';
+import 'handymanAvailability.dart';
 
 class EmpEmployeeDetailScreen extends StatefulWidget {
   final Map<String, dynamic> employee;
@@ -27,6 +28,27 @@ class EmpEmployeeDetailScreenState extends State<EmpEmployeeDetailScreen> {
   void initState() {
     super.initState();
     detailsFuture = controller.loadSpecificEmployeeDetails(widget.employee);
+  }
+
+  void onMenuSelection(String value) {
+    if (value == 'update_schedule') {
+      final String handymanID = widget.employee['empID'] as String;
+      final String handymanName = widget.employee['userName'] as String;
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => UpdateHandymanAvailabilityScreen(
+            handymanID: handymanID,
+            handymanName: handymanName,
+            userPicName: widget.employee['userPicName'],
+            controller: controller,
+          ),
+        ),
+      );
+      print(
+        'Navigating to UpdateHandymanAvailabilityScreen: ID=$handymanID, Name=$handymanName',
+      );
+    }
   }
 
   void promptUpdateStatus() {
@@ -205,9 +227,11 @@ class EmpEmployeeDetailScreenState extends State<EmpEmployeeDetailScreen> {
         builder: (context) => EmpEditEmployeeScreen(
           employee: widget.employee,
           onEmployeeUpdated: () {
-            detailsFuture = controller.loadSpecificEmployeeDetails(widget.employee);
+            detailsFuture = controller.loadSpecificEmployeeDetails(
+              widget.employee,
+            );
             setState(() {});
-            widget.onDataChanged(); 
+            widget.onDataChanged();
           },
         ),
       ),
@@ -216,6 +240,51 @@ class EmpEmployeeDetailScreenState extends State<EmpEmployeeDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final bool isHandyman = widget.employee['empType'] == 'handyman';
+    final GlobalKey menuKey = GlobalKey();
+    final Widget menuButton = isHandyman
+        ? IconButton(
+            key: menuKey,
+            icon: const Icon(Icons.more_vert, color: Colors.black),
+            onPressed: () async {
+              final RenderBox button =
+                  menuKey.currentContext!.findRenderObject() as RenderBox;
+              final RenderBox overlay =
+                  Overlay.of(context).context.findRenderObject() as RenderBox;
+              final Offset position = button.localToGlobal(
+                Offset.zero,
+                ancestor: overlay,
+              );
+
+              final Size buttonSize = button.size;
+
+              final result = await showMenu<String>(
+                context: context,
+                position: RelativeRect.fromLTRB(
+                  position.dx,
+                  position.dy + buttonSize.height + 5,
+                  position.dx + buttonSize.width,
+                  position.dy,
+                ),
+                items: const [
+                  PopupMenuItem<String>(
+                    value: 'update_schedule',
+                    child: Text('Update Schedule & Availability'),
+                  ),
+                ],
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                elevation: 8,
+              );
+
+              if (result != null) {
+                onMenuSelection(result);
+              }
+            },
+          )
+        : const SizedBox.shrink();
+
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
@@ -229,14 +298,7 @@ class EmpEmployeeDetailScreenState extends State<EmpEmployeeDetailScreen> {
         ),
         centerTitle: true,
         elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.more_vert, color: Colors.black),
-            onPressed: () {
-              // TODO: Implement menu options if any
-            },
-          ),
-        ],
+        actions: [menuButton],
       ),
       body: FutureBuilder<void>(
         future: detailsFuture,

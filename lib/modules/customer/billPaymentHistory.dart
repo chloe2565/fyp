@@ -26,9 +26,7 @@ class BillPaymentHistoryScreenState extends State<BillPaymentHistoryScreen> {
   double? maxAmount;
   Map<String, String> statusFilter = {};
   Map<String, String> paymentMethodFilter = {};
-
-  int _currentTabIndex = 0;
-
+  
   @override
   void initState() {
     super.initState();
@@ -151,7 +149,6 @@ class BillPaymentHistoryScreenState extends State<BillPaymentHistoryScreen> {
           tabController.addListener(() {
             if (!tabController.indexIsChanging && mounted) {
               setState(() {
-                _currentTabIndex = tabController.index;
               });
             }
           });
