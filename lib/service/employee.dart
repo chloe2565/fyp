@@ -555,11 +555,11 @@ class EmployeeService {
         .limit(1)
         .get();
 
-    if (snapshot.docs.isEmpty) return 'AV0001';
+    if (snapshot.docs.isEmpty) return 'HA0001';
 
     final lastID = snapshot.docs.first.data()['availabilityID'] as String;
     final number = int.parse(lastID.substring(2)) + 1;
-    return 'AV${number.toString().padLeft(4, '0')}';
+    return 'HA${number.toString().padLeft(4, '0')}';
   }
 
   // Add handyman unavailability

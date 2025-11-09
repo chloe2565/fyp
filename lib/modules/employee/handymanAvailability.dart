@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../controller/employee.dart';
+import '../../shared/helper.dart';
 
 class UpdateHandymanAvailabilityScreen extends StatefulWidget {
   final String handymanID;
@@ -27,8 +28,13 @@ class UpdateHandymanAvailabilityScreenState
   DateTime? unavailableFromDate;
   DateTime? unavailableToDate;
   TimeOfDay unavailableFromTime = const TimeOfDay(hour: 9, minute: 30);
-  TimeOfDay unavailableToTime = const TimeOfDay(hour: 12, minute: 30);
+  TimeOfDay unavailableToTime = const TimeOfDay(hour: 19, minute: 30);
   bool isExpanded = false;
+
+  String? fromDateError;
+  String? toDateError;
+  String? fromTimeError;
+  String? toTimeError;
 
   @override
   void initState() {
@@ -36,6 +42,19 @@ class UpdateHandymanAvailabilityScreenState
     selectedWeekStart = getWeekStart(DateTime.now());
     WidgetsBinding.instance.addPostFrameCallback((_) {
       loadAvailability();
+    });
+  }
+
+  void resetInputFields() {
+    setState(() {
+      unavailableFromDate = null;
+      unavailableToDate = null;
+      unavailableFromTime = const TimeOfDay(hour: 9, minute: 30);
+      unavailableToTime = const TimeOfDay(hour: 12, minute: 30);
+      fromDateError = null;
+      toDateError = null;
+      fromTimeError = null;
+      toTimeError = null;
     });
   }
 
@@ -117,11 +136,15 @@ class UpdateHandymanAvailabilityScreenState
   }
 
   Future<void> selectDate(BuildContext context, bool isFrom) async {
+    final initialDate = isFrom
+        ? (unavailableFromDate ?? DateTime.now())
+        : (unavailableToDate ?? DateTime.now().add(const Duration(days: 1)));
+
     final DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: isFrom
-          ? (unavailableFromDate ?? DateTime.now())
-          : (unavailableToDate ?? DateTime.now()),
+      initialDate: initialDate.isBefore(DateTime.now())
+          ? DateTime.now()
+          : initialDate,
       firstDate: DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 365)),
     );
@@ -133,6 +156,7 @@ class UpdateHandymanAvailabilityScreenState
         } else {
           unavailableToDate = picked;
         }
+        validateDateTimeInputs();
       });
     }
   }
@@ -150,15 +174,73 @@ class UpdateHandymanAvailabilityScreenState
         } else {
           unavailableToTime = picked;
         }
+        validateDateTimeInputs();
       });
     }
   }
 
+  void validateDateTimeInputs() {
+    setState(() {
+      fromDateError = Validator.validateSelectedDateTime(
+        unavailableFromDate,
+        unavailableFromTime,
+        'Start Date/Time',
+      );
+      toDateError = Validator.validateSelectedDateTime(
+        unavailableToDate,
+        unavailableToTime,
+        'End Date/Time',
+      );
+      fromTimeError = fromDateError;
+      toTimeError = toDateError;
+
+      if (fromDateError == null && toDateError == null) {
+        final fromDateTime = DateTime(
+          unavailableFromDate!.year,
+          unavailableFromDate!.month,
+          unavailableFromDate!.day,
+          unavailableFromTime.hour,
+          unavailableFromTime.minute,
+        );
+        final toDateTime = DateTime(
+          unavailableToDate!.year,
+          unavailableToDate!.month,
+          unavailableToDate!.day,
+          unavailableToTime.hour,
+          unavailableToTime.minute,
+        );
+
+        final rangeError = Validator.validateDateTimeRange(
+          startDateTime: fromDateTime,
+          endDateTime: toDateTime,
+          fieldName: 'Unavailability period',
+        );
+
+        if (rangeError != null) {
+          fromDateError = rangeError;
+          toDateError = rangeError;
+          fromTimeError = rangeError;
+          toTimeError = rangeError;
+        } else {
+          fromDateError = null;
+          toDateError = null;
+          fromTimeError = null;
+          toTimeError = null;
+        }
+      }
+    });
+  }
+
   Future<void> submitUnavailability() async {
-    if (unavailableFromDate == null || unavailableToDate == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Please select both dates')));
+    validateDateTimeInputs();
+
+    if (fromDateError != null ||
+        toDateError != null ||
+        fromTimeError != null ||
+        toTimeError != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please correct the input errors above.')),
+      );
       return;
     }
 
@@ -178,12 +260,7 @@ class UpdateHandymanAvailabilityScreenState
       unavailableToTime.minute,
     );
 
-    if (toDateTime.isBefore(fromDateTime)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('End date must be after start date')),
-      );
-      return;
-    }
+    showLoadingDialog(context, 'Adding unavailability...');
 
     try {
       await widget.controller.addHandymanUnavailability(
@@ -191,26 +268,28 @@ class UpdateHandymanAvailabilityScreenState
         fromDateTime,
         toDateTime,
       );
-
+      if (mounted) Navigator.of(context).pop();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Unavailability added successfully')),
+        showSuccessDialog(
+          context,
+          title: 'Success!',
+          message: 'Handyman unavailability added successfully.',
+          primaryButtonText: 'OK',
+          onPrimary: () {
+            Navigator.of(context).pop();
+            resetInputFields();
+            loadAvailability();
+          },
         );
-
-        setState(() {
-          unavailableFromDate = null;
-          unavailableToDate = null;
-          unavailableFromTime = const TimeOfDay(hour: 9, minute: 30);
-          unavailableToTime = const TimeOfDay(hour: 12, minute: 30);
-        });
-
-        loadAvailability();
       }
     } catch (e) {
+      if (mounted) Navigator.of(context).pop();
       if (mounted) {
-        ScaffoldMessenger.of(
+        showErrorDialog(
           context,
-        ).showSnackBar(SnackBar(content: Text('Error: $e')));
+          title: 'Error',
+          message: 'Failed to add unavailability.',
+        );
       }
     }
   }
@@ -272,7 +351,7 @@ class UpdateHandymanAvailabilityScreenState
                             color: const Color(0xFFFF8C42),
                             width: 1.5,
                           ),
-                          borderRadius: BorderRadius.circular(25),
+                          borderRadius: BorderRadius.circular(10),
                         ),
                         child: const Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -282,13 +361,6 @@ class UpdateHandymanAvailabilityScreenState
                               style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            Text(
-                              '',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey,
                               ),
                             ),
                           ],
@@ -307,7 +379,7 @@ class UpdateHandymanAvailabilityScreenState
                             color: const Color(0xFFFF8C42),
                             width: 1.5,
                           ),
-                          borderRadius: BorderRadius.circular(25),
+                          borderRadius: BorderRadius.circular(10),
                         ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -317,13 +389,6 @@ class UpdateHandymanAvailabilityScreenState
                               style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            Text(
-                              '${DateFormat('hh:mm a').format(avail.availabilityStartDateTime).toUpperCase()} to ${DateFormat('hh:mm a').format(avail.availabilityEndDateTime).toUpperCase()}',
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: Colors.grey[600],
                               ),
                             ),
                           ],
@@ -344,7 +409,7 @@ class UpdateHandymanAvailabilityScreenState
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios, color: Colors.black, size: 20),
@@ -442,11 +507,7 @@ class UpdateHandymanAvailabilityScreenState
                 // Day Headers
                 LayoutBuilder(
                   builder: (context, constraints) {
-                    final dayHeaderWidth = constraints.maxWidth;
-                    const padding = 20.0;
                     const dayItemWidth = 42.0;
-                    final daySpacing =
-                        (dayHeaderWidth - (7 * dayItemWidth)) / 6;
                     final availableWidth = constraints.maxWidth;
 
                     double calculateOffset(int index) {
@@ -553,6 +614,7 @@ class UpdateHandymanAvailabilityScreenState
 
                 // Date Pickers Row
                 Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
                       child: Column(
@@ -575,7 +637,11 @@ class UpdateHandymanAvailabilityScreenState
                                 vertical: 12,
                               ),
                               decoration: BoxDecoration(
-                                border: Border.all(color: Colors.grey[300]!),
+                                border: Border.all(
+                                  color: fromDateError != null
+                                      ? Theme.of(context).colorScheme.error
+                                      : Colors.grey[300]!,
+                                ),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Row(
@@ -584,9 +650,7 @@ class UpdateHandymanAvailabilityScreenState
                                 children: [
                                   Text(
                                     unavailableFromDate == null
-                                        ? DateFormat(
-                                            'dd MMM yyyy',
-                                          ).format(DateTime.now())
+                                        ? 'Start Date'
                                         : DateFormat(
                                             'dd MMM yyyy',
                                           ).format(unavailableFromDate!),
@@ -606,6 +670,17 @@ class UpdateHandymanAvailabilityScreenState
                               ),
                             ),
                           ),
+                          if (fromDateError != null)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 4.0),
+                              child: Text(
+                                fromDateError!,
+                                style: TextStyle(
+                                  color: Theme.of(context).colorScheme.error,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
                         ],
                       ),
                     ),
@@ -631,7 +706,11 @@ class UpdateHandymanAvailabilityScreenState
                                 vertical: 12,
                               ),
                               decoration: BoxDecoration(
-                                border: Border.all(color: Colors.grey[300]!),
+                                border: Border.all(
+                                  color: toDateError != null
+                                      ? Theme.of(context).colorScheme.error
+                                      : Colors.grey[300]!,
+                                ),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Row(
@@ -640,11 +719,7 @@ class UpdateHandymanAvailabilityScreenState
                                 children: [
                                   Text(
                                     unavailableToDate == null
-                                        ? DateFormat('dd MMM yyyy').format(
-                                            DateTime.now().add(
-                                              const Duration(days: 1),
-                                            ),
-                                          )
+                                        ? 'End Date'
                                         : DateFormat(
                                             'dd MMM yyyy',
                                           ).format(unavailableToDate!),
@@ -664,6 +739,17 @@ class UpdateHandymanAvailabilityScreenState
                               ),
                             ),
                           ),
+                          if (toDateError != null && fromDateError == null)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 4.0),
+                              child: Text(
+                                toDateError!,
+                                style: TextStyle(
+                                  color: Theme.of(context).colorScheme.error,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
                         ],
                       ),
                     ),
@@ -673,6 +759,7 @@ class UpdateHandymanAvailabilityScreenState
 
                 // Time Pickers Row
                 Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
                       child: Column(
@@ -695,7 +782,11 @@ class UpdateHandymanAvailabilityScreenState
                                 vertical: 12,
                               ),
                               decoration: BoxDecoration(
-                                border: Border.all(color: Colors.grey[300]!),
+                                border: Border.all(
+                                  color: fromTimeError != null
+                                      ? Theme.of(context).colorScheme.error
+                                      : Colors.grey[300]!,
+                                ),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Row(
@@ -715,6 +806,17 @@ class UpdateHandymanAvailabilityScreenState
                               ),
                             ),
                           ),
+                          if (fromTimeError != null && fromDateError == null)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 4.0),
+                              child: Text(
+                                fromTimeError!,
+                                style: TextStyle(
+                                  color: Theme.of(context).colorScheme.error,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
                         ],
                       ),
                     ),
@@ -740,7 +842,11 @@ class UpdateHandymanAvailabilityScreenState
                                 vertical: 12,
                               ),
                               decoration: BoxDecoration(
-                                border: Border.all(color: Colors.grey[300]!),
+                                border: Border.all(
+                                  color: toTimeError != null
+                                      ? Theme.of(context).colorScheme.error
+                                      : Colors.grey[300]!,
+                                ),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Row(
@@ -760,6 +866,19 @@ class UpdateHandymanAvailabilityScreenState
                               ),
                             ),
                           ),
+                          if (toTimeError != null &&
+                              fromDateError == null &&
+                              toDateError == null)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 4.0),
+                              child: Text(
+                                toTimeError!,
+                                style: TextStyle(
+                                  color: Theme.of(context).colorScheme.error,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
                         ],
                       ),
                     ),
@@ -774,7 +893,9 @@ class UpdateHandymanAvailabilityScreenState
                       child: ElevatedButton(
                         onPressed: submitUnavailability,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFFF8C42),
+                          backgroundColor: Theme.of(
+                            context,
+                          ).colorScheme.primary,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 15),
                           shape: RoundedRectangleBorder(
@@ -794,22 +915,11 @@ class UpdateHandymanAvailabilityScreenState
                     const SizedBox(width: 16),
                     Expanded(
                       child: ElevatedButton(
-                        onPressed: () {
-                          setState(() {
-                            unavailableFromDate = null;
-                            unavailableToDate = null;
-                            unavailableFromTime = const TimeOfDay(
-                              hour: 9,
-                              minute: 30,
-                            );
-                            unavailableToTime = const TimeOfDay(
-                              hour: 12,
-                              minute: 30,
-                            );
-                          });
-                        },
+                        onPressed: resetInputFields,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.grey[400],
+                          backgroundColor: Theme.of(
+                            context,
+                          ).colorScheme.secondary,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 15),
                           shape: RoundedRectangleBorder(
@@ -818,7 +928,7 @@ class UpdateHandymanAvailabilityScreenState
                           elevation: 0,
                         ),
                         child: const Text(
-                          'Cancel',
+                          'Reset',
                           style: TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w600,

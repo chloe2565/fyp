@@ -180,7 +180,9 @@ class Validator {
     }
 
     // Validate start date
-    if (startDate != null && !allowFutureDates) {
+    if (startDate == null) {
+      startError = 'Date is required';
+    } else if (!allowFutureDates) {
       final today = DateUtils.dateOnly(DateTime.now());
       final start = DateUtils.dateOnly(startDate);
       if (start.isAfter(today)) {
@@ -189,14 +191,16 @@ class Validator {
     }
 
     // Validate end date
-    if (endDate != null && !allowFutureDates) {
+    if (endDate == null) {
+      endError = 'Date is required';
+    } else if (!allowFutureDates) {
       final today = DateUtils.dateOnly(DateTime.now());
       final end = DateUtils.dateOnly(endDate);
       if (end.isAfter(today)) {
         endError = 'End date cannot be in the future';
       }
     }
-
+    
     // End date cannot be earlier than start date
     if (startDate != null && endDate != null) {
       final start = DateUtils.dateOnly(startDate);
@@ -245,6 +249,30 @@ class Validator {
       if (min != null && max < min) return 'Max cannot be less than min';
     }
     
+    return null;
+  }
+
+  static String? validateDateTimeRange({
+    required DateTime startDateTime,
+    required DateTime endDateTime,
+    required String fieldName,
+  }) {
+    if (endDateTime.isBefore(startDateTime)) {
+      return 'End must be after start';
+    }
+
+    const minDuration = Duration(minutes: 5);
+    if (endDateTime.difference(startDateTime).isNegative || 
+        endDateTime.difference(startDateTime) < minDuration) {
+        return 'Unavailable period must be at least ${minDuration.inMinutes} minutes.';
+    }
+    return null;
+  }
+  
+  static String? validateSelectedDateTime(DateTime? dateTime, TimeOfDay? timeOfDay, String fieldName) {
+    if (dateTime == null || timeOfDay == null) {
+      return '$fieldName is required';
+    }
     return null;
   }
 }
