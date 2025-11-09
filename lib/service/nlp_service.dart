@@ -4,7 +4,7 @@ import 'package:http/http.dart' as http;
 class NLPService {
   static const String baseUrl = 'https://fyp-nlp-letu.onrender.com';
 
-  // Extract keywords from a service request description
+  // Extract keyword from service request description
   static Future<KeywordAnalysis?> extractKeywords(
     String reqID,
     String description,
@@ -29,7 +29,7 @@ class NLPService {
     }
   }
 
-  // Get comprehensive analysis of a description
+  // Analyze description
   static Future<ComprehensiveAnalysis?> analyzeDescription(
     String description,
   ) async {

@@ -192,7 +192,7 @@ class EmpRequestDetailScreenState extends State<EmpRequestDetailScreen> {
                 ),
               ],
             ),
-            Divider(height: 24, color: Colors.grey[400],),
+            Divider(height: 24, color: Colors.grey[400]),
 
             // Urgency Badge
             Row(
@@ -230,19 +230,10 @@ class EmpRequestDetailScreenState extends State<EmpRequestDetailScreen> {
                 style: TextStyle(fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 8),
-              ...(nlpAnalysis!.recommendations.map(
-                (rec) => Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Text(rec, style: const TextStyle(fontSize: 13)),
-                      ),
-                    ],
-                  ),
-                ),
-              )),
+              Text(
+                nlpAnalysis!.recommendations.map((r) => '• $r').join('\n'),
+                style: const TextStyle(fontSize: 13, height: 1.4),
+              ),
             ],
 
             // Complexity
