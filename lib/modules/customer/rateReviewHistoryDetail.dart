@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:fyp/service/image_service.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../controller/ratingReview.dart';
@@ -66,7 +67,7 @@ class RateReviewHistoryDetailScreenState
               onPrimary: () {
                 Navigator.of(context)
                   ..pop() // Close success dialog
-                  ..pop(true); // Pop back 
+                  ..pop(true); // Pop back
               },
             );
           } else if (context.mounted) {
@@ -368,8 +369,7 @@ class RateReviewHistoryDetailScreenState
         mainAxisSpacing: 8,
       ),
       itemBuilder: (context, index) {
-        final String picName = photos[index];
-        final String assetPath = '$basePath/${picName.trim().toLowerCase()}';
+        final String photoUrl = photos[index];
 
         return GestureDetector(
           onTap: () {
@@ -379,20 +379,22 @@ class RateReviewHistoryDetailScreenState
                 builder: (context) => FullScreenGalleryViewer(
                   imagePaths: photos,
                   initialIndex: index,
-                  basePath: basePath,
                 ),
               ),
             );
           },
           child: ClipRRect(
             borderRadius: BorderRadius.circular(8),
-            child: Image.asset(
-              assetPath,
+            child: Image(
+              image: photoUrl.getImageProvider(),
               fit: BoxFit.cover,
               errorBuilder: (context, error, stackTrace) {
                 return Container(
                   color: Colors.grey[200],
-                  child: const Icon(Icons.broken_image, color: Colors.grey),
+                  child: Image(
+                    image: NetworkImage(FirebaseImageService.placeholderUrl),
+                    fit: BoxFit.cover,
+                  ),
                 );
               },
             ),

@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import '../../controller/service.dart';
 import '../../model/databaseModel.dart';
+import '../../service/image_service.dart';
 import '../../service/servicePicture.dart';
 import '../../shared/dropdownMultiOption.dart';
 import '../../shared/dropdownSingleOption.dart';
@@ -40,7 +41,8 @@ class EmpModifyServiceScreenState extends State<EmpModifyServiceScreen> {
   final List<File> selectedImages = [];
   final ImagePicker picker = ImagePicker();
   List<ServicePictureModel> existingPictures = [];
-  List<String> removedPicNames = [];
+  List<String> removedPicUrls =
+      []; // Changed from removedPicNames to removedPicUrls
   late Future<Map<String, String>> handymenFuture;
   Map<String, String> allHandymenMap = {};
   Map<String, String> selectedHandymen = {};
@@ -121,10 +123,10 @@ class EmpModifyServiceScreenState extends State<EmpModifyServiceScreen> {
     });
   }
 
-  void removeExistingImage(String picName) {
+  void removeExistingImage(String picUrl) {
     setState(() {
-      existingPictures.removeWhere((pic) => pic.picName == picName);
-      removedPicNames.add(picName);
+      existingPictures.removeWhere((pic) => pic.picName == picUrl);
+      removedPicUrls.add(picUrl);
     });
   }
 
@@ -157,7 +159,8 @@ class EmpModifyServiceScreenState extends State<EmpModifyServiceScreen> {
       return;
     }
 
-    showLoadingDialog(context, 'Updating service…');
+    setState(() => isLoading = true);
+    showLoadingDialog(context, 'Updating service and images…');
 
     try {
       final service = ServiceModel(
@@ -179,7 +182,7 @@ class EmpModifyServiceScreenState extends State<EmpModifyServiceScreen> {
         service,
         handymanIDs,
         selectedImages,
-        removedPicNames: removedPicNames,
+        removedPicUrls: removedPicUrls,
       );
 
       if (!mounted) return;
@@ -201,6 +204,10 @@ class EmpModifyServiceScreenState extends State<EmpModifyServiceScreen> {
       if (!mounted) return;
       Navigator.of(context).pop(); // close loading
       showErrorDialog(context, title: 'Update Failed', message: e.toString());
+    } finally {
+      if (mounted) {
+        setState(() => isLoading = false);
+      }
     }
   }
 
@@ -229,7 +236,6 @@ class EmpModifyServiceScreenState extends State<EmpModifyServiceScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // ----- Service ID -----
                     buildLabel('Service ID'),
                     buildTextFormField(
                       controller: serviceIDController,
@@ -238,7 +244,6 @@ class EmpModifyServiceScreenState extends State<EmpModifyServiceScreen> {
                     ),
                     const SizedBox(height: 16),
 
-                    // ----- Service Name -----
                     buildLabel('Service Name'),
                     buildTextFormField(
                       controller: serviceNameController,
@@ -247,7 +252,6 @@ class EmpModifyServiceScreenState extends State<EmpModifyServiceScreen> {
                     ),
                     const SizedBox(height: 16),
 
-                    // ----- Photos Section -----
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -263,7 +267,6 @@ class EmpModifyServiceScreenState extends State<EmpModifyServiceScreen> {
                     buildPhotoPreview(),
                     const SizedBox(height: 16),
 
-                    // ----- Duration -----
                     const Text(
                       'Service Duration (hours)',
                       style: TextStyle(color: Colors.grey, fontSize: 12),
@@ -301,7 +304,6 @@ class EmpModifyServiceScreenState extends State<EmpModifyServiceScreen> {
                     ),
                     const SizedBox(height: 16),
 
-                    // ----- Price -----
                     buildLabel('Service Price (RM / hour)'),
                     buildTextFormField(
                       controller: priceController,
@@ -312,7 +314,6 @@ class EmpModifyServiceScreenState extends State<EmpModifyServiceScreen> {
                     ),
                     const SizedBox(height: 16),
 
-                    // ----- Description -----
                     buildLabel('Description'),
                     buildTextFormField(
                       controller: descriptionController,
@@ -322,7 +323,6 @@ class EmpModifyServiceScreenState extends State<EmpModifyServiceScreen> {
                     ),
                     const SizedBox(height: 16),
 
-                    // ----- Status -----
                     buildLabel('Service Status'),
                     CustomDropdownSingle(
                       value: serviceStatus,
@@ -336,7 +336,6 @@ class EmpModifyServiceScreenState extends State<EmpModifyServiceScreen> {
                     ),
                     const SizedBox(height: 16),
 
-                    // ----- Created At -----
                     buildLabel('Service Created At'),
                     buildTextFormField(
                       controller: createdAtController,
@@ -345,7 +344,6 @@ class EmpModifyServiceScreenState extends State<EmpModifyServiceScreen> {
                     ),
                     const SizedBox(height: 16),
 
-                    // ----- Handyman -----
                     buildLabel('Handyman Assigned'),
                     FutureBuilder<Map<String, String>>(
                       future: handymenFuture,
@@ -360,7 +358,9 @@ class EmpModifyServiceScreenState extends State<EmpModifyServiceScreen> {
                         if (snapshot.hasError || !snapshot.hasData) {
                           return Text(
                             'Failed to load handymen',
-                            style: TextStyle(color: Theme.of(context).colorScheme.error),
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.error,
+                            ),
                           );
                         }
                         return CustomDropdownMulti(
@@ -378,7 +378,6 @@ class EmpModifyServiceScreenState extends State<EmpModifyServiceScreen> {
                     ),
                     const SizedBox(height: 32),
 
-                    // ----- Submit / Cancel -----
                     Row(
                       children: [
                         Expanded(
@@ -445,7 +444,7 @@ class EmpModifyServiceScreenState extends State<EmpModifyServiceScreen> {
 
   Widget buildPhotoUploader() {
     return OutlinedButton.icon(
-      onPressed: pickImage,
+      onPressed: isLoading ? null : pickImage,
       icon: const Icon(Icons.upload_file_outlined, size: 18),
       label: const Text('Upload photos'),
       style: OutlinedButton.styleFrom(
@@ -517,7 +516,7 @@ class EmpModifyServiceScreenState extends State<EmpModifyServiceScreen> {
   Widget buildPhotoPreview() {
     final allImages = [
       ...existingPictures.map(
-        (pic) => {'type': 'existing', 'picName': pic.picName},
+        (pic) => {'type': 'existing', 'picUrl': pic.picName},
       ),
       ...selectedImages.asMap().entries.map(
         (e) => {'type': 'new', 'index': e.key, 'file': e.value},
@@ -531,31 +530,22 @@ class EmpModifyServiceScreenState extends State<EmpModifyServiceScreen> {
       runSpacing: 8,
       children: allImages.map((item) {
         if (item['type'] == 'existing') {
-          final picName = item['picName'] as String;
+          final picUrl = item['picUrl'] as String;
           return Stack(
             children: [
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
-                child: Image.asset(
-                  'assets/services/$picName',
+                child: picUrl.toNetworkImage(
                   width: 80,
                   height: 80,
                   fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      width: 80,
-                      height: 80,
-                      color: Colors.grey.shade200,
-                      child: const Icon(Icons.broken_image, color: Colors.grey),
-                    );
-                  },
                 ),
               ),
               Positioned(
                 top: 0,
                 right: 0,
                 child: GestureDetector(
-                  onTap: () => removeExistingImage(picName),
+                  onTap: () => removeExistingImage(picUrl),
                   child: Container(
                     decoration: const BoxDecoration(
                       color: Colors.red,

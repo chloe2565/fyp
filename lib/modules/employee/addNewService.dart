@@ -145,7 +145,8 @@ class EmpAddServiceScreenState extends State<EmpAddServiceScreen> {
       return;
     }
 
-    showLoadingDialog(context, 'Adding service…');
+    setState(() => isLoading = true);
+    showLoadingDialog(context, 'Adding service and uploading images…');
 
     try {
       final service = ServiceModel(
@@ -164,8 +165,9 @@ class EmpAddServiceScreenState extends State<EmpAddServiceScreen> {
       final handymanIDs = selectedHandymen.keys.toList();
 
       await controller.addNewService(service, handymanIDs, selectedImages);
+      
       if (!mounted) return;
-      Navigator.of(context).pop();
+      Navigator.of(context).pop(); // close loading
 
       showSuccessDialog(
         context,
@@ -188,6 +190,10 @@ class EmpAddServiceScreenState extends State<EmpAddServiceScreen> {
         title: 'Failed to Add Service',
         message: e.toString(),
       );
+    } finally {
+      if (mounted) {
+        setState(() => isLoading = false);
+      }
     }
   }
 
@@ -225,7 +231,6 @@ class EmpAddServiceScreenState extends State<EmpAddServiceScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // ----- Service ID -----
                     buildLabel('Service ID'),
                     buildTextFormField(
                       controller: serviceIDController,
@@ -234,7 +239,6 @@ class EmpAddServiceScreenState extends State<EmpAddServiceScreen> {
                     ),
                     const SizedBox(height: 16),
 
-                    // ----- Service Name -----
                     buildLabel('Service Name'),
                     buildTextFormField(
                       controller: serviceNameController,
@@ -243,7 +247,6 @@ class EmpAddServiceScreenState extends State<EmpAddServiceScreen> {
                     ),
                     const SizedBox(height: 16),
 
-                    // ----- Photos Section -----
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -277,14 +280,7 @@ class EmpAddServiceScreenState extends State<EmpAddServiceScreen> {
                                 top: 0,
                                 right: 0,
                                 child: GestureDetector(
-                                  onTap: () {
-                                    setState(() {
-                                      selectedImages.removeAt(i);
-                                      errorMessage = Validator.validatePhoto(
-                                        selectedImages,
-                                      );
-                                    });
-                                  },
+                                  onTap: () => removeImage(i),
                                   child: Container(
                                     decoration: const BoxDecoration(
                                       color: Colors.red,
@@ -315,7 +311,6 @@ class EmpAddServiceScreenState extends State<EmpAddServiceScreen> {
                       ),
                     const SizedBox(height: 16),
 
-                    // ----- Duration -----
                     const Text(
                       'Service Duration (Hours)',
                       style: TextStyle(color: Colors.grey, fontSize: 14),
@@ -353,7 +348,6 @@ class EmpAddServiceScreenState extends State<EmpAddServiceScreen> {
                     ),
                     const SizedBox(height: 16),
 
-                    // ----- Price -----
                     buildLabel('Service Price (RM / hour)'),
                     buildTextFormField(
                       controller: priceController,
@@ -364,7 +358,6 @@ class EmpAddServiceScreenState extends State<EmpAddServiceScreen> {
                     ),
                     const SizedBox(height: 16),
 
-                    // ----- Description -----
                     buildLabel('Description'),
                     buildTextFormField(
                       controller: descriptionController,
@@ -374,7 +367,6 @@ class EmpAddServiceScreenState extends State<EmpAddServiceScreen> {
                     ),
                     const SizedBox(height: 16),
 
-                    // ----- Status -----
                     buildLabel('Service Status'),
                     CustomDropdownSingle(
                       value: serviceStatus,
@@ -394,7 +386,6 @@ class EmpAddServiceScreenState extends State<EmpAddServiceScreen> {
                     ),
                     const SizedBox(height: 16),
 
-                    // ----- Created At -----
                     buildLabel('Service Created At'),
                     buildTextFormField(
                       controller: createdAtController,
@@ -403,7 +394,6 @@ class EmpAddServiceScreenState extends State<EmpAddServiceScreen> {
                     ),
                     const SizedBox(height: 16),
 
-                    // ----- Handyman -----
                     buildLabel('Handyman Assigned'),
                     CustomDropdownMulti(
                       key: handymanDropdownKey,
@@ -427,7 +417,6 @@ class EmpAddServiceScreenState extends State<EmpAddServiceScreen> {
                     ),
                     const SizedBox(height: 32),
 
-                    // ----- Submit / Cancel -----
                     Row(
                       children: [
                         Expanded(
@@ -495,7 +484,7 @@ class EmpAddServiceScreenState extends State<EmpAddServiceScreen> {
 
   Widget buildPhotoUploader() {
     return OutlinedButton.icon(
-      onPressed: pickImage,
+      onPressed: isLoading ? null : pickImage,
       icon: const Icon(Icons.upload_file_outlined, size: 18),
       label: const Text('Upload photo'),
       style: OutlinedButton.styleFrom(

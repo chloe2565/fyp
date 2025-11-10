@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:fyp/service/image_service.dart';
 import 'package:intl/intl.dart';
 import '../controller/ratingReview.dart';
 import '../model/databaseModel.dart';
@@ -798,14 +799,10 @@ Widget buildStyledChip(String text) {
 Widget buildReviewTile(ReviewDisplayData reviewData) {
   final review = reviewData.review;
   final authorName = reviewData.authorName;
-  final String avatarAssetPath = reviewData.avatarPath.isNotEmpty
-      ? 'assets/images/${reviewData.avatarPath}'
-      : 'assets/images/profile.jpg';
-
   final String formattedDate = DateFormat(
     'dd MMM yyyy',
   ).format(review.ratingCreatedAt);
-
+  
   return Padding(
     padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
     child: Row(
@@ -813,14 +810,19 @@ Widget buildReviewTile(ReviewDisplayData reviewData) {
       children: [
         CircleAvatar(
           radius: 24,
-          backgroundImage: AssetImage(avatarAssetPath),
           backgroundColor: Colors.grey.shade200,
-          onBackgroundImageError: (exception, stackTrace) {
-            print('Error loading avatar: $avatarAssetPath');
-          },
-          child: reviewData.avatarPath.isEmpty
-              ? const Icon(Icons.person, color: Colors.white)
-              : null,
+          child: ClipOval(
+            child: reviewData.avatarPath.toNetworkImage(
+              width: 48,
+              height: 48,
+              fit: BoxFit.cover,
+              errorWidget: const Icon(
+                Icons.person,
+                color: Colors.white,
+                size: 30,
+              ),
+            ),
+          ),
         ),
         const SizedBox(width: 16),
         Expanded(

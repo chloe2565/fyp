@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../controller/user.dart';
+import '../../service/image_service.dart';
 import '../../shared/helper.dart';
 
 enum Gender { male, female }
@@ -49,6 +50,7 @@ class EditProfileScreenState extends State<EditProfileScreen>
 
   late UserController userController;
   final ImagePicker picker = ImagePicker();
+  String? uploadedImageUrl;
   File? newProfileImage;
   String? currentProfilePicName;
 
@@ -236,11 +238,6 @@ class EditProfileScreenState extends State<EditProfileScreen>
     if (formKey.currentState!.validate()) {
       showLoadingDialog(context, 'Updating profile...');
 
-      String? newPicName;
-      if (newProfileImage != null) {
-        newPicName = newProfileImage!.path.split('/').last;
-      }
-
       try {
         await userController.updateProfile(
           userID: widget.userID,
@@ -248,7 +245,8 @@ class EditProfileScreenState extends State<EditProfileScreen>
           email: emailController.text.trim().toLowerCase(),
           gender: genderItem == Gender.male ? 'M' : 'F',
           contact: phoneController.text.trim(),
-          newPicName: newPicName,
+          newImageFile: newProfileImage,
+          oldImageUrl: currentProfilePicName,
           setState: setState,
           context: context,
           userType: 'customer',
@@ -321,17 +319,9 @@ class EditProfileScreenState extends State<EditProfileScreen>
                     children: [
                       CircleAvatar(
                         radius: 55,
-                        backgroundImage:
-                            (newProfileImage != null
-                                    ? FileImage(newProfileImage!)
-                                    : (currentProfilePicName != null
-                                          ? AssetImage(
-                                              'assets/images/$currentProfilePicName',
-                                            )
-                                          : const AssetImage(
-                                              'assets/images/profile.jpg',
-                                            )))
-                                as ImageProvider,
+                        backgroundImage: newProfileImage != null
+                            ? FileImage(newProfileImage!) as ImageProvider
+                            : currentProfilePicName.getImageProvider(),
                       ),
                       Positioned(
                         bottom: 0,

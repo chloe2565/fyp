@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import '../../controller/ratingReview.dart';
 import '../../model/databaseModel.dart';
 import '../../service/user.dart';
+import '../../service/image_service.dart';
 import '../../shared/fullScreenImage.dart';
 import '../../shared/helper.dart';
 
@@ -33,7 +34,6 @@ class EmpRatingReviewDetailScreenState
   late RatingReviewModel review;
   late ServiceRequestModel request;
   late List<String> imagePaths;
-  final String imageBasePath = 'assets/reviews';
 
   static final dateTimeFormat = DateFormat('yyyy-MM-dd HH:mm:ss');
 
@@ -71,7 +71,6 @@ class EmpRatingReviewDetailScreenState
         builder: (context) => FullScreenGalleryViewer(
           imagePaths: imagePaths,
           initialIndex: index,
-          basePath: imageBasePath,
         ),
       ),
     );
@@ -503,29 +502,18 @@ class EmpRatingReviewDetailScreenState
         scrollDirection: Axis.horizontal,
         itemCount: imagePaths.length,
         itemBuilder: (context, index) {
-          final String assetPath = '$imageBasePath/${imagePaths[index]}';
+          final imageUrl = imagePaths[index];
+
           return Padding(
             padding: const EdgeInsets.only(right: 8.0),
             child: GestureDetector(
               onTap: () => openGallery(context, index),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(8.0),
-                child: Image.asset(
-                  assetPath,
+                child: imageUrl.toNetworkImage(
                   width: 100,
                   height: 100,
                   fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      width: 100,
-                      height: 100,
-                      color: Colors.grey.shade200,
-                      child: Icon(
-                        Icons.broken_image,
-                        color: Colors.grey.shade400,
-                      ),
-                    );
-                  },
                 ),
               ),
             ),

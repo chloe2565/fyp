@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:fyp/service/image_service.dart';
 import '../../controller/user.dart';
 import '../../controller/employee.dart';
 import '../../shared/helper.dart';
@@ -74,12 +75,7 @@ class EmpProfileScreenState extends State<EmpProfileScreen> {
                 Center(
                   child: CircleAvatar(
                     radius: 55,
-                    backgroundImage:
-                        (user.userPicName != null &&
-                            user.userPicName!.isNotEmpty)
-                        ? AssetImage('assets/images/${user.userPicName}')
-                        : const AssetImage('assets/images/profile.jpg')
-                              as ImageProvider,
+                    backgroundImage: user.userPicName.getImageProvider(),
                   ),
                 ),
                 const SizedBox(height: 30),

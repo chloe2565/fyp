@@ -5,6 +5,7 @@ import '../model/databaseModel.dart';
 import '../model/rateReviewHistoryDetailViewModel.dart';
 import '../shared/helper.dart';
 import 'employee.dart';
+import 'image_service.dart';
 import 'reviewReply.dart';
 import 'user.dart';
 import 'serviceRequest.dart';
@@ -17,6 +18,7 @@ class RatingReviewService {
   final ServiceRequestService serviceRequestService = ServiceRequestService();
   final EmployeeService employeeService = EmployeeService();
   final ReviewReplyService replyService = ReviewReplyService();
+  final FirebaseImageService imageService = FirebaseImageService();
 
   // Customer side
   Future<Map<String, List<Map<String, dynamic>>>>
@@ -321,7 +323,16 @@ class RatingReviewService {
     required String text,
     required List<File> newImages,
   }) async {
-    final photoNames = newImages.map((f) => p.basename(f.path)).toList();
+    List<String> photoUrls = [];
+
+    if (newImages.isNotEmpty) {
+      final uploadedUrls = await imageService.uploadMultipleImages(
+        imageFiles: newImages,
+        category: ImageCategory.reviews,
+        uniqueId: reqID,
+      );
+      photoUrls = uploadedUrls.whereType<String>().toList();
+    }
 
     final newRateID = await generateNextID();
     final newReview = RatingReviewModel(
@@ -329,7 +340,7 @@ class RatingReviewService {
       ratingCreatedAt: DateTime.now(),
       ratingNum: rating,
       ratingText: text,
-      ratingPicName: photoNames,
+      ratingPicName: photoUrls,
       reqID: reqID,
       updatedAt: null,
     );
@@ -341,12 +352,32 @@ class RatingReviewService {
     required String rateID,
     required double rating,
     required String text,
-    required List<String> finalPhotoList,
+    required List<String> existingPhotoUrls,
+    required List<File> newImages,
+    required List<String> deletedPhotoUrls,
   }) async {
+    if (deletedPhotoUrls.isNotEmpty) {
+      await imageService.deleteMultipleImages(deletedPhotoUrls);
+    }
+
+    // Upload new images to Firebase Storage
+    List<String> newPhotoUrls = [];
+    if (newImages.isNotEmpty) {
+      final uploadedUrls = await imageService.uploadMultipleImages(
+        imageFiles: newImages,
+        category: ImageCategory.reviews,
+        uniqueId: rateID,
+      );
+
+      newPhotoUrls = uploadedUrls.whereType<String>().toList();
+    }
+
+    final allPhotoUrls = [...existingPhotoUrls, ...newPhotoUrls];
+
     await ratingReviewCollection.doc(rateID).update({
       'ratingNum': rating,
       'ratingText': text,
-      'ratingPicName': finalPhotoList,
+      'ratingPicName': allPhotoUrls,
       'updatedAt': Timestamp.now(),
     });
   }
@@ -359,6 +390,14 @@ class RatingReviewService {
 
     if (query.docs.isEmpty) {
       throw Exception("Review not found for deletion.");
+    }
+
+    final docData = query.docs.first.data() as Map<String, dynamic>;
+    final review = RatingReviewModel.fromMap(docData);
+
+    // Delete all photos from Firebase Storage
+    if (review.ratingPicName != null && review.ratingPicName!.isNotEmpty) {
+      await imageService.deleteMultipleImages(review.ratingPicName!);
     }
 
     final docId = query.docs.first.id;

@@ -389,25 +389,28 @@ class ServiceService {
   Future<void> addNewService(
     ServiceModel service,
     List<String> handymanIDs,
-    List<String> photoFileNames,
+    List<String> imageUrls, // Changed from photoFileNames to imageUrls
   ) async {
     final WriteBatch batch = db.batch();
     final serviceRef = servicesCollection.doc(service.serviceID);
     batch.set(serviceRef, service.toMap());
+
     await handymanServiceService.addHandymanToService(
       service.serviceID,
       handymanIDs,
     );
 
     await batch.commit();
-    if (photoFileNames.isNotEmpty) {
+
+    // Store Firebase Storage URLs in ServicePicture collection
+    if (imageUrls.isNotEmpty) {
       await Future.wait(
-        photoFileNames.asMap().entries.map((entry) {
+        imageUrls.asMap().entries.map((entry) {
           final index = entry.key;
-          final fileName = entry.value;
+          final url = entry.value;
           return servicePictureService.addNewPicture(
             service.serviceID,
-            fileName,
+            url, // This is now a Firebase Storage URL
             index == 0,
           );
         }),
@@ -593,8 +596,8 @@ class ServiceService {
   Future<void> updateService(
     ServiceModel service,
     List<String> handymanIDs,
-    List<String> newPhotoNames, {
-    List<String> removedPicNames = const [],
+    List<String> newImageUrls, {
+    List<String> removedPicUrls = const [],
   }) async {
     final WriteBatch batch = db.batch();
 
@@ -620,13 +623,14 @@ class ServiceService {
 
     await batch.commit();
 
-    if (removedPicNames.isNotEmpty) {
+    // Delete removed images
+    if (removedPicUrls.isNotEmpty) {
       await Future.wait(
-        removedPicNames.map((picName) async {
+        removedPicUrls.map((picUrl) async {
           final picQuery = await db
               .collection('ServicePicture')
               .where('serviceID', isEqualTo: service.serviceID)
-              .where('picName', isEqualTo: picName)
+              .where('picName', isEqualTo: picUrl)
               .get();
           for (var doc in picQuery.docs) {
             await doc.reference.delete();
@@ -635,14 +639,15 @@ class ServiceService {
       );
     }
 
-    if (newPhotoNames.isNotEmpty) {
+    // Add new images
+    if (newImageUrls.isNotEmpty) {
       await Future.wait(
-        newPhotoNames.asMap().entries.map((entry) {
+        newImageUrls.asMap().entries.map((entry) {
           final index = entry.key;
-          final fileName = entry.value;
+          final url = entry.value;
           return servicePictureService.addNewPicture(
             service.serviceID,
-            fileName,
+            url,
             index == 0,
           );
         }),

@@ -1,14 +1,15 @@
 import 'dart:io';
-
 import '../model/reviewDisplayViewModel.dart' show ReviewDisplayData;
 import '../service/service.dart';
 import '../model/databaseModel.dart';
 import '../service/ratingReview.dart';
 import '../service/servicePicture.dart';
+import '../service/image_service.dart';
 
 class ServiceController {
   final RatingReviewService ratingReviewService = RatingReviewService();
   final ServicePictureService pictureService = ServicePictureService();
+  final FirebaseImageService imageService = FirebaseImageService();
   late final ServiceService serviceService;
 
   List<ServiceModel> allServicesData = [];
@@ -107,23 +108,35 @@ class ServiceController {
     List<File> photos,
   ) async {
     try {
-      final List<String> photoFileNames = [];
+      final List<String> uploadedUrls = [];
 
+      // Upload images to Firebase Storage
       if (photos.isNotEmpty) {
-        final copyFutures = photos.asMap().entries.map((entry) async {
-          final i = entry.key;
-          final photo = entry.value;
-          final String extension = photo.path.split('.').last;
-          final String newName =
-              '${service.serviceID}_${DateTime.now().millisecondsSinceEpoch}_$i.$extension';
-          return newName;
-        });
+        print('Uploading ${photos.length} images to Firebase Storage...');
+        for (int i = 0; i < photos.length; i++) {
+          final photo = photos[i];
+          final String? url = await imageService.uploadImage(
+            imageFile: photo,
+            category: ImageCategory.services,
+            uniqueId: service.serviceID,
+          );
 
-        photoFileNames.addAll(await Future.wait(copyFutures));
-        print('Images copied locally: $photoFileNames');
+          if (url != null) {
+            uploadedUrls.add(url);
+            print('Image ${i + 1} uploaded successfully');
+          } else {
+            print('Failed to upload image ${i + 1}');
+          }
+        }
       }
 
-      await serviceService.addNewService(service, handymanIDs, photoFileNames);
+      if (uploadedUrls.isEmpty && photos.isNotEmpty) {
+        throw Exception('Failed to upload any images');
+      }
+
+      // Save service with Firebase Storage URLs
+      await serviceService.addNewService(service, handymanIDs, uploadedUrls);
+      print('Service added with ${uploadedUrls.length} images');
     } catch (e) {
       print('Error in Controller addNewService: $e');
       rethrow;
@@ -138,25 +151,49 @@ class ServiceController {
     ServiceModel service,
     List<String> handymanIDs,
     List<File> newPhotos, {
-    List<String> removedPicNames = const [],
+    List<String> removedPicUrls = const [],
   }) async {
     try {
-      List<String> newPhotoNames = [];
-      for (var i = 0; i < newPhotos.length; i++) {
-        final photo = newPhotos[i];
-        final String extension = photo.path.split('.').last;
-        final String newName =
-            '${service.serviceID}_${DateTime.now().millisecondsSinceEpoch}_$i.$extension';
-        newPhotoNames.add(newName);
-      }
-      print('Simulating upload for new photos: $newPhotoNames');
+      final List<String> uploadedUrls = [];
 
+      // Upload new images to Firebase Storage
+      if (newPhotos.isNotEmpty) {
+        print(
+          'Uploading ${newPhotos.length} new images to Firebase Storage...',
+        );
+        for (int i = 0; i < newPhotos.length; i++) {
+          final photo = newPhotos[i];
+          final String? url = await imageService.uploadImage(
+            imageFile: photo,
+            category: ImageCategory.services,
+            uniqueId: service.serviceID,
+          );
+
+          if (url != null) {
+            uploadedUrls.add(url);
+            print('New image ${i + 1} uploaded successfully');
+          } else {
+            print('Failed to upload new image ${i + 1}');
+          }
+        }
+      }
+
+      // Delete removed images from Firebase Storage
+      if (removedPicUrls.isNotEmpty) {
+        print(
+          'Deleting ${removedPicUrls.length} images from Firebase Storage...',
+        );
+        await imageService.deleteMultipleImages(removedPicUrls);
+      }
+
+      // Update service
       await serviceService.updateService(
         service,
         handymanIDs,
-        newPhotoNames,
-        removedPicNames: removedPicNames,
+        uploadedUrls,
+        removedPicUrls: removedPicUrls,
       );
+      print('Service updated with ${uploadedUrls.length} new images');
     } catch (e) {
       print('Error in Controller updateService: $e');
       rethrow;

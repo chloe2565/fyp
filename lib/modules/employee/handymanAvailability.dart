@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../controller/employee.dart';
 import '../../shared/helper.dart';
+import '../../service/image_service.dart';
 
 class UpdateHandymanAvailabilityScreen extends StatefulWidget {
   final String handymanID;
@@ -294,13 +295,6 @@ class UpdateHandymanAvailabilityScreenState
     }
   }
 
-  ImageProvider getAvatarImage() {
-    if (widget.userPicName != null && widget.userPicName!.isNotEmpty) {
-      return AssetImage('assets/images/${widget.userPicName!}');
-    }
-    return const AssetImage('assets/images/profile.jpg');
-  }
-
   Widget buildDayRow(int index, DateTime date) {
     final unavailabilities = widget.controller.getUnavailabilitiesForDate(date);
     final dayName = getDayName(index);
@@ -442,7 +436,7 @@ class UpdateHandymanAvailabilityScreenState
                   children: [
                     CircleAvatar(
                       radius: 26,
-                      backgroundImage: getAvatarImage(),
+                      backgroundImage: widget.userPicName.getImageProvider(),
                       backgroundColor: Colors.grey[300],
                     ),
                     const SizedBox(width: 16),

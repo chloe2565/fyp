@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../service/image_service.dart';
+import '../../shared/fullScreenImage.dart';
 import '../../shared/helper.dart';
 import '../../model/reviewDisplayViewModel.dart';
 import '../../model/databaseModel.dart';
@@ -20,11 +22,11 @@ class ServiceDetailScreenState extends State<ServiceDetailScreen> {
   final ServiceController serviceController = ServiceController();
 
   int currentPage = 0;
-  List<String> mainImagePaths = [];
+  List<String> mainImageUrls = [];
   bool isLoadingImages = true;
   bool isLoadingReviews = true;
   List<ReviewDisplayData> reviews = [];
-  List<String> reviewImagePaths = [];
+  List<String> reviewImageUrls = [];
   bool isLoadingAggregates = true;
   double averageRating = 0.0;
   int completedOrders = 0;
@@ -53,12 +55,9 @@ class ServiceDetailScreenState extends State<ServiceDetailScreen> {
 
     if (!mounted) return;
     setState(() {
-      mainImagePaths = pictures
+      mainImageUrls = pictures
           .where((picture) => picture.picName.isNotEmpty)
-          .map((picture) {
-            final path = 'assets/services/${picture.picName.toLowerCase()}';
-            return path;
-          })
+          .map((picture) => picture.picName)
           .toList();
 
       isLoadingImages = false;
@@ -114,7 +113,7 @@ class ServiceDetailScreenState extends State<ServiceDetailScreen> {
       if (mounted) {
         setState(() {
           reviews = reviewsData;
-          reviewImagePaths = galleryImages;
+          reviewImageUrls = galleryImages;
           isLoadingReviews = false;
         });
       }
@@ -139,7 +138,7 @@ class ServiceDetailScreenState extends State<ServiceDetailScreen> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: List.generate(
-        mainImagePaths.length,
+        mainImageUrls.length,
         (index) => AnimatedContainer(
           duration: const Duration(milliseconds: 150),
           margin: const EdgeInsets.symmetric(horizontal: 4.0),
@@ -204,21 +203,26 @@ class ServiceDetailScreenState extends State<ServiceDetailScreen> {
                   SizedBox(
                     height: MediaQuery.of(context).size.height * 0.3,
                     width: double.infinity,
-                    child: mainImagePaths.isEmpty
-                        ? Image.asset(
-                            'assets/images/placeholder.jpg',
+                    child: mainImageUrls.isEmpty
+                        ? Image(
+                            image: NetworkImage(
+                              FirebaseImageService.placeholderUrl,
+                            ),
                             fit: BoxFit.cover,
                           )
                         : PageView.builder(
                             controller: pageController,
-                            itemCount: mainImagePaths.length,
+                            itemCount: mainImageUrls.length,
                             itemBuilder: (context, index) {
-                              return Image.asset(
-                                mainImagePaths[index],
+                              final imageUrl = mainImageUrls[index];
+                              return Image(
+                                image: imageUrl.getImageProvider(),
                                 fit: BoxFit.cover,
                                 errorBuilder: (context, error, stackTrace) {
-                                  return Image.asset(
-                                    'assets/images/placeholder.jpg',
+                                  return Image(
+                                    image: NetworkImage(
+                                      FirebaseImageService.placeholderUrl,
+                                    ),
                                     fit: BoxFit.cover,
                                   );
                                 },
@@ -228,7 +232,7 @@ class ServiceDetailScreenState extends State<ServiceDetailScreen> {
                   ),
 
                   // --- Dot Indicator ---
-                  if (mainImagePaths.length > 1)
+                  if (mainImageUrls.length > 1)
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 12.0),
                       child: buildDotIndicator(),
@@ -446,7 +450,7 @@ class ServiceDetailScreenState extends State<ServiceDetailScreen> {
 
                         // Review gallery section
                         const SizedBox(height: 24),
-                        if (reviewImagePaths.isNotEmpty) ...[
+                        if (reviewImageUrls.isNotEmpty) ...[
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
@@ -463,7 +467,7 @@ class ServiceDetailScreenState extends State<ServiceDetailScreen> {
                                     context,
                                     MaterialPageRoute(
                                       builder: (context) => AllReviewsScreen(
-                                        imagePaths: reviewImagePaths,
+                                        imagePaths: reviewImageUrls,
                                         reviews: reviews,
                                       ),
                                     ),
@@ -487,33 +491,45 @@ class ServiceDetailScreenState extends State<ServiceDetailScreen> {
                             height: 100,
                             child: ListView.separated(
                               scrollDirection: Axis.horizontal,
-                              // 1. Use dynamic item count
-                              itemCount: reviewImagePaths.length,
+                              itemCount: reviewImageUrls.length,
                               itemBuilder: (context, index) {
-                                // 2. Get the specific picture name
-                                final picName = reviewImagePaths[index].trim();
-                                // 3. Build the asset path
-                                final assetPath =
-                                    'assets/reviews/${picName.toLowerCase()}';
+                                final imageUrl = reviewImageUrls[index];
 
-                                return ClipRRect(
-                                  borderRadius: BorderRadius.circular(10),
-                                  child: Image.asset(
-                                    assetPath, // 4. Use dynamic path
-                                    height: 100,
-                                    width: 100,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (context, error, stackTrace) {
-                                      print(
-                                        'Error loading review image: $assetPath',
-                                      );
-                                      return Image.asset(
-                                        'assets/images/placeholder.jpg',
-                                        width: 100,
-                                        height: 100,
-                                        fit: BoxFit.cover,
-                                      );
-                                    },
+                                return GestureDetector(
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) =>
+                                            FullScreenGalleryViewer(
+                                              imagePaths: reviewImageUrls,
+                                              initialIndex: index,
+                                              basePath: null,
+                                            ),
+                                      ),
+                                    );
+                                  },
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(10),
+                                    child: Image(
+                                      image: imageUrl.getImageProvider(),
+                                      height: 100,
+                                      width: 100,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (context, error, stackTrace) {
+                                        print(
+                                          'Error loading review image: $imageUrl',
+                                        );
+                                        return Image(
+                                          image: NetworkImage(
+                                            FirebaseImageService.placeholderUrl,
+                                          ),
+                                          width: 100,
+                                          height: 100,
+                                          fit: BoxFit.cover,
+                                        );
+                                      },
+                                    ),
                                   ),
                                 );
                               },

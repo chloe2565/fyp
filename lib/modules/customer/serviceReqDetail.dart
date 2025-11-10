@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:latlong2/latlong.dart' as l;
-import 'package:path/path.dart' as p;
 import '../../controller/serviceRequest.dart';
 import '../../shared/helper.dart';
 import 'homepage.dart';
@@ -228,10 +227,6 @@ class ServiceRequestDetailsScreenState
       selectedTime!.minute,
     );
 
-    final List<String> photoFilenames = uploadedImages
-        .map((file) => p.basename(file.path))
-        .toList();
-
     showLoadingDialog(context, "Submitting...");
 
     try {
@@ -244,7 +239,7 @@ class ServiceRequestDetailsScreenState
         locationAddress: widget.selectedLocationText,
         scheduledDateTime: scheduledDateTime,
         description: descriptionController.text,
-        reqPicFileName: photoFilenames,
+        imageFiles: uploadedImages,
         serviceID: widget.serviceID,
         remark: remarkController.text.isNotEmpty ? remarkController.text : null,
       );

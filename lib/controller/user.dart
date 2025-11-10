@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -7,6 +8,7 @@ import 'package:http/http.dart' as http;
 import '../model/databaseModel.dart';
 import '../modules/employee/homepage.dart';
 import '../service/auth_service.dart';
+import '../service/image_service.dart';
 import '../service/user.dart';
 import '../service/customer.dart';
 import '../shared/helper.dart';
@@ -19,6 +21,8 @@ class UserController {
   final UserService userService = UserService();
   final CustomerService customerService = CustomerService();
   final AuthService authService = AuthService();
+  final FirebaseImageService imageService = FirebaseImageService();
+
   final GlobalKey<FormState> formKey = GlobalKey<FormState>();
   final TextEditingController nameController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
@@ -681,7 +685,8 @@ class UserController {
     required String email,
     required String gender,
     required String contact,
-    String? newPicName,
+    File? newImageFile,
+    String? oldImageUrl,
     required void Function(void Function()) setState,
     required BuildContext context,
     required String userType,
@@ -710,6 +715,27 @@ class UserController {
     });
 
     try {
+      String? finalImageUrl = oldImageUrl;
+
+      if (newImageFile != null) {
+        final newUrl = await imageService.uploadImage(
+          imageFile: newImageFile,
+          category: ImageCategory.profiles,
+          uniqueId: userID,
+        );
+
+        if (newUrl == null) {
+          throw Exception("Failed to upload new image.");
+        }
+
+        finalImageUrl = newUrl;
+
+        if (oldImageUrl != null &&
+            oldImageUrl.contains('firebasestorage.googleapis.com')) {
+          await imageService.deleteImage(oldImageUrl);
+        }
+      }
+
       bool isPhoneTaken = await userService.isPhoneTaken(contact, userID);
       if (isPhoneTaken) {
         showErrorSnackBar('This phone number is already registered.');
@@ -725,16 +751,12 @@ class UserController {
         'userName': name,
         'userGender': gender,
         'userContact': contact,
+        'userPicName': finalImageUrl,
       };
 
       // Only update email if it's a customer
       if (userType == 'customer') {
         userUpdates['userEmail'] = email;
-      }
-
-      // Only update the picture if a new one was provided
-      if (newPicName != null) {
-        userUpdates['userPicName'] = newPicName;
       }
 
       await userService.updateUser(userID, userUpdates);

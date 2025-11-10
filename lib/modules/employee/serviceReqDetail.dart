@@ -4,6 +4,7 @@ import '../../controller/serviceRequest.dart';
 import '../../model/serviceRequestViewModel.dart';
 import '../../shared/fullScreenImage.dart';
 import '../../shared/helper.dart';
+import '../../service/image_service.dart';
 import '../../service/nlp_service.dart';
 import 'handymanServiceReqMap.dart';
 import 'providerServiceReqMap.dart';
@@ -33,6 +34,7 @@ class EmpRequestDetailScreenState extends State<EmpRequestDetailScreen> {
   }
 
   Future<void> loadNLPAnalysis() async {
+    if (!mounted) return;
     setState(() => isLoadingAnalysis = true);
 
     final viewModel = widget.controller.getRequestById(widget.reqID);
@@ -40,11 +42,13 @@ class EmpRequestDetailScreenState extends State<EmpRequestDetailScreen> {
       final analysis = await NLPService.analyzeDescription(
         viewModel.requestModel.reqDesc,
       );
+      if (!mounted) return;
       setState(() {
         nlpAnalysis = analysis;
         isLoadingAnalysis = false;
       });
     } else {
+      if (!mounted) return;
       setState(() => isLoadingAnalysis = false);
     }
   }
@@ -296,51 +300,40 @@ class EmpRequestDetailScreenState extends State<EmpRequestDetailScreen> {
     );
   }
 
-  Widget buildPhotos(List<String> picNames) {
-    if (picNames.isEmpty) {
+  Widget buildPhotos(List<String> imageUrls) {
+    if (imageUrls.isEmpty) {
       return const Text(
         'No photos uploaded.',
         style: TextStyle(fontSize: 16, color: Colors.black54),
       );
     }
-    const String basePath = 'assets/requests';
     return SizedBox(
       height: 100,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        itemCount: picNames.length,
+        itemCount: imageUrls.length,
         separatorBuilder: (context, index) => const SizedBox(width: 10),
         itemBuilder: (context, index) {
-          final picName = picNames[index].trim().toLowerCase();
-          final imagePath = '$basePath/$picName';
+          final imageUrl = imageUrls[index];
+
           return GestureDetector(
             onTap: () {
               Navigator.push(
                 context,
                 MaterialPageRoute(
                   builder: (context) => FullScreenGalleryViewer(
-                    imagePaths: picNames,
+                    imagePaths: imageUrls,
                     initialIndex: index,
-                    basePath: 'assets/requests',
                   ),
                 ),
               );
             },
             child: ClipRRect(
               borderRadius: BorderRadius.circular(8.0),
-              child: Image.asset(
-                imagePath,
+              child: imageUrl.toNetworkImage(
                 height: 100,
                 width: 100,
                 fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    height: 100,
-                    width: 100,
-                    color: Colors.grey[200],
-                    child: const Icon(Icons.broken_image, color: Colors.grey),
-                  );
-                },
               ),
             ),
           );

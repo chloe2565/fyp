@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../model/reviewDisplayViewModel.dart';
+import '../../service/image_service.dart';
 import '../../shared/helper.dart';
 import '../../shared/fullScreenImage.dart';
 
@@ -13,13 +14,8 @@ class AllReviewsScreen extends StatelessWidget {
     required this.reviews,
   });
 
-  String buildAssetPath(String picName) {
-    return 'assets/reviews/${picName.trim().toLowerCase()}';
-  }
-
   @override
   Widget build(BuildContext context) {
-    const String basePath = 'assets/reviews';
     return Scaffold(
       appBar: AppBar(
         title: const Text('All Reviews'),
@@ -70,12 +66,9 @@ class AllReviewsScreen extends StatelessWidget {
                           separatorBuilder: (context, _) =>
                               const SizedBox(width: 8),
                           itemBuilder: (context, imageIndex) {
-                            final picName = reviewImages[imageIndex]
-                                .trim()
-                                .toLowerCase();
-                            final imagePath = '$basePath/$picName';
+                            final imageUrl = reviewImages[imageIndex];
                             final int initialGalleryIndex = imagePaths.indexOf(
-                              picName,
+                              imageUrl,
                             );
 
                             return GestureDetector(
@@ -88,7 +81,6 @@ class AllReviewsScreen extends StatelessWidget {
                                           FullScreenGalleryViewer(
                                             imagePaths: imagePaths,
                                             initialIndex: initialGalleryIndex,
-                                            basePath: basePath,
                                           ),
                                     ),
                                   );
@@ -96,19 +88,10 @@ class AllReviewsScreen extends StatelessWidget {
                               },
                               child: ClipRRect(
                                 borderRadius: BorderRadius.circular(8.0),
-                                child: Image.asset(
-                                  imagePath,
+                                child: imageUrl.toNetworkImage(
                                   width: 100,
                                   height: 100,
                                   fit: BoxFit.cover,
-                                  errorBuilder: (context, error, stackTrace) {
-                                    return Image.asset(
-                                      'assets/images/placeholder.jpg',
-                                      width: 100,
-                                      height: 100,
-                                      fit: BoxFit.cover,
-                                    );
-                                  },
                                 ),
                               ),
                             );

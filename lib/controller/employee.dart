@@ -1,6 +1,9 @@
+import 'dart:io';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../model/databaseModel.dart';
+import '../service/image_service.dart';
 import '../service/user.dart';
 import '../service/employee.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -9,6 +12,7 @@ import 'user.dart';
 class EmployeeController extends ChangeNotifier {
   final UserService userService = UserService();
   final EmployeeService empService = EmployeeService();
+  final FirebaseImageService imageService = FirebaseImageService();
   List<String> handymanServiceNames = [];
 
   UserModel? user;
@@ -230,19 +234,47 @@ class EmployeeController extends ChangeNotifier {
     }
   }
 
-  // Returns the generated password
-  Future<String> addNewEmployee(Map<String, dynamic> data, String? newPicName) {
+  Future<String> addNewEmployee(
+    Map<String, dynamic> data,
+    File? newImageFile,
+  ) async {
     try {
-      return empService.addNewEmployee(data, newPicName);
+      String? downloadUrl;
+
+      if (newImageFile != null) {
+        final uniqueId = data['userEmail'].toString().split('@').first;
+        downloadUrl = await imageService.uploadImage(
+          imageFile: newImageFile,
+          category: ImageCategory.profiles,
+          uniqueId: uniqueId,
+        );
+      }
+
+      return empService.addNewEmployee(data, downloadUrl);
     } catch (e) {
       print('Error in addNewEmployee controller: $e');
       rethrow;
     }
   }
 
-  Future<void> updateEmployee(Map<String, dynamic> data, String? newPicName) {
+  Future<void> updateEmployee(
+    Map<String, dynamic> data,
+    File? newImageFile,
+    String? oldImageUrl,
+  ) async {
     try {
-      return empService.updateEmployee(data, newPicName);
+      String? finalImageUrl = oldImageUrl;
+
+      if (newImageFile != null) {
+        finalImageUrl = await imageService.updateImage(
+          newImageFile: newImageFile,
+          category: ImageCategory.profiles,
+          uniqueId: data['empID'],
+          oldImageUrl: oldImageUrl,
+        );
+      }
+
+      return empService.updateEmployee(data, finalImageUrl);
     } catch (e) {
       print('Error in updateEmployee controller: $e');
       rethrow;
@@ -262,7 +294,7 @@ class EmployeeController extends ChangeNotifier {
     }
   }
 
-   Future<void> loadHandymanAvailability(
+  Future<void> loadHandymanAvailability(
     String handymanID,
     DateTime weekStart,
   ) async {
@@ -330,5 +362,4 @@ class EmployeeController extends ChangeNotifier {
       return null;
     }
   }
-  
 }

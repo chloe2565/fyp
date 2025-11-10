@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'package:path/path.dart' as p;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../model/rateReviewHistoryDetailViewModel.dart';
@@ -43,7 +42,8 @@ class RatingReviewController with ChangeNotifier {
   String? photoErrorText;
   final TextEditingController reviewController = TextEditingController();
 
-  List<String> existingPhotoNames = [];
+  List<String> existingPhotoUrls = [];
+  List<String> deletedPhotoUrls = [];
 
   RatingReviewController() {
     // initialize();
@@ -280,7 +280,7 @@ class RatingReviewController with ChangeNotifier {
         if (!matchesSearch) return false;
       }
 
-      // Service filter 
+      // Service filter
       if (serviceFilter != null && serviceFilter.isNotEmpty) {
         final service = item['service'] as ServiceModel?;
         if (service == null || !serviceFilter.containsKey(service.serviceID)) {
@@ -426,7 +426,7 @@ class RatingReviewController with ChangeNotifier {
     if (existingReview != null) {
       currentRating = existingReview!.ratingNum;
       reviewController.text = existingReview!.ratingText;
-      existingPhotoNames = List.from(existingReview!.ratingPicName ?? []);
+      existingPhotoUrls = List.from(existingReview!.ratingPicName ?? []);
       uploadedImages.clear();
       photoErrorText = null;
     } else {
@@ -455,7 +455,7 @@ class RatingReviewController with ChangeNotifier {
 
       if (pickedFiles.isNotEmpty) {
         final total =
-            existingPhotoNames.length +
+            existingPhotoUrls.length +
             uploadedImages.length +
             pickedFiles.length;
         if (total > 5) {
@@ -474,8 +474,9 @@ class RatingReviewController with ChangeNotifier {
   }
 
   void removeExistingPhoto(int index) {
-    if (index >= 0 && index < existingPhotoNames.length) {
-      existingPhotoNames.removeAt(index);
+    if (index >= 0 && index < existingPhotoUrls.length) {
+      final removedUrl = existingPhotoUrls.removeAt(index);
+      deletedPhotoUrls.add(removedUrl);
       notifyListeners();
     }
   }
@@ -488,7 +489,7 @@ class RatingReviewController with ChangeNotifier {
   }
 
   void clearPhotos() {
-    existingPhotoNames.clear();
+    existingPhotoUrls.clear();
     uploadedImages.clear();
     photoErrorText = null;
   }
@@ -520,17 +521,14 @@ class RatingReviewController with ChangeNotifier {
     if (currentRating == 0) return false;
     if (existingReview == null) return false;
 
-    final newPhotoNames = uploadedImages
-        .map((f) => p.basename(f.path))
-        .toList();
-    final finalPhotoList = [...existingPhotoNames, ...newPhotoNames];
-
     try {
       await service.updateRateReview(
         rateID: existingReview!.rateID,
         rating: currentRating,
         text: reviewController.text,
-        finalPhotoList: finalPhotoList,
+        existingPhotoUrls: existingPhotoUrls,
+        newImages: uploadedImages,
+        deletedPhotoUrls: deletedPhotoUrls,
       );
 
       await initialize();

@@ -96,14 +96,9 @@ class EmpAddEmployeeScreenState extends State<EmpAddEmployeeScreen> {
             : [],
       };
 
-      String? newPicName;
-      if (newProfileImage != null) {
-        newPicName = newProfileImage!.path.split('/').last;
-      }
-
       await controller.addNewEmployee(
         newData,
-        newPicName,
+        newProfileImage,
       );
 
       if (!mounted) return;

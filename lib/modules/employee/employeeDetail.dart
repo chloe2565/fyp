@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../controller/employee.dart';
 import '../../shared/dropdownSingleOption.dart';
 import '../../shared/helper.dart';
+import '../../service/image_service.dart';
 import 'editEmployee.dart';
 import 'handymanAvailability.dart';
 
@@ -330,15 +331,7 @@ class EmpEmployeeDetailScreenState extends State<EmpEmployeeDetailScreen> {
                             Center(
                               child: CircleAvatar(
                                 radius: 55,
-                                backgroundImage:
-                                    (widget.employee['userPicName'] != null
-                                            ? AssetImage(
-                                                'assets/images/${widget.employee['userPicName']}',
-                                              )
-                                            : const AssetImage(
-                                                'assets/images/profile.jpg',
-                                              ))
-                                        as ImageProvider,
+                                backgroundImage: (widget.employee['userPicName'] as String?).getImageProvider()
                               ),
                             ),
                             const SizedBox(height: 40),

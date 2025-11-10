@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:fyp/service/image_service.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../controller/employee.dart';
 import '../../shared/dropdownMultiOption.dart';
@@ -159,7 +160,11 @@ class EmpEditEmployeeScreenState extends State<EmpEditEmployeeScreen> {
         newPicName = newProfileImage!.path.split('/').last;
       }
 
-      await controller.updateEmployee(updatedData, newPicName);
+      await controller.updateEmployee(
+        updatedData,
+        newProfileImage,
+        currentProfilePicName,
+      );
 
       if (!mounted) return;
       Navigator.of(context).pop(); // close loading
@@ -230,17 +235,9 @@ class EmpEditEmployeeScreenState extends State<EmpEditEmployeeScreen> {
                         children: [
                           CircleAvatar(
                             radius: 55,
-                            backgroundImage:
-                                (newProfileImage != null
-                                        ? FileImage(newProfileImage!)
-                                        : (currentProfilePicName != null
-                                              ? AssetImage(
-                                                  'assets/images/$currentProfilePicName',
-                                                )
-                                              : const AssetImage(
-                                                  'assets/images/profile.jpg',
-                                                )))
-                                    as ImageProvider,
+                            backgroundImage: (newProfileImage != null)
+                                ? FileImage(newProfileImage!)
+                                : currentProfilePicName.getImageProvider(),
                           ),
                           Positioned(
                             bottom: 0,

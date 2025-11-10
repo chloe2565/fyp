@@ -324,7 +324,7 @@ class EmployeeService {
 
   Future<String> addNewEmployee(
     Map<String, dynamic> data,
-    String? newPicName,
+    String? imageUrl,
   ) async {
     String generatedPassword = generateRandomPassword();
 
@@ -383,7 +383,7 @@ class EmployeeService {
           'userEmail': data['userEmail'],
           'userContact': data['userContact'],
           'userGender': data['userGender'],
-          'userPicName': newPicName,
+          'userPicName': imageUrl,
           'userType': 'employee',
           'userCreatedAt': FieldValue.serverTimestamp(),
         });
@@ -449,7 +449,7 @@ class EmployeeService {
 
   Future<void> updateEmployee(
     Map<String, dynamic> data,
-    String? newPicName,
+    String? imageUrl,
   ) async {
     try {
       final userID = data['userID'] as String;
@@ -462,8 +462,8 @@ class EmployeeService {
         'userEmail': data['userEmail'],
         'userGender': data['userGender'],
       };
-      if (newPicName != null) {
-        userUpdates['userPicName'] = newPicName;
+      if (imageUrl != null) {
+        userUpdates['userPicName'] = imageUrl;
       }
       await userDocRef.update(userUpdates);
 

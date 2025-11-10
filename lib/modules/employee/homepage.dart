@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../controller/user.dart';
 import '../../controller/empHomepage.dart';
+import '../../service/image_service.dart';
 import '../../shared/empNavigatorBase.dart';
 import '../../model/databaseModel.dart';
 
@@ -108,49 +109,60 @@ class EmpHomepageState extends State<EmpHomepage> {
         automaticallyImplyLeading: false,
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
-        title: Row(
-          children: [
-            const CircleAvatar(
-              radius: 26,
-              backgroundImage: AssetImage('assets/images/profile.jpg'),
-            ),
-            const SizedBox(width: 12),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+        title: FutureBuilder<UserModel?>(
+          future: userFuture,
+          builder: (context, snapshot) {
+            ImageProvider profileImage = NetworkImage(
+              FirebaseImageService.placeholderUrl,
+            );
+
+            if (snapshot.hasData && snapshot.data != null) {
+              final user = snapshot.data!;
+              profileImage = user.userPicName.getImageProvider();
+            }
+
+            return Row(
               children: [
-                Text(
-                  'Welcome,',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodyMedium?.copyWith(color: Colors.grey.shade600),
-                ),
-                FutureBuilder<UserModel?>(
-                  future: userFuture,
-                  builder: (context, snapshot) {
-                    if (snapshot.hasData && snapshot.data != null) {
-                      return Text(
-                        snapshot.data!.userName,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 18,
-                          color: Colors.black,
-                        ),
-                      );
-                    } else {
-                      return const Text(
-                        "Guest",
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 18,
-                          color: Colors.black,
-                        ),
-                      );
-                    }
-                  },
+                CircleAvatar(radius: 26, backgroundImage: profileImage),
+                const SizedBox(width: 12),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Welcome,',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                    FutureBuilder<UserModel?>(
+                      future: userFuture,
+                      builder: (context, snapshot) {
+                        if (snapshot.hasData && snapshot.data != null) {
+                          return Text(
+                            snapshot.data!.userName,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 18,
+                              color: Colors.black,
+                            ),
+                          );
+                        } else {
+                          return const Text(
+                            "Guest",
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 18,
+                              color: Colors.black,
+                            ),
+                          );
+                        }
+                      },
+                    ),
+                  ],
                 ),
               ],
-            ),
-          ],
+            );
+          },
         ),
         actions: [
           // Stack(
@@ -185,9 +197,7 @@ class EmpHomepageState extends State<EmpHomepage> {
           // ),
           // const SizedBox(width: 16),
           Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-            ),
+            decoration: BoxDecoration(borderRadius: BorderRadius.circular(12)),
             child: PopupMenuButton<String>(
               onSelected: (value) {
                 if (value == 'logout') handleLogout(context);

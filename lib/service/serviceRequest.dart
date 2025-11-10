@@ -1,13 +1,17 @@
+import 'dart:io';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../model/databaseModel.dart';
 import 'firestore_service.dart';
 import 'handyman.dart';
+import 'image_service.dart';
 
 class ServiceRequestService {
   final FirebaseFirestore db = FirestoreService.instance.db;
   final HandymanService handyman = HandymanService();
   final CollectionReference servicesCollection = FirebaseFirestore.instance
       .collection('Service');
+  final FirebaseImageService imageService = FirebaseImageService();
 
   Future<String> generateNextID() async {
     const String prefix = 'SR';
@@ -149,6 +153,26 @@ class ServiceRequestService {
     } catch (e) {
       print('Error adding service request: $e');
       rethrow;
+    }
+  }
+
+  Future<List<String?>> uploadRequestImages({
+    required List<File> imageFiles,
+    required String reqID,
+  }) async {
+    if (imageFiles.isEmpty) return [];
+
+    try {
+      final uploadedUrls = await imageService.uploadMultipleImages(
+        imageFiles: imageFiles,
+        category: ImageCategory.requests,
+        uniqueId: reqID,
+      );
+
+      return uploadedUrls;
+    } catch (e) {
+      print('Error uploading request images: $e');
+      return [];
     }
   }
 

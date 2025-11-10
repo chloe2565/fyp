@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -28,24 +29,30 @@ FilterOutput performFiltering(FilterInput input) {
   }
 
   // Helper function to check if date is within range
-  bool isDateInRange(DateTime scheduleDate, DateTime? startDate, DateTime? endDate) {
+  bool isDateInRange(
+    DateTime scheduleDate,
+    DateTime? startDate,
+    DateTime? endDate,
+  ) {
     if (startDate == null && endDate == null) return true;
-    
+
     final scheduleOnly = DateUtils.dateOnly(scheduleDate);
-    
+
     if (startDate != null && endDate != null) {
       final start = DateUtils.dateOnly(startDate);
       final end = DateUtils.dateOnly(endDate);
-      return (scheduleOnly.isAtSameMomentAs(start) || scheduleOnly.isAfter(start)) &&
-             (scheduleOnly.isAtSameMomentAs(end) || scheduleOnly.isBefore(end));
+      return (scheduleOnly.isAtSameMomentAs(start) ||
+              scheduleOnly.isAfter(start)) &&
+          (scheduleOnly.isAtSameMomentAs(end) || scheduleOnly.isBefore(end));
     } else if (startDate != null) {
       final start = DateUtils.dateOnly(startDate);
-      return scheduleOnly.isAtSameMomentAs(start) || scheduleOnly.isAfter(start);
+      return scheduleOnly.isAtSameMomentAs(start) ||
+          scheduleOnly.isAfter(start);
     } else if (endDate != null) {
       final end = DateUtils.dateOnly(endDate);
       return scheduleOnly.isAtSameMomentAs(end) || scheduleOnly.isBefore(end);
     }
-    
+
     return true;
   }
 
@@ -415,7 +422,7 @@ class ServiceRequestController extends ChangeNotifier {
     required DateTime scheduledDateTime,
     required String description,
     required String serviceID,
-    required List<String> reqPicFileName,
+    required List<File> imageFiles,
     String? remark,
   }) async {
     if (currentCustomerID == null) {
@@ -426,6 +433,16 @@ class ServiceRequestController extends ChangeNotifier {
     try {
       final String newReqID = await serviceRequest.generateNextID();
       final String hardcodedHandymanID = "H0001";
+      final uploadedUrls = await serviceRequest.uploadRequestImages(
+        imageFiles: imageFiles,
+        reqID: newReqID,
+      );
+
+      final photoUrls = uploadedUrls.whereType<String>().toList();
+
+      if (photoUrls.isEmpty && imageFiles.isNotEmpty) {
+        throw Exception('Failed to upload images');
+      }
 
       final ServiceRequestModel newRequest = ServiceRequestModel(
         reqID: newReqID,
@@ -433,7 +450,7 @@ class ServiceRequestController extends ChangeNotifier {
         scheduledDateTime: scheduledDateTime,
         reqAddress: locationAddress,
         reqDesc: description,
-        reqPicName: reqPicFileName,
+        reqPicName: photoUrls,
         reqStatus: 'pending',
         reqRemark: remark,
         custID: currentCustomerID!,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:fyp/service/image_service.dart';
 import '../../controller/user.dart';
 import '../../shared/helper.dart';
 import '../../model/databaseModel.dart';
@@ -36,31 +37,29 @@ class CustHomepageState extends State<CustHomepage> {
     userFuture = getCurrentUser();
   }
 
- void handleLogout(BuildContext context) async {
-  print("Logout selected");
-  if (!mounted) return;
+  void handleLogout(BuildContext context) async {
+    print("Logout selected");
+    if (!mounted) return;
 
-  // Show loading indicator
-  showDialog(
-    context: context,
-    barrierDismissible: false,
-    builder: (context) => const Center(
-      child: CircularProgressIndicator(),
-    ),
-  );
+    // Show loading indicator
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
+    );
 
-  try {
-    await userController.logout(context, setState);
-  } catch (e) {
-    // Dismiss loading dialog
-    if (mounted) {
-      Navigator.of(context).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Logout failed: $e')),
-      );
+    try {
+      await userController.logout(context, setState);
+    } catch (e) {
+      // Dismiss loading dialog
+      if (mounted) {
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Logout failed: $e')));
+      }
     }
   }
-}
 
   Future<UserModel?> getCurrentUser() async {
     return await userController.getCurrentUser();
@@ -82,7 +81,7 @@ class CustHomepageState extends State<CustHomepage> {
       case 2:
         routeToPush = '/favorite';
         break;
-      case 3: 
+      case 3:
         routeToPush = '/rating';
         break;
       // More menu (index 4) is handled in the navigation bar itself
@@ -99,11 +98,11 @@ class CustHomepageState extends State<CustHomepage> {
     }
   }
 
-@override
-void dispose() {
-  userController.dispose();
-  super.dispose();
-}
+  @override
+  void dispose() {
+    userController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -113,49 +112,60 @@ void dispose() {
         automaticallyImplyLeading: false,
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
-        title: Row(
-          children: [
-            const CircleAvatar(
-              radius: 26,
-              backgroundImage: AssetImage('assets/images/profile.jpg'),
-            ),
-            const SizedBox(width: 12),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+        title: FutureBuilder<UserModel?>(
+          future: userFuture,
+          builder: (context, snapshot) {
+            ImageProvider profileImage = NetworkImage(
+              FirebaseImageService.placeholderUrl,
+            );
+
+            if (snapshot.hasData && snapshot.data != null) {
+              final user = snapshot.data!;
+              profileImage = user.userPicName.getImageProvider();
+            }
+
+            return Row(
               children: [
-                Text(
-                  'Welcome,',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodyMedium?.copyWith(color: Colors.grey.shade600),
-                ),
-                FutureBuilder<UserModel?>(
-                  future: userFuture,
-                  builder: (context, snapshot) {
-                    if (snapshot.hasData && snapshot.data != null) {
-                      return Text(
-                        snapshot.data!.userName,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 18,
-                          color: Colors.black,
-                        ),
-                      );
-                    } else {
-                      return const Text(
-                        "Guest",
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 18,
-                          color: Colors.black,
-                        ),
-                      );
-                    }
-                  },
+                CircleAvatar(radius: 26, backgroundImage: profileImage),
+                const SizedBox(width: 12),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Welcome,',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                    FutureBuilder<UserModel?>(
+                      future: userFuture,
+                      builder: (context, snapshot) {
+                        if (snapshot.hasData && snapshot.data != null) {
+                          return Text(
+                            snapshot.data!.userName,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 18,
+                              color: Colors.black,
+                            ),
+                          );
+                        } else {
+                          return const Text(
+                            "Guest",
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 18,
+                              color: Colors.black,
+                            ),
+                          );
+                        }
+                      },
+                    ),
+                  ],
                 ),
               ],
-            ),
-          ],
+            );
+          },
         ),
         actions: [
           // Stack(
@@ -190,9 +200,7 @@ void dispose() {
           // ),
           // const SizedBox(width: 16),
           Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-            ),
+            decoration: BoxDecoration(borderRadius: BorderRadius.circular(12)),
             child: PopupMenuButton<String>(
               onSelected: (value) {
                 if (value == 'logout') handleLogout(context);
@@ -351,9 +359,9 @@ class HomepageScreenState extends State<HomepageScreen> {
               ),
               child: Text(
                 'View all',
-                style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                  color: Colors.orange,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.displayMedium?.copyWith(color: Colors.orange),
               ),
             ),
           ],
@@ -435,9 +443,9 @@ class HomepageScreenState extends State<HomepageScreen> {
               ),
               child: Text(
                 'View all',
-                style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                  color: Colors.orange,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.displayMedium?.copyWith(color: Colors.orange),
               ),
             ),
           ],

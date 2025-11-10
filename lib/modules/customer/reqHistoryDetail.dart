@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:fyp/service/image_service.dart';
 import 'package:intl/intl.dart';
 import '../../controller/serviceRequest.dart';
 import '../../model/serviceRequestViewModel.dart';
@@ -64,7 +65,7 @@ class RequestHistoryDetailScreen extends StatelessWidget {
             context,
             'Photos',
             null,
-            child: buildPhotos(model.reqPicName),
+            child: buildPhotos(context, model.reqPicName),
           ),
           buildDetailItem(context, 'Service Location', model.reqAddress),
           buildDetailItem(
@@ -140,40 +141,39 @@ class RequestHistoryDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget buildPhotos(List<String> picNames) {
-    if (picNames.isEmpty) {
+  Widget buildPhotos(BuildContext context, List<String> photoUrls) {
+    if (photoUrls.isEmpty) {
       return const Text(
         'No photos uploaded.',
         style: TextStyle(fontSize: 16, color: Colors.black54),
       );
     }
-    const String basePath = 'assets/requests';
     return SizedBox(
       height: 100,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        itemCount: picNames.length,
+        itemCount: photoUrls.length,
         separatorBuilder: (context, index) => const SizedBox(width: 10),
         itemBuilder: (context, index) {
-          final picName = picNames[index].trim().toLowerCase();
-          final imagePath = '$basePath/$picName';
+          final String photoUrl = photoUrls[index];
+
           return GestureDetector(
             onTap: () {
               Navigator.push(
                 context,
                 MaterialPageRoute(
                   builder: (context) => FullScreenGalleryViewer(
-                    imagePaths: picNames,
+                    imagePaths: photoUrls,
                     initialIndex: index,
-                    basePath: 'assets/requests',
+                    basePath: null, 
                   ),
                 ),
               );
             },
             child: ClipRRect(
               borderRadius: BorderRadius.circular(8.0),
-              child: Image.asset(
-                imagePath,
+              child: Image(
+                image: photoUrl.getImageProvider(),
                 height: 100,
                 width: 100,
                 fit: BoxFit.cover,
@@ -182,7 +182,10 @@ class RequestHistoryDetailScreen extends StatelessWidget {
                     height: 100,
                     width: 100,
                     color: Colors.grey[200],
-                    child: const Icon(Icons.broken_image, color: Colors.grey),
+                    child: Image(
+                      image: NetworkImage(FirebaseImageService.placeholderUrl),
+                      fit: BoxFit.cover,
+                    ),
                   );
                 },
               ),

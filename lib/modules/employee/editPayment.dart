@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../controller/payment.dart';
 import '../../model/databaseModel.dart';
 import '../../shared/dropdownSingleOption.dart';
+import '../../service/image_service.dart';
 import '../../shared/helper.dart';
 
 class EmpEditPaymentScreen extends StatefulWidget {
@@ -365,32 +366,10 @@ class EmpEditPaymentScreenState extends State<EmpEditPaymentScreen> {
                 children: [
                   ClipRRect(
                     borderRadius: BorderRadius.circular(8),
-                    child: Image.asset(
-                      'assets/payments/$existingMediaProofName',
+                    child: existingMediaProofName!.toNetworkImage(
                       width: 100,
                       height: 100,
                       fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Stack(
-                          children: [
-                            Container(
-                              width: 100,
-                              height: 100,
-                              color: Colors.grey[200],
-                              child: const Icon(
-                                Icons.broken_image,
-                                color: Colors.grey,
-                                size: 40,
-                              ),
-                            ),
-                            Positioned(
-                              top: 0,
-                              right: 0,
-                              child: buildRemoveButton(removeMediaProof),
-                            ),
-                          ],
-                        );
-                      },
                     ),
                   ),
                   Positioned(

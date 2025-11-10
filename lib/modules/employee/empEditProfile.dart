@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:fyp/service/image_service.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../controller/user.dart';
 import '../../shared/helper.dart';
@@ -99,12 +100,7 @@ Future<void> pickImage() async {
     if (!formKey.currentState!.validate()) return;
 
     showLoadingDialog(context, 'Updating profile...');
-
-    String? newPicName;
-    if (newProfileImage != null) {
-      newPicName = newProfileImage!.path.split('/').last;
-    }
-
+    
     try {
       await userController.updateProfile(
         userID: widget.userID,
@@ -112,7 +108,8 @@ Future<void> pickImage() async {
         email: widget.initialEmail,
         gender: genderItem == Gender.male ? 'M' : 'F',
         contact: phoneController.text.trim(),
-        newPicName: newPicName,
+        newImageFile: newProfileImage,
+        oldImageUrl: currentProfilePicName,
         setState: setState,
         context: context,
         userType: 'employee',
@@ -178,14 +175,9 @@ Future<void> pickImage() async {
                   children: [
                     CircleAvatar(
                       radius: 55,
-                      backgroundImage: (newProfileImage != null
-                              ? FileImage(newProfileImage!)
-                              : (currentProfilePicName != null
-                                  ? AssetImage(
-                                      'assets/images/$currentProfilePicName')
-                                  : const AssetImage(
-                                      'assets/images/profile.jpg')))
-                          as ImageProvider,
+                      backgroundImage: (newProfileImage != null)
+                          ? FileImage(newProfileImage!)
+                          : currentProfilePicName.getImageProvider(),
                     ),
                     Positioned(
                       bottom: 0,

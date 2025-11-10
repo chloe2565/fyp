@@ -3,16 +3,18 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
-import '../model/databaseModel.dart';
 import '../../service/payment.dart';
 import '../../service/bill.dart';
 import '../../model/paymentDetailViewModel.dart';
+import '../model/databaseModel.dart';
+import '../service/image_service.dart';
 import '../service/user.dart';
 
 class PaymentController with ChangeNotifier {
   final PaymentService paymentService = PaymentService();
   final BillService billService = BillService();
   final UserService userService = UserService();
+  final FirebaseImageService imageService = FirebaseImageService();
 
   bool isLoading = true;
   bool isFiltering = false;
@@ -203,11 +205,19 @@ class PaymentController with ChangeNotifier {
       throw Exception('Admin remark cannot be empty.');
     }
 
-    String mediaProofFileName = selectedMediaProof!.path.split('/').last;
-
     final String? providerID = await userService.getCurrentProviderID();
     if (providerID == null) {
       throw Exception("Could not find a valid Service Provider ID.");
+    }
+
+    final String? uploadedImageUrl = await imageService.uploadImage(
+      imageFile: selectedMediaProof!,
+      category: ImageCategory.payments,
+      uniqueId: paymentIDController.text,
+    );
+
+    if (uploadedImageUrl == null) {
+      throw Exception('Failed to upload media proof to storage.');
     }
 
     await paymentService.createNewPayment(
@@ -217,7 +227,7 @@ class PaymentController with ChangeNotifier {
       providerID: providerID,
       payStatus: paymentStatusController.text,
       adminRemark: adminRemarkController.text.trim(),
-      payMediaProof: mediaProofFileName,
+      payMediaProof: uploadedImageUrl,
     );
 
     await initializeForEmployee();
@@ -234,6 +244,25 @@ class PaymentController with ChangeNotifier {
       throw Exception("Could not find a valid Service Provider ID.");
     }
     updateData['providerID'] = providerID;
+
+    if (selectedMediaProof != null) {
+      final String? uploadedImageUrl = await imageService.uploadImage(
+        imageFile: selectedMediaProof!,
+        category: ImageCategory.payments,
+        uniqueId: payID,
+      );
+
+      if (uploadedImageUrl == null) {
+        throw Exception('Failed to upload new media proof to storage.');
+      }
+
+      if (existingMediaProofName != null &&
+          existingMediaProofName!.startsWith('http')) {
+        await imageService.deleteImage(existingMediaProofName);
+      }
+
+      updateData['payMediaProof'] = uploadedImageUrl;
+    }
 
     await paymentService.updatePayment(
       payID,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:fyp/modules/customer/editProfile.dart';
+import 'package:fyp/service/image_service.dart';
 import '../../controller/user.dart';
 import '../../model/databaseModel.dart';
 import '../../shared/helper.dart';
@@ -95,14 +96,7 @@ class ProfileScreenState extends State<ProfileScreen> {
                     Center(
                       child: CircleAvatar(
                         radius: 55,
-                        backgroundImage:
-                            (userModel!.userPicName != null &&
-                                userModel!.userPicName!.isNotEmpty)
-                            ? AssetImage(
-                                'assets/images/${userModel!.userPicName}',
-                              )
-                            : const AssetImage('assets/images/profile.jpg')
-                                  as ImageProvider,
+                        backgroundImage: userModel!.userPicName.getImageProvider(),
                       ),
                     ),
                     const SizedBox(height: 50),

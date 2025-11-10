@@ -215,120 +215,120 @@ class EmpAllServicesScreenState extends State<EmpAllServicesScreen> {
           const SizedBox(width: 8),
         ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24.0),
-        child: Column(
-          children: [
-            const SizedBox(height: 16),
-            buildSearchField(
-              context: context,
-              hintText: 'Search services...',
-              controller: searchController,
-              onFilterPressed: showFilterDialog,
-              hasFilter: hasFilter,
-              numberOfFilters: numberOfFilters,
-            ),
-            SizedBox(height: 16),
+      body: Column(
+        children: [
+          const SizedBox(height: 16),
+          buildSearchField(
+            context: context,
+            hintText: 'Search services...',
+            controller: searchController,
+            onFilterPressed: showFilterDialog,
+            hasFilter: hasFilter,
+            numberOfFilters: numberOfFilters,
+          ),
+          SizedBox(height: 16),
 
-            // if (hasFilter)
-            //   SizedBox(
-            //     width: double.infinity,
-            //     child: Wrap(
-            //       spacing: 8,
-            //       runSpacing: 8,
-            //       children: [
-            //         // Service Name chips
-            //         ...selectedServiceNames.values.map((serviceName) {
-            //           return Chip(
-            //             avatar: const Icon(
-            //               Icons.build,
-            //               size: 16,
-            //               color: Colors.orange,
-            //             ),
-            //             label: Text(
-            //               serviceName,
-            //               style: const TextStyle(fontSize: 13),
-            //             ),
-            //             backgroundColor: Colors.orange.shade100,
-            //             deleteIconColor: Colors.orange,
-            //             onDeleted: () {
-            //               setState(() {
-            //                 selectedServiceNames.removeWhere(
-            //                   (key, value) => value == serviceName,
-            //                 );
-            //               });
-            //               filterServices();
-            //             },
-            //           );
-            //         }).toList(),
-            //         // Status chips
-            //         ...selectedStatuses.values.map((status) {
-            //           return Chip(
-            //             avatar: const Icon(
-            //               Icons.info_outline,
-            //               size: 16,
-            //               color: Colors.blue,
-            //             ),
-            //             label: Text(
-            //               status,
-            //               style: const TextStyle(fontSize: 13),
-            //             ),
-            //             backgroundColor: Colors.blue.shade100,
-            //             deleteIconColor: Colors.blue,
-            //             onDeleted: () {
-            //               setState(() {
-            //                 selectedStatuses.removeWhere(
-            //                   (key, value) => value == status,
-            //                 );
-            //               });
-            //               filterServices();
-            //             },
-            //           );
-            //         }).toList(),
-            //       ],
-            //     ),
-            //   ),
-            Expanded(
-              child: RefreshIndicator(
-                onRefresh: loadServices,
-                child: displayedServices.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.search_off,
-                              size: 64,
-                              color: Colors.grey.shade400,
+          // if (hasFilter)
+          //   SizedBox(
+          //     width: double.infinity,
+          //     child: Wrap(
+          //       spacing: 8,
+          //       runSpacing: 8,
+          //       children: [
+          //         // Service Name chips
+          //         ...selectedServiceNames.values.map((serviceName) {
+          //           return Chip(
+          //             avatar: const Icon(
+          //               Icons.build,
+          //               size: 16,
+          //               color: Colors.orange,
+          //             ),
+          //             label: Text(
+          //               serviceName,
+          //               style: const TextStyle(fontSize: 13),
+          //             ),
+          //             backgroundColor: Colors.orange.shade100,
+          //             deleteIconColor: Colors.orange,
+          //             onDeleted: () {
+          //               setState(() {
+          //                 selectedServiceNames.removeWhere(
+          //                   (key, value) => value == serviceName,
+          //                 );
+          //               });
+          //               filterServices();
+          //             },
+          //           );
+          //         }).toList(),
+          //         // Status chips
+          //         ...selectedStatuses.values.map((status) {
+          //           return Chip(
+          //             avatar: const Icon(
+          //               Icons.info_outline,
+          //               size: 16,
+          //               color: Colors.blue,
+          //             ),
+          //             label: Text(
+          //               status,
+          //               style: const TextStyle(fontSize: 13),
+          //             ),
+          //             backgroundColor: Colors.blue.shade100,
+          //             deleteIconColor: Colors.blue,
+          //             onDeleted: () {
+          //               setState(() {
+          //                 selectedStatuses.removeWhere(
+          //                   (key, value) => value == status,
+          //                 );
+          //               });
+          //               filterServices();
+          //             },
+          //           );
+          //         }).toList(),
+          //       ],
+          //     ),
+          //   ),
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: loadServices,
+              child: displayedServices.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.search_off,
+                            size: 64,
+                            color: Colors.grey.shade400,
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            searchController.text.isNotEmpty || hasFilter
+                                ? 'No services found.'
+                                : 'No services available.',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.grey.shade600,
                             ),
-                            const SizedBox(height: 16),
-                            Text(
-                              searchController.text.isNotEmpty || hasFilter
-                                  ? 'No services found.'
-                                  : 'No services available.',
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: Colors.grey.shade600,
-                              ),
+                          ),
+                          if (hasFilter) ...[
+                            const SizedBox(height: 8),
+                            TextButton.icon(
+                              onPressed: () {
+                                setState(() {
+                                  selectedStatuses.clear();
+                                  selectedServiceNames.clear();
+                                });
+                                filterServices();
+                              },
+                              icon: const Icon(Icons.clear_all),
+                              label: const Text('Clear all filters'),
                             ),
-                            if (hasFilter) ...[
-                              const SizedBox(height: 8),
-                              TextButton.icon(
-                                onPressed: () {
-                                  setState(() {
-                                    selectedStatuses.clear();
-                                    selectedServiceNames.clear();
-                                  });
-                                  filterServices();
-                                },
-                                icon: const Icon(Icons.clear_all),
-                                label: const Text('Clear all filters'),
-                              ),
-                            ],
                           ],
-                        ),
-                      )
-                    : ListView.builder(
+                        ],
+                      ),
+                    )
+                  : Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                      child: ListView.builder(
                         itemCount: displayedServices.length,
                         itemBuilder: (context, index) {
                           final service = displayedServices[index];
@@ -365,10 +365,10 @@ class EmpAllServicesScreenState extends State<EmpAllServicesScreen> {
                           );
                         },
                       ),
-              ),
+                    ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

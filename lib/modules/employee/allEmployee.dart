@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:fyp/service/image_service.dart';
 import '../../controller/user.dart';
 import '../../controller/employee.dart';
 import '../../shared/helper.dart';
@@ -244,24 +245,27 @@ class EmpEmployeeScreenState extends State<EmpEmployeeScreen> {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) =>
-                                      EmpEmployeeDetailScreen(
-                                        employee: employee,
-                                        onDataChanged: () {
-                                          employeeController.loadEmployees();
-                                          filterEmployees();
-                                        },
-                                      ),
+                                  builder: (context) => EmpEmployeeDetailScreen(
+                                    employee: employee,
+                                    onDataChanged: () {
+                                      employeeController.loadEmployees();
+                                      filterEmployees();
+                                    },
+                                  ),
                                 ),
                               );
                             },
                             child: Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16.0,
+                              ),
                               child: EmployeeListItemCard(
                                 name: employee['userName'] as String? ?? 'N/A',
                                 userPicName: employee['userPicName'] as String?,
-                                empType: employee['empType'] as String? ?? 'N/A',
-                                empStatus: employee['empStatus'] as String? ?? 'N/A',
+                                empType:
+                                    employee['empType'] as String? ?? 'N/A',
+                                empStatus:
+                                    employee['empStatus'] as String? ?? 'N/A',
                               ),
                             ),
                           ),
@@ -513,12 +517,6 @@ class EmployeeListItemCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    ImageProvider? imageProvider;
-
-    if (userPicName != null && userPicName!.isNotEmpty) {
-      imageProvider = AssetImage('assets/images/$userPicName');
-    }
-
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -539,10 +537,18 @@ class EmployeeListItemCard extends StatelessWidget {
           CircleAvatar(
             radius: 27.5,
             backgroundColor: Colors.blue.shade200,
-            backgroundImage: imageProvider,
-            child: imageProvider == null
-                ? const Icon(Icons.person, color: Colors.white, size: 30)
-                : null,
+            child: ClipOval(
+              child: userPicName.toNetworkImage(
+                width: 55,
+                height: 55,
+                fit: BoxFit.cover,
+                errorWidget: const Icon(
+                  Icons.person,
+                  color: Colors.white,
+                  size: 30,
+                ),
+              ),
+            ),
           ),
           const SizedBox(width: 16),
           Expanded(

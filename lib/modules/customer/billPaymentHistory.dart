@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
+import '../../controller/payment.dart';
 import '../../shared/billPaymentController.dart';
 import '../../model/databaseModel.dart';
 import '../../shared/billPaymentFilterDialog.dart';
@@ -26,7 +28,7 @@ class BillPaymentHistoryScreenState extends State<BillPaymentHistoryScreen> {
   double? maxAmount;
   Map<String, String> statusFilter = {};
   Map<String, String> paymentMethodFilter = {};
-  
+
   @override
   void initState() {
     super.initState();
@@ -148,8 +150,7 @@ class BillPaymentHistoryScreenState extends State<BillPaymentHistoryScreen> {
           );
           tabController.addListener(() {
             if (!tabController.indexIsChanging && mounted) {
-              setState(() {
-              });
+              setState(() {});
             }
           });
 
@@ -295,7 +296,10 @@ class BillPaymentHistoryScreenState extends State<BillPaymentHistoryScreen> {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => PaymentDetailScreen(payment),
+                builder: (context) => ChangeNotifierProvider(
+                  create: (context) => PaymentController(),
+                  child: PaymentDetailScreen(payment),
+                ),
               ),
             );
           },

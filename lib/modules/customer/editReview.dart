@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:fyp/service/image_service.dart';
 import 'package:provider/provider.dart';
 import '../../controller/ratingReview.dart';
 import '../../shared/helper.dart';
@@ -248,7 +249,7 @@ class EditRateReviewScreenState extends State<EditRateReviewScreen> {
             ),
           ),
 
-        if (controller.existingPhotoNames.isNotEmpty) ...[
+        if (controller.existingPhotoUrls.isNotEmpty) ...[
           const SizedBox(height: 10),
           const Text(
             'Current Photos',
@@ -279,10 +280,8 @@ class EditRateReviewScreenState extends State<EditRateReviewScreen> {
       child: Wrap(
         spacing: 8,
         runSpacing: 8,
-        children: List.generate(controller.existingPhotoNames.length, (index) {
-          final String picName = controller.existingPhotoNames[index];
-          final String assetPath =
-              'assets/reviews/${picName.trim().toLowerCase()}';
+        children: List.generate(controller.existingPhotoUrls.length, (index) {
+          final String photoUrl = controller.existingPhotoUrls[index];
 
           return SizedBox(
             width: 100,
@@ -291,8 +290,8 @@ class EditRateReviewScreenState extends State<EditRateReviewScreen> {
               children: [
                 ClipRRect(
                   borderRadius: BorderRadius.circular(8),
-                  child: Image.asset(
-                    assetPath,
+                  child: Image(
+                    image: photoUrl.getImageProvider(),
                     width: 100,
                     height: 100,
                     fit: BoxFit.cover,
@@ -301,9 +300,11 @@ class EditRateReviewScreenState extends State<EditRateReviewScreen> {
                         width: 100,
                         height: 100,
                         color: Colors.grey[300],
-                        child: const Icon(
-                          Icons.broken_image,
-                          color: Colors.red,
+                        child: Image(
+                          image: NetworkImage(
+                            FirebaseImageService.placeholderUrl,
+                          ),
+                          fit: BoxFit.cover,
                         ),
                       );
                     },

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../controller/service.dart';
 import '../../model/databaseModel.dart';
+import '../../service/image_service.dart';
 import '../../shared/fullScreenImage.dart';
 import '../../shared/helper.dart';
 import 'editService.dart';
@@ -23,13 +24,12 @@ class EmpServiceDetailScreen extends StatefulWidget {
 }
 
 class EmpServiceDetailScreenState extends State<EmpServiceDetailScreen> {
-  late final ServiceModel service;
+  late ServiceModel service;
   final ServiceController serviceController = ServiceController();
   late Future<List<ServicePictureModel>> picturesFuture;
   late Future<List<String>> assignedHandymenFuture;
 
   List<String> imagePaths = [];
-  final String imageBasePath = 'assets/services';
 
   @override
   void initState() {
@@ -39,14 +39,16 @@ class EmpServiceDetailScreenState extends State<EmpServiceDetailScreen> {
   }
 
   void loadServiceData() {
-    setState(() {
-      picturesFuture = serviceController.getPicturesForService(
-        service.serviceID,
-      );
-      assignedHandymenFuture = serviceController.getAssignedHandymanNames(
-        service.serviceID,
-      );
-    });
+    if (mounted) {
+      setState(() {
+        picturesFuture = serviceController.getPicturesForService(
+          service.serviceID,
+        );
+        assignedHandymenFuture = serviceController.getAssignedHandymanNames(
+          service.serviceID,
+        );
+      });
+    }
   }
 
   void openGallery(BuildContext context, int index) {
@@ -57,7 +59,6 @@ class EmpServiceDetailScreenState extends State<EmpServiceDetailScreen> {
         builder: (context) => FullScreenGalleryViewer(
           imagePaths: imagePaths,
           initialIndex: index,
-          basePath: imageBasePath,
         ),
       ),
     );
@@ -70,14 +71,18 @@ class EmpServiceDetailScreenState extends State<EmpServiceDetailScreen> {
         builder: (context) => EmpModifyServiceScreen(
           service: service,
           onServiceUpdated: () {
-            setState(() {});
-            widget.onDataChanged();
+            if (mounted) {
+              setState(() {});
+              widget.onDataChanged();
+            }
             Navigator.of(context).pop();
           },
         ),
       ),
     ).then((_) {
-      refreshServiceData();
+      if (mounted) {
+        refreshServiceData();
+      }
     });
   }
 
@@ -88,10 +93,12 @@ class EmpServiceDetailScreenState extends State<EmpServiceDetailScreen> {
         (s) => s.serviceID == widget.service.serviceID,
         orElse: () => widget.service,
       );
-      setState(() {
-        service = updatedService;
-      });
-      loadServiceData();
+      if (mounted) {
+        setState(() {
+          service = updatedService;
+        });
+        loadServiceData();
+      }
     } catch (e) {
       print("Error refreshing service: $e");
     }
@@ -244,7 +251,7 @@ class EmpServiceDetailScreenState extends State<EmpServiceDetailScreen> {
           return const Center(child: CircularProgressIndicator());
         }
         if (snapshot.hasError) {
-          return const Text('Error loading photos');
+          return Text('Error loading photos: ${snapshot.error}');
         }
         if (!snapshot.hasData || snapshot.data!.isEmpty) {
           return const Text('No photos available');
@@ -260,8 +267,7 @@ class EmpServiceDetailScreenState extends State<EmpServiceDetailScreen> {
             itemCount: pictures.length,
             itemBuilder: (context, index) {
               final picture = pictures[index];
-              final String assetPath =
-                  '$imageBasePath/${picture.picName.trim().toLowerCase()}';
+              final String imageUrl = picture.picName;
 
               return Padding(
                 padding: const EdgeInsets.only(right: 8.0),
@@ -269,22 +275,10 @@ class EmpServiceDetailScreenState extends State<EmpServiceDetailScreen> {
                   onTap: () => openGallery(context, index),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(8.0),
-                    child: Image.asset(
-                      assetPath,
+                    child: imageUrl.toNetworkImage(
                       width: 100,
                       height: 100,
                       fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Container(
-                          width: 100,
-                          height: 100,
-                          color: Colors.grey.shade200,
-                          child: Icon(
-                            Icons.broken_image,
-                            color: Colors.grey.shade400,
-                          ),
-                        );
-                      },
                     ),
                   ),
                 ),

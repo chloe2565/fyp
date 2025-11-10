@@ -6,6 +6,7 @@ import '../../model/paymentDetailViewModel.dart';
 import '../../model/databaseModel.dart';
 import '../../shared/fullScreenImage.dart';
 import '../../shared/helper.dart';
+import '../../service/image_service.dart';
 import 'editPayment.dart';
 
 class EmpPaymentDetailScreen extends StatefulWidget {
@@ -24,13 +25,18 @@ class EmpPaymentDetailScreenState extends State<EmpPaymentDetailScreen> {
   late PaymentController controller;
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    controller = Provider.of<PaymentController>(context, listen: false);
-
+  void initState() {
+    super.initState();
+    controller = PaymentController();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       loadDetails();
     });
+  }
+
+  @override
+  void dispose() {
+    controller.dispose();
+    super.dispose();
   }
 
   void loadDetails() {
@@ -39,43 +45,46 @@ class EmpPaymentDetailScreenState extends State<EmpPaymentDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        elevation: 0,
-        leading: const BackButton(color: Colors.black),
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-        title: const Text(
-          'Payment Record Details',
-          style: TextStyle(
-            color: Colors.black,
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
+    return ChangeNotifierProvider.value(
+      value: controller,
+      child: Scaffold(
+        appBar: AppBar(
+          elevation: 0,
+          leading: const BackButton(color: Colors.black),
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+          title: const Text(
+            'Payment Record Details',
+            style: TextStyle(
+              color: Colors.black,
+              fontWeight: FontWeight.bold,
+              fontSize: 20,
+            ),
           ),
+          centerTitle: true,
         ),
-        centerTitle: true,
-      ),
-      body: Consumer<PaymentController>(
-        builder: (context, controller, child) {
-          if (controller.detailLoading) {
-            return const Center(child: CircularProgressIndicator());
-          }
+        body: Consumer<PaymentController>(
+          builder: (context, controller, child) {
+            if (controller.detailLoading) {
+              return const Center(child: CircularProgressIndicator());
+            }
 
-          if (controller.detailError != null) {
-            return Center(child: Text(controller.detailError!));
-          }
+            if (controller.detailError != null) {
+              return Center(child: Text(controller.detailError!));
+            }
 
-          if (controller.detailModel == null) {
-            return const Center(child: Text('No details found.'));
-          }
+            if (controller.detailModel == null) {
+              return const Center(child: Text('No details found.'));
+            }
 
-          final displayPayment = controller.existingPayment ?? widget.payment;
+            final displayPayment = controller.existingPayment ?? widget.payment;
 
-          return buildDetailsBody(
-            context,
-            controller.detailModel!,
-            displayPayment,
-          );
-        },
+            return buildDetailsBody(
+              context,
+              controller.detailModel!,
+              displayPayment,
+            );
+          },
+        ),
       ),
     );
   }
@@ -139,7 +148,16 @@ class EmpPaymentDetailScreenState extends State<EmpPaymentDetailScreen> {
                       payment: widget.payment,
                       onPaymentUpdated: () {
                         loadDetails();
-                        controller.initializeForEmployee();
+                        try {
+                          final parentController =
+                              Provider.of<PaymentController>(
+                                context,
+                                listen: false,
+                              );
+                          parentController.initializeForEmployee();
+                        } catch (e) {
+                          print('Parent controller not available: $e');
+                        }
                       },
                     ),
                   ),
@@ -152,10 +170,7 @@ class EmpPaymentDetailScreenState extends State<EmpPaymentDetailScreen> {
     );
   }
 
-  Widget buildMediaProof(String mediaProofName) {
-    final String basePath = 'assets/payments';
-    final String assetPath = '$basePath/${mediaProofName.toLowerCase()}';
-
+  Widget buildMediaProof(String mediaProofUrl) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 12.0),
       child: Column(
@@ -166,7 +181,7 @@ class EmpPaymentDetailScreenState extends State<EmpPaymentDetailScreen> {
             style: TextStyle(color: Colors.grey[600], fontSize: 14),
           ),
           const SizedBox(height: 8),
-          if (mediaProofName.isEmpty)
+          if (mediaProofUrl.isEmpty)
             Container(
               height: 100,
               width: MediaQuery.of(context).size.width * 0.5,
@@ -184,9 +199,8 @@ class EmpPaymentDetailScreenState extends State<EmpPaymentDetailScreen> {
                   context,
                   MaterialPageRoute(
                     builder: (_) => FullScreenGalleryViewer(
-                      imagePaths: [mediaProofName],
+                      imagePaths: [mediaProofUrl],
                       initialIndex: 0,
-                      basePath: basePath,
                     ),
                   ),
                 );
@@ -196,23 +210,10 @@ class EmpPaymentDetailScreenState extends State<EmpPaymentDetailScreen> {
                 height: 150,
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(8),
-                  child: Image.asset(
-                    assetPath,
+                  child: mediaProofUrl.toNetworkImage(
+                    width: MediaQuery.of(context).size.width * 0.5,
+                    height: 150,
                     fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        height: 100,
-                        color: Colors.grey[100],
-                        child: Center(
-                          child: Text(
-                            'Error loading image',
-                            style: TextStyle(
-                              color: Theme.of(context).colorScheme.error,
-                            ),
-                          ),
-                        ),
-                      );
-                    },
                   ),
                 ),
               ),
