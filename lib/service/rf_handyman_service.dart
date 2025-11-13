@@ -10,36 +10,35 @@ class HandymanMatchingService {
 
   HandymanMatchingService({required this.apiBaseUrl});
 
-  /// Check if the API is healthy
-  /// Check if the API is healthy
-Future<bool> checkAPIHealth() async {
-  try {
-    print('Checking API health at: $apiBaseUrl/health');
-    
-    final response = await http
-        .get(Uri.parse('$apiBaseUrl/health'))
-        .timeout(
-          const Duration(seconds: 10), // Increased from 5 to 10 seconds
-          onTimeout: () {
-            print('Health check timed out after 10 seconds');
-            throw TimeoutException('API health check timed out');
-          },
-        );
+  // Check if the API is healthy
+  Future<bool> checkAPIHealth() async {
+    try {
+      print('Checking API health at: $apiBaseUrl/health');
 
-    if (response.statusCode == 200) {
-      print('API health check successful');
-      return true;
-    } else {
-      print('API health check failed with status: ${response.statusCode}');
+      final response = await http
+          .get(Uri.parse('$apiBaseUrl/health'))
+          .timeout(
+            const Duration(seconds: 10),
+            onTimeout: () {
+              print('Health check timed out after 10 seconds');
+              throw TimeoutException('API health check timed out');
+            },
+          );
+
+      if (response.statusCode == 200) {
+        print('API health check successful');
+        return true;
+      } else {
+        print('API health check failed with status: ${response.statusCode}');
+        return false;
+      }
+    } catch (e) {
+      print('Health check failed: $e');
       return false;
     }
-  } catch (e) {
-    print('Health check failed: $e');
-    return false;
   }
-}
 
-  /// Find the best matching handyman for a service request
+  // Find the best matching handyman
   Future<Map<String, dynamic>?> findBestHandyman({
     required String serviceID,
     required DateTime scheduledDateTime,
@@ -49,7 +48,7 @@ Future<bool> checkAPIHealth() async {
     try {
       print('Starting handyman search for service: $serviceID');
 
-      // 1. Fetch all handymen who offer this service
+      // Fetch all handymen
       final handymenData = await fetchHandymenForService(serviceID);
 
       if (handymenData.isEmpty) {
@@ -59,15 +58,14 @@ Future<bool> checkAPIHealth() async {
 
       print('Found ${handymenData.length} handymen for service');
 
-      // 2. Fetch availability data
+      // Fetch availability data
       final availabilityData = await fetchAvailability();
       print('Fetched ${availabilityData.length} availability records');
 
-      // 3. Fetch active requests
+      // Fetch active requests
       final activeRequests = await fetchActiveRequests(scheduledDateTime);
       print('Fetched ${activeRequests.length} active requests');
 
-      // 4. Prepare request body
       final requestBody = {
         'service_id': serviceID,
         'scheduled_datetime': scheduledDateTime.toIso8601String(),
@@ -80,7 +78,7 @@ Future<bool> checkAPIHealth() async {
 
       print('Sending request to RF API...');
 
-      // 5. Call Random Forest API
+      // Call Random Forest
       final response = await http
           .post(
             Uri.parse('$apiBaseUrl/match'),
@@ -111,14 +109,13 @@ Future<bool> checkAPIHealth() async {
     }
   }
 
-  /// Fetch handymen who offer the specific service
+  // Fetch handymen who offer the specific service
   Future<List<Map<String, dynamic>>> fetchHandymenForService(
     String serviceID,
   ) async {
     try {
       print('Searching HandymanService table for serviceID: $serviceID');
 
-      // Step 1: Get all handyman IDs who offer this service from HandymanService table
       final handymanServiceQuery = await db
           .collection('HandymanService')
           .where('serviceID', isEqualTo: serviceID)
@@ -135,7 +132,6 @@ Future<bool> checkAPIHealth() async {
         return [];
       }
 
-      // Create map of handymanID -> years_experience
       final Map<String, double> handymanExperience = {};
       final List<String> handymanIDs = [];
 
@@ -155,12 +151,10 @@ Future<bool> checkAPIHealth() async {
 
       print('Processing ${handymanIDs.length} handymen');
 
-      // Step 2: Get Handyman details for these IDs
       final List<Map<String, dynamic>> result = [];
 
       for (String handymanID in handymanIDs) {
         try {
-          // Get Handyman record
           final handymanDoc = await db
               .collection('Handyman')
               .doc(handymanID)
@@ -179,7 +173,6 @@ Future<bool> checkAPIHealth() async {
             continue;
           }
 
-          // Get Employee record
           final employeeQuery = await db
               .collection('Employee')
               .where('empID', isEqualTo: empID)
@@ -194,7 +187,6 @@ Future<bool> checkAPIHealth() async {
           final employeeData = employeeQuery.docs.first.data();
           final empStatus = employeeData['empStatus']?.toString();
 
-          // Only include active employees
           if (empStatus != 'active') {
             print('Skipping inactive employee: $empID (status: $empStatus)');
             continue;
@@ -202,7 +194,6 @@ Future<bool> checkAPIHealth() async {
 
           final userID = employeeData['userID']?.toString();
 
-          // Get User name
           String userName = 'Unknown';
           if (userID != null) {
             final userDoc = await db.collection('User').doc(userID).get();
@@ -211,7 +202,6 @@ Future<bool> checkAPIHealth() async {
             }
           }
 
-          // Get all services for this handyman
           final allServicesQuery = await db
               .collection('HandymanService')
               .where('handymanID', isEqualTo: handymanID)
@@ -233,7 +223,6 @@ Future<bool> checkAPIHealth() async {
             };
           }).toList();
 
-          // Get location from Handyman table
           final GeoPoint? location =
               handymanData['currentLocation'] as GeoPoint?;
           Map<String, double> locationMap = {'latitude': 0.0, 'longitude': 0.0};
@@ -245,13 +234,11 @@ Future<bool> checkAPIHealth() async {
             };
           }
 
-          // Calculate completion rate (you can implement this based on your needs)
           final completionRate = await calculateCompletionRate(handymanID);
           final avgCompletionTime = await calculateAvgCompletionTime(
             handymanID,
           );
 
-          // Build handyman data for RF API
           final handymanRecord = {
             'handyman_id': handymanID,
             'name': userName,
@@ -279,7 +266,7 @@ Future<bool> checkAPIHealth() async {
     }
   }
 
-  /// Calculate handyman's completion rate
+  // Calculate handyman's completion rate
   Future<double> calculateCompletionRate(String handymanID) async {
     try {
       final allRequestsQuery = await db
@@ -288,7 +275,7 @@ Future<bool> checkAPIHealth() async {
           .where('reqStatus', whereIn: ['completed', 'cancelled'])
           .get();
 
-      if (allRequestsQuery.docs.isEmpty) return 0.9; // Default
+      if (allRequestsQuery.docs.isEmpty) return 0.9;
 
       final completedCount = allRequestsQuery.docs
           .where((doc) => doc.data()['reqStatus'] == 'completed')
@@ -301,7 +288,6 @@ Future<bool> checkAPIHealth() async {
     }
   }
 
-  /// Calculate average completion time
   Future<double> calculateAvgCompletionTime(String handymanID) async {
     try {
       final completedQuery = await db
@@ -340,11 +326,9 @@ Future<bool> checkAPIHealth() async {
     }
   }
 
-  /// Parse years of experience from string
   double parseYearsExperience(String exp) {
     if (exp.isEmpty) return 0.0;
 
-    // Handle direct number
     final directNumber = double.tryParse(exp);
     if (directNumber != null) return directNumber;
 
@@ -354,7 +338,6 @@ Future<bool> checkAPIHealth() async {
         .replaceAll('year', '')
         .trim();
 
-    // Handle range: "1-2", "1 to 2"
     final rangePattern = RegExp(r'(\d+\.?\d*)\s*(?:to|-)\s*(\d+\.?\d*)');
     final rangeMatch = rangePattern.firstMatch(cleaned);
 
@@ -363,7 +346,6 @@ Future<bool> checkAPIHealth() async {
       return max;
     }
 
-    // Handle single number
     final singlePattern = RegExp(r'(\d+\.?\d*)');
     final singleMatch = singlePattern.firstMatch(cleaned);
 
@@ -374,7 +356,6 @@ Future<bool> checkAPIHealth() async {
     return 0.0;
   }
 
-  /// Safely parse double from dynamic value
   double parseDouble(dynamic value) {
     if (value == null) return 0.0;
     if (value is double) return value;
@@ -385,12 +366,11 @@ Future<bool> checkAPIHealth() async {
     return 0.0;
   }
 
-  /// Fetch availability periods (MC/leave)
+  // Fetch availability periods
   Future<List<Map<String, dynamic>>> fetchAvailability() async {
     try {
       final now = DateTime.now();
 
-      // Check if you have HandymanAvailability table
       final snapshot = await db
           .collection('HandymanAvailability')
           .where(
@@ -421,101 +401,106 @@ Future<bool> checkAPIHealth() async {
     }
   }
 
-  /// Fetch active service requests - UPDATED VERSION
-/// Fetch active service requests - FIXED VERSION
-Future<List<Map<String, dynamic>>> fetchActiveRequests(
-  DateTime scheduledDateTime,
-) async {
-  try {
-    final startDate = scheduledDateTime.subtract(const Duration(days: 1));
-    final endDate = scheduledDateTime.add(const Duration(days: 1));
-    
-    // Fetch requests with status 'confirmed' or 'departed'
-    final snapshot = await db
-        .collection('ServiceRequest')
-        .where(
-          'scheduledDateTime',
-          isGreaterThanOrEqualTo: Timestamp.fromDate(startDate),
-        )
-        .where(
-          'scheduledDateTime',
-          isLessThanOrEqualTo: Timestamp.fromDate(endDate),
-        )
-        .get();
-    
-    // Filter for confirmed or departed status
-    final activeRequests = snapshot.docs.where((doc) {
-      final status = doc.data()['reqStatus']?.toString().toLowerCase();
-      return status == 'confirmed' || status == 'departed';
-    }).toList();
-    
-    // Get service duration for each request
-    final List<Map<String, dynamic>> result = [];
-    
-    for (var doc in activeRequests) {
-      final data = doc.data();
-      final serviceID = data['serviceID']?.toString();
-      final handymanID = data['handymanID']?.toString();
-      final scheduledTimestamp = data['scheduledDateTime'] as Timestamp?;
-      
-      // Skip if missing critical data
-      if (handymanID == null || handymanID.isEmpty || scheduledTimestamp == null) {
-        continue;
-      }
-      
-      double serviceDuration = 3.0; // default
-      
-      if (serviceID != null && serviceID.isNotEmpty) {
-        try {
-          final serviceDoc = await db.collection('Service').doc(serviceID).get();
-          if (serviceDoc.exists) {
-            final serviceDurationStr = serviceDoc.data()?['serviceDuration']?.toString() ?? '3 hours';
-            serviceDuration = _parseDurationHelper(serviceDurationStr);
-          }
-        } catch (e) {
-          print('Error fetching service duration for $serviceID: $e');
-        }
-      }
-      
-      result.add({
-        'handyman_id': handymanID,
-        'scheduled_datetime': scheduledTimestamp.toDate().toIso8601String(),
-        'service_duration': serviceDuration,
-      });
-    }
-    
-    print('Fetched ${result.length} active requests (confirmed/departed)');
-    return result;
-  } catch (e) {
-    print('Error fetching active requests: $e');
-    return [];
-  }
-}
+  // Fetch active service requests
+  Future<List<Map<String, dynamic>>> fetchActiveRequests(
+    DateTime scheduledDateTime,
+  ) async {
+    try {
+      final startDate = scheduledDateTime.subtract(const Duration(days: 1));
+      final endDate = scheduledDateTime.add(const Duration(days: 1));
 
-double _parseDurationHelper(String duration) {
-  if (duration.isEmpty) return 3.0;
-  
-  final cleaned = duration.toLowerCase()
-      .replaceAll('hours', '')
-      .replaceAll('hour', '')
-      .replaceAll('h', '')
-      .trim();
-  
-  final rangePattern = RegExp(r'(\d+\.?\d*)\s*(?:to|-)\s*(\d+\.?\d*)');
-  final rangeMatch = rangePattern.firstMatch(cleaned);
-  
-  if (rangeMatch != null) {
-    final max = double.parse(rangeMatch.group(2)!);
-    return max;
+      // Status 'confirmed' or 'departed'
+      final snapshot = await db
+          .collection('ServiceRequest')
+          .where(
+            'scheduledDateTime',
+            isGreaterThanOrEqualTo: Timestamp.fromDate(startDate),
+          )
+          .where(
+            'scheduledDateTime',
+            isLessThanOrEqualTo: Timestamp.fromDate(endDate),
+          )
+          .get();
+
+      // Filter for confirmed or departed status
+      final activeRequests = snapshot.docs.where((doc) {
+        final status = doc.data()['reqStatus']?.toString().toLowerCase();
+        return status == 'confirmed' || status == 'departed';
+      }).toList();
+
+      final List<Map<String, dynamic>> result = [];
+
+      for (var doc in activeRequests) {
+        final data = doc.data();
+        final serviceID = data['serviceID']?.toString();
+        final handymanID = data['handymanID']?.toString();
+        final scheduledTimestamp = data['scheduledDateTime'] as Timestamp?;
+
+        if (handymanID == null ||
+            handymanID.isEmpty ||
+            scheduledTimestamp == null) {
+          continue;
+        }
+
+        double serviceDuration = 3.0;
+
+        if (serviceID != null && serviceID.isNotEmpty) {
+          try {
+            final serviceDoc = await db
+                .collection('Service')
+                .doc(serviceID)
+                .get();
+            if (serviceDoc.exists) {
+              final serviceDurationStr =
+                  serviceDoc.data()?['serviceDuration']?.toString() ??
+                  '3 hours';
+              serviceDuration = parseDurationHelper(serviceDurationStr);
+            }
+          } catch (e) {
+            print('Error fetching service duration for $serviceID: $e');
+          }
+        }
+
+        result.add({
+          'handyman_id': handymanID,
+          'scheduled_datetime': scheduledTimestamp.toDate().toIso8601String(),
+          'service_duration': serviceDuration,
+        });
+      }
+
+      print('Fetched ${result.length} active requests (confirmed/departed)');
+      return result;
+    } catch (e) {
+      print('Error fetching active requests: $e');
+      return [];
+    }
   }
-  
-  final singlePattern = RegExp(r'(\d+\.?\d*)');
-  final singleMatch = singlePattern.firstMatch(cleaned);
-  
-  if (singleMatch != null) {
-    return double.parse(singleMatch.group(1)!);
+
+  double parseDurationHelper(String duration) {
+    if (duration.isEmpty) return 3.0;
+
+    final cleaned = duration
+        .toLowerCase()
+        .replaceAll('hours', '')
+        .replaceAll('hour', '')
+        .replaceAll('h', '')
+        .trim();
+
+    final rangePattern = RegExp(r'(\d+\.?\d*)\s*(?:to|-)\s*(\d+\.?\d*)');
+    final rangeMatch = rangePattern.firstMatch(cleaned);
+
+    if (rangeMatch != null) {
+      final max = double.parse(rangeMatch.group(2)!);
+      return max;
+    }
+
+    final singlePattern = RegExp(r'(\d+\.?\d*)');
+    final singleMatch = singlePattern.firstMatch(cleaned);
+
+    if (singleMatch != null) {
+      return double.parse(singleMatch.group(1)!);
+    }
+
+    return 3.0;
   }
-  
-  return 3.0;
-}
 }

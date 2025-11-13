@@ -6,13 +6,10 @@ import 'firestore_service.dart';
 
 class FCMService {
   final db = FirestoreService.instance.db;
-
-  // Replace with your Firebase project credentials
   static const String _projectId = 'handymanfyp-51049';
   static const String _fcmScope =
       'https://www.googleapis.com/auth/firebase.messaging';
 
-  // Service account JSON - Get this from Firebase Console -> Project Settings -> Service Accounts
   static const Map<String, dynamic> _serviceAccountJson = {
     "type": "service_account",
     "project_id": "handymanfyp-51049",
@@ -30,7 +27,7 @@ class FCMService {
     "universe_domain": "googleapis.com",
   };
 
-  /// Get access token for FCM
+  // Get access token for FCM
   Future<String> _getAccessToken() async {
     final accountCredentials = auth.ServiceAccountCredentials.fromJson(
       _serviceAccountJson,
@@ -46,7 +43,7 @@ class FCMService {
     return accessToken;
   }
 
-  /// Send notification to a specific user
+  // Send notification to a specific user
   Future<bool> sendNotificationToUser({
     required String userID,
     required String title,
@@ -81,7 +78,7 @@ class FCMService {
     }
   }
 
-  /// Send FCM notification
+  // Send FCM notification
   Future<bool> sendNotification({
     required String fcmToken,
     required String title,

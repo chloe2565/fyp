@@ -4,18 +4,18 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'firestore_service.dart';
 
 class NotificationService {
-  static final NotificationService _instance = NotificationService._internal();
-  factory NotificationService() => _instance;
-  NotificationService._internal();
+  static final NotificationService instance = NotificationService.internal();
+  factory NotificationService() => instance;
+  NotificationService.internal();
 
-  final FirebaseMessaging _fcm = FirebaseMessaging.instance;
-  final FlutterLocalNotificationsPlugin _localNotifications =
+  final FirebaseMessaging fcm = FirebaseMessaging.instance;
+  final FlutterLocalNotificationsPlugin localNotifications =
       FlutterLocalNotificationsPlugin();
   final db = FirestoreService.instance.db;
 
   Future<void> initialize() async {
     // Request permission
-    NotificationSettings settings = await _fcm.requestPermission(
+    NotificationSettings settings = await fcm.requestPermission(
       alert: true,
       badge: true,
       sound: true,
@@ -40,9 +40,9 @@ class NotificationService {
       iOS: iosSettings,
     );
 
-    await _localNotifications.initialize(
+    await localNotifications.initialize(
       initSettings,
-      onDidReceiveNotificationResponse: _onNotificationTapped,
+      onDidReceiveNotificationResponse: onNotificationTapped,
     );
 
     const AndroidNotificationChannel channel = AndroidNotificationChannel(
@@ -52,25 +52,25 @@ class NotificationService {
       importance: Importance.high,
     );
 
-    await _localNotifications
+    await localNotifications
         .resolvePlatformSpecificImplementation< 
             AndroidFlutterLocalNotificationsPlugin>()
         ?.createNotificationChannel(channel);
 
     // Foreground messages
-    FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
+    FirebaseMessaging.onMessage.listen(handleForegroundMessage);
 
     // Background messages
-    FirebaseMessaging.onMessageOpenedApp.listen(_handleMessageOpenedApp);
+    FirebaseMessaging.onMessageOpenedApp.listen(handleMessageOpenedApp);
 
     // Get FCM token and save to Firestore
-    await _saveTokenToFirestore();
-    _fcm.onTokenRefresh.listen(_saveTokenToFirestore);
+    await saveTokenToFirestore();
+    fcm.onTokenRefresh.listen(saveTokenToFirestore);
   }
 
-  Future<void> _saveTokenToFirestore([String? token]) async {
+  Future<void> saveTokenToFirestore([String? token]) async {
     try {
-      token ??= await _fcm.getToken();
+      token ??= await fcm.getToken();
       if (token != null) {
         final userID = FirebaseAuth.instance.currentUser?.uid;
         if (userID != null) {
@@ -86,14 +86,14 @@ class NotificationService {
     }
   }
 
-  void _handleForegroundMessage(RemoteMessage message) {
+  void handleForegroundMessage(RemoteMessage message) {
     print('Foreground message received: ${message.notification?.title}');
 
     RemoteNotification? notification = message.notification;
     AndroidNotification? android = message.notification?.android;
 
     if (notification != null) {
-      _localNotifications.show(
+      localNotifications.show(
         notification.hashCode,
         notification.title,
         notification.body,
@@ -113,12 +113,12 @@ class NotificationService {
     }
   }
 
-  void _handleMessageOpenedApp(RemoteMessage message) {
+  void handleMessageOpenedApp(RemoteMessage message) {
     print('Notification opened app: ${message.notification?.title}');
     // Handle navigation based on message.data
   }
 
-  void _onNotificationTapped(NotificationResponse response) {
+  void onNotificationTapped(NotificationResponse response) {
     print('Notification tapped: ${response.payload}');
     // Handle navigation based on payload
   }
