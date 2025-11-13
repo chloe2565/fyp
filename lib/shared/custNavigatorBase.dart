@@ -28,14 +28,14 @@ class CustNavigationBarState extends State<CustNavigationBar> {
       context: context,
       position: RelativeRect.fromLTRB(
         offset.dx,
-        offset.dy - 167,
+        offset.dy - 120,
         offset.dx + size.width,
         offset.dy,
       ),
       items: const [
         PopupMenuItem(value: 'billPayment', child: Text('Bill and Payment')),
         PopupMenuItem(value: 'profile', child: Text('Profile')),
-        PopupMenuItem(value: 'settings', child: Text('Settings')),
+        // PopupMenuItem(value: 'settings', child: Text('Settings')),
       ],
     );
 

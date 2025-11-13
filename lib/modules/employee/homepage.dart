@@ -413,7 +413,7 @@ class EmpHomepageState extends State<EmpHomepage> {
               alignment: Alignment.centerRight,
               child: TextButton(
                 onPressed: () {
-                  // Navigate to employees page
+                  Navigator.pushNamed(context, '/empEmployee');
                 },
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -500,13 +500,13 @@ class EmpHomepageState extends State<EmpHomepage> {
               alignment: Alignment.centerRight,
               child: TextButton(
                 onPressed: () {
-                  Navigator.pushNamed(context, '/empRequest');
+                  Navigator.pushNamed(context, '/empAllService');
                 },
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: const [
                     Text(
-                      'View service requests',
+                      'View services',
                       style: TextStyle(color: Colors.orange),
                     ),
                     SizedBox(width: 4),

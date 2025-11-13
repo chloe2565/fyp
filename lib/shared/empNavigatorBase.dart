@@ -47,7 +47,7 @@ class EmpNavigationBarState extends State<EmpNavigationBar> {
     final List<PopupMenuItem<String>> items = [
       const PopupMenuItem(value: 'empRating', child: Text('Rating and Review')),
       const PopupMenuItem(value: 'empProfile', child: Text('Profile')),
-      const PopupMenuItem(value: 'settings', child: Text('Settings')),
+      // const PopupMenuItem(value: 'settings', child: Text('Settings')),
     ];
 
     if (empType == 'admin') {

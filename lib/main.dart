@@ -6,6 +6,7 @@ import 'package:fyp/modules/employee/homepage.dart';
 import 'package:fyp/modules/employee/serviceReq.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'modules/customer/favoriteHandyman.dart';
 import 'modules/customer/profile.dart';
 import 'modules/customer/rateReviewHistory.dart';
@@ -17,6 +18,7 @@ import 'modules/employee/billPayment.dart';
 import 'modules/employee/empProfile.dart';
 import 'modules/employee/ratingReview.dart';
 import 'service/firebase_options.dart';
+import 'service/notification_service.dart';
 import 'shared/theme.dart';
 import 'login.dart';
 
@@ -30,6 +32,10 @@ void main() async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   Stripe.publishableKey = stripePublishableKey;
   await Stripe.instance.applySettings();
+
+  await Firebase.initializeApp();
+  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+  await NotificationService().initialize();
   runApp(const MyApp());
 }
 

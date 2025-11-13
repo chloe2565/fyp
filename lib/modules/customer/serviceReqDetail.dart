@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -206,51 +207,148 @@ class ServiceRequestDetailsScreenState
   }
 
   Future<void> handleSubmit() async {
-    setState(() {
-      if (uploadedImages.isEmpty) {
-        photoErrorText = 'Please upload at least one photo.';
-      } else {
-        photoErrorText = null;
-      }
-    });
-
-    final bool isFormValid = formKey.currentState?.validate() ?? false;
-    if (!isFormValid || photoErrorText != null) {
-      return;
+  setState(() {
+    if (uploadedImages.isEmpty) {
+      photoErrorText = 'Please upload at least one photo.';
+    } else {
+      photoErrorText = null;
     }
+  });
 
-    final DateTime scheduledDateTime = DateTime(
-      selectedDate!.year,
-      selectedDate!.month,
-      selectedDate!.day,
-      selectedTime!.hour,
-      selectedTime!.minute,
+  final bool isFormValid = formKey.currentState?.validate() ?? false;
+  if (!isFormValid || photoErrorText != null) {
+    return;
+  }
+
+  final DateTime scheduledDateTime = DateTime(
+    selectedDate!.year,
+    selectedDate!.month,
+    selectedDate!.day,
+    selectedTime!.hour,
+    selectedTime!.minute,
+  );
+
+  showLoadingDialog(context, "Submitting your request...");
+
+  try {
+    final controller = Provider.of<ServiceRequestController>(
+      context,
+      listen: false,
     );
 
-    showLoadingDialog(context, "Submitting...");
+    // Check if AI matching is available
+    final isAIAvailable = await controller.isAIMatchingAvailable();
 
-    try {
-      final controller = Provider.of<ServiceRequestController>(
-        context,
-        listen: false,
-      );
+    String? createdReqID;
 
-      final bool success = await controller.addNewRequest(
+    if (isAIAvailable) {
+      print('Using AI-powered matching');
+      // Use async AI-powered matching
+      createdReqID = await controller.addNewRequestWithAsyncMatching(
         locationAddress: widget.selectedLocationText,
+        locationCoordinates: widget.selectedLocationCoord,
         scheduledDateTime: scheduledDateTime,
         description: descriptionController.text,
         imageFiles: uploadedImages,
         serviceID: widget.serviceID,
-        remark: remarkController.text.isNotEmpty ? remarkController.text : null,
+        remark: remarkController.text.isNotEmpty
+            ? remarkController.text
+            : null,
       );
+    } else {
+      print('AI matching not available - using fallback');
+      // Use fallback method when AI is not available
+      createdReqID = await controller.addNewRequestWithManualMatching(
+        locationAddress: widget.selectedLocationText,
+        locationCoordinates: widget.selectedLocationCoord,
+        scheduledDateTime: scheduledDateTime,
+        description: descriptionController.text,
+        imageFiles: uploadedImages,
+        serviceID: widget.serviceID,
+        remark: remarkController.text.isNotEmpty
+            ? remarkController.text
+            : null,
+      );
+    }
 
-      Navigator.of(context).pop();
+    Navigator.of(context).pop(); // Close loading dialog
 
-      if (success) {
+    if (createdReqID != null) {
+      // IMPORTANT: Wait a bit for background matching to complete
+      // This gives the AI time to find and assign (or reject) a handyman
+      if (isAIAvailable) {
+        showLoadingDialog(context, "Finding the best handyman for you...");
+
+        // Wait up to 10 seconds for the matching to complete
+        String? finalStatus;
+        for (int i = 0; i < 20; i++) {
+          await Future.delayed(const Duration(milliseconds: 500));
+
+          // Check if request status has changed from 'pending'
+          final requestDoc = await FirebaseFirestore.instance
+              .collection('ServiceRequest')
+              .doc(createdReqID)
+              .get();
+
+          if (requestDoc.exists) {
+            finalStatus = requestDoc.data()?['reqStatus']?.toString();
+            if (finalStatus == 'confirmed' || finalStatus == 'cancelled') {
+              break;
+            }
+          }
+        }
+
+        Navigator.of(context).pop(); // Close "Finding handyman" dialog
+
+        // Reload to get latest status
+        await controller.loadRequests();
+
+        if (finalStatus == 'confirmed') {
+          // Success - handyman found
+          showSuccessDialog(
+            context,
+            title: 'Request Confirmed!',
+            message:
+                'Your service request has been confirmed! A handyman has been assigned to your request.',
+            primaryButtonText: 'Back to Home',
+            onPrimary: () {
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (context) => const CustHomepage()),
+                (route) => false,
+              );
+            },
+          );
+        } else if (finalStatus == 'cancelled') {
+          // No handyman available
+          showErrorDialog(
+            context,
+            title: 'No Handyman Available',
+            message:
+                'Sorry, no handyman is available at your requested time. The request has been cancelled. Please try:\n\n• Selecting a different date/time\n• Booking further in advance\n• Contacting support for assistance',
+          );
+        } else {
+          // Still pending (timeout)
+          showSuccessDialog(
+            context,
+            title: 'Request Submitted!',
+            message:
+                'Your service request has been submitted. We are finding the best handyman for you. You will receive a notification within 2-3 minutes.',
+            primaryButtonText: 'Back to Home',
+            onPrimary: () {
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (context) => const CustHomepage()),
+                (route) => false,
+              );
+            },
+          );
+        }
+      } else {
+        // Manual matching mode
         showSuccessDialog(
           context,
-          title: 'Success!',
-          message: 'Your service request has been submitted.',
+          title: 'Request Submitted!',
+          message:
+              'Your service request has been submitted. An admin will assign a handyman to your request shortly.',
           primaryButtonText: 'Back to Home',
           onPrimary: () {
             Navigator.of(context).pushAndRemoveUntil(
@@ -259,22 +357,23 @@ class ServiceRequestDetailsScreenState
             );
           },
         );
-      } else {
-        showErrorDialog(
-          context,
-          title: 'Error',
-          message: "Failed to submit request. Please try again.",
-        );
       }
-    } catch (e) {
-      Navigator.of(context).pop();
+    } else {
       showErrorDialog(
         context,
         title: 'Error',
-        message: "An error occurred: $e",
+        message: "Failed to submit request. Please try again.",
       );
     }
+  } catch (e) {
+    Navigator.of(context).pop();
+    showErrorDialog(
+      context,
+      title: 'Error',
+      message: "An error occurred: $e",
+    );
   }
+}
 
   void handleCancel() {
     print('Cancel button pressed!');

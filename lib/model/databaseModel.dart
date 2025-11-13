@@ -586,7 +586,7 @@ class ServiceRequestModel {
   final String? reqCustomCancel;
   final String custID;
   final String serviceID;
-  final String handymanID;
+  final String? handymanID;
   final String? cancelID;
 
   ServiceRequestModel({
@@ -603,7 +603,7 @@ class ServiceRequestModel {
     this.reqCustomCancel,
     required this.custID,
     required this.serviceID,
-    required this.handymanID,
+    this.handymanID,
     this.cancelID,
   });
 

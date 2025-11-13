@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:provider/provider.dart';
 import '../../controller/bill.dart';
 import '../../model/billDetailViewModel.dart';
 import '../../model/databaseModel.dart';
@@ -15,15 +14,22 @@ class BillDetailScreen extends StatefulWidget {
 }
 
 class BillDetailScreenState extends State<BillDetailScreen> {
+  late BillController controller;
+
   @override
   void initState() {
     super.initState();
+    controller = BillController();
+    controller.addListener(onControllerChange);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<BillController>(
-        context,
-        listen: false,
-      ).loadBillDetails(widget.bill);
+      controller.loadBillDetails(widget.bill);
     });
+  }
+
+  void onControllerChange() {
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   @override
@@ -42,25 +48,25 @@ class BillDetailScreenState extends State<BillDetailScreen> {
         centerTitle: true,
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       ),
-      body: Consumer<BillController>(
-        builder: (context, controller, child) {
-          if (controller.detailIsLoading) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (controller.detailError != null) {
-            return Center(child: Text(controller.detailError!));
-          }
-          if (controller.detailViewModel == null) {
-            return const Center(child: Text('No details found.'));
-          }
+      body: buildBody(context),
+    );
+  }
 
-          return buildBillDetails(
-            context,
-            controller.detailViewModel!,
-            controller,
-          );
-        },
-      ),
+  Widget buildBody(BuildContext context) {
+    if (controller.detailIsLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (controller.detailError != null) {
+      return Center(child: Text(controller.detailError!));
+    }
+    if (controller.detailViewModel == null) {
+      return const Center(child: Text('No details found.'));
+    }
+
+    return buildBillDetails(
+      context,
+      controller.detailViewModel!,
+      controller,
     );
   }
 
@@ -102,7 +108,7 @@ class BillDetailScreenState extends State<BillDetailScreen> {
           ),
         ),
         // Pay Now Button
-        if (viewModel.isPaymentPending) buildPayNowButton(context),
+        if (viewModel.isPaymentPending) buildPayNowButton(context, controller),
       ],
     );
   }
@@ -152,9 +158,7 @@ Widget buildAddressCard(BillDetailViewModel viewModel) {
   );
 }
 
-Widget buildPayNowButton(BuildContext context) {
-  final controller = Provider.of<BillController>(context, listen: false);
-
+Widget buildPayNowButton(BuildContext context, BillController controller) {
   return Container(
     padding: const EdgeInsets.all(16.0),
     width: double.infinity,

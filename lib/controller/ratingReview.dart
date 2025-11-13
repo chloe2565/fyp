@@ -180,7 +180,8 @@ class RatingReviewController with ChangeNotifier {
         final review = item['review'] as RatingReviewModel?;
         return (review?.rateID.toLowerCase().contains(lowerQuery) ?? false) ||
             (request?.reqID.toLowerCase().contains(lowerQuery) ?? false) ||
-            (request?.handymanID.toLowerCase().contains(lowerQuery) ?? false) ||
+            (request!.handymanID?.toLowerCase().contains(lowerQuery) ??
+                false) ||
             (user?.userName.toLowerCase().contains(lowerQuery) ?? false);
       }).toList();
     }
@@ -207,7 +208,8 @@ class RatingReviewController with ChangeNotifier {
         final matchesSearch =
             (review?.rateID.toLowerCase().contains(lowerQuery) ?? false) ||
             (request?.reqID.toLowerCase().contains(lowerQuery) ?? false) ||
-            (request?.handymanID.toLowerCase().contains(lowerQuery) ?? false) ||
+            (request!.handymanID?.toLowerCase().contains(lowerQuery) ??
+                false) ||
             (user?.userName.toLowerCase().contains(lowerQuery) ?? false);
         if (!matchesSearch) return false;
       }

@@ -54,8 +54,8 @@ class RequestHistoryScreenState extends State<RequestHistoryScreen> {
 
     switch (index) {
       case 0:
-        Navigator.pop(context);
-        return;
+        routeToPush = '/custHome';
+        break;
       case 1:
         break;
       case 2:

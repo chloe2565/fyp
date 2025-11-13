@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../model/databaseModel.dart';
@@ -154,6 +156,7 @@ class UserController {
         if (user != null) {
           if (rememberMe) {
             await saveCredentials();
+            await saveUserFCMToken(user.userID);
           } else {
             await clearCredentials();
           }
@@ -194,6 +197,27 @@ class UserController {
       showErrorSnackBar('Please fix the errors in the form before submitting.');
     }
   }
+
+  // In your login.dart or wherever you handle login, add this after successful login:
+
+Future<void> saveUserFCMToken(String userID) async {
+  try {
+    final fcmToken = await FirebaseMessaging.instance.getToken();
+    
+    if (fcmToken != null) {
+      await FirebaseFirestore.instance.collection('User').doc(userID).update({
+        'fcmToken': fcmToken,
+        'fcmTokenUpdatedAt': FieldValue.serverTimestamp(),
+      });
+      
+      print('FCM token saved successfully for user: $userID');
+    } else {
+      print('Warning: Could not get FCM token');
+    }
+  } catch (e) {
+    print('Error saving FCM token: $e');
+  }
+}
 
   Future<void> logout(
     BuildContext context,

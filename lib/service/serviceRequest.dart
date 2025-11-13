@@ -192,18 +192,23 @@ class ServiceRequestService {
   }
 
   Future<void> rescheduleRequest(String reqID) async {
-    // TODO: Implement reschedule logic
     print('Reschedule requested for $reqID');
   }
 
   Future<Map<String, BillingModel>> fetchBillingInfo(
     List<String> reqIds,
   ) async {
-    if (reqIds.isEmpty) return {};
+    final validIds = reqIds.where((id) => id.isNotEmpty).toList();
+
+    if (validIds.isEmpty) {
+      print('No valid request IDs for billing');
+      return {};
+    }
+
     try {
       final query = await db
           .collection('Billing')
-          .where('reqID', whereIn: reqIds)
+          .where('reqID', whereIn: validIds)
           .get();
 
       final Map<String, BillingModel> billingMap = {};
@@ -238,29 +243,50 @@ class ServiceRequestService {
           .map((doc) => ServiceRequestModel.fromMap(doc.data()))
           .toList();
 
-      final serviceIds = requests.map((req) => req.serviceID).toSet().toList();
-      requests.map((req) => req.handymanID).toSet().toList();
-      final reqIds = requests.map((req) => req.reqID).toSet().toList();
+      final serviceIds = requests
+          .map((req) => req.serviceID)
+          .where((id) => id.isNotEmpty)
+          .toSet()
+          .toList();
+
+      final handymanIds = requests
+          .map((req) => req.handymanID)
+          .whereType<String>()
+          .where((id) => id.isNotEmpty)
+          .toSet()
+          .toList();
+
+      final reqIds = requests
+          .map((req) => req.reqID)
+          .where((id) => id.isNotEmpty)
+          .toSet()
+          .toList();
 
       final serviceMap = await batchFetchServices(serviceIds);
-      final handymanNameMap = await handyman.fetchHandymanNames(
-        requests.map((req) => req.handymanID).toSet().toList(),
-      );
+      final handymanNameMap = await handyman.fetchHandymanNames(handymanIds);
       final billingMap = await fetchBillingInfo(reqIds);
 
       final List<Map<String, dynamic>> detailsList = [];
       for (final req in requests) {
         final service = serviceMap[req.serviceID];
-        final handymanName = handymanNameMap[req.handymanID];
+
+        final handymanName =
+            req.handymanID != null && req.handymanID!.isNotEmpty
+            ? (handymanNameMap[req.handymanID] ?? 'Not Assigned')
+            : 'Not Assigned';
+
         final billing = billingMap[req.reqID];
 
-        if (service != null && handymanName != null) {
+        // Only add if service exists
+        if (service != null) {
           detailsList.add({
             'request': req,
             'service': service,
             'handymanName': handymanName,
             'billing': billing,
           });
+        } else {
+          print('Warning: Service not found for request ${req.reqID}');
         }
       }
       return detailsList;
@@ -317,29 +343,50 @@ class ServiceRequestService {
         return [];
       }
 
-      final serviceIds = requests.map((req) => req.serviceID).toSet().toList();
-      requests.map((req) => req.handymanID).toSet().toList();
-      final reqIds = requests.map((req) => req.reqID).toSet().toList();
+      final serviceIds = requests
+          .map((req) => req.serviceID)
+          .where((id) => id.isNotEmpty)
+          .toSet()
+          .toList();
+
+      final handymanIds = requests
+          .map((req) => req.handymanID)
+          .whereType<String>()
+          .where((id) => id.isNotEmpty)
+          .toSet()
+          .toList();
+
+      final reqIds = requests
+          .map((req) => req.reqID)
+          .where((id) => id.isNotEmpty)
+          .toSet()
+          .toList();
 
       final serviceMap = await batchFetchServices(serviceIds);
-      final handymanNameMap = await handyman.fetchHandymanNames(
-        requests.map((req) => req.handymanID).toSet().toList(),
-      );
+      final handymanNameMap = await handyman.fetchHandymanNames(handymanIds);
       final billingMap = await fetchBillingInfo(reqIds);
 
       final List<Map<String, dynamic>> detailsList = [];
       for (final req in requests) {
         final service = serviceMap[req.serviceID];
-        final handymanName = handymanNameMap[req.handymanID];
+
+        final handymanName =
+            req.handymanID != null && req.handymanID!.isNotEmpty
+            ? (handymanNameMap[req.handymanID] ?? 'Not Assigned')
+            : 'Not Assigned';
+
         final billing = billingMap[req.reqID];
 
-        if (service != null && handymanName != null) {
+        // Only add if service exists (handyman can be null for pending requests)
+        if (service != null) {
           detailsList.add({
             'request': req,
             'service': service,
             'handymanName': handymanName,
             'billing': billing,
           });
+        } else {
+          print('Warning: Service not found for request ${req.reqID}');
         }
       }
       return detailsList;
@@ -350,14 +397,26 @@ class ServiceRequestService {
   }
 
   Future<Map<String, ServiceModel>> batchFetchServices(List<String> ids) async {
-    if (ids.isEmpty) return {};
-    final query = await db
-        .collection('Service')
-        .where(FieldPath.documentId, whereIn: ids)
-        .get();
-    return {
-      for (var doc in query.docs) doc.id: ServiceModel.fromMap(doc.data()),
-    };
+    final validIds = ids.where((id) => id.isNotEmpty).toList();
+
+    if (validIds.isEmpty) {
+      print('No valid service IDs to fetch');
+      return {};
+    }
+
+    try {
+      final query = await db
+          .collection('Service')
+          .where(FieldPath.documentId, whereIn: validIds)
+          .get();
+
+      return {
+        for (var doc in query.docs) doc.id: ServiceModel.fromMap(doc.data()),
+      };
+    } catch (e) {
+      print('Error in batchFetchServices: $e');
+      return {};
+    }
   }
 
   Stream<ServiceRequestModel> getRequestStream(String reqID) {

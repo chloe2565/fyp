@@ -37,7 +37,11 @@ class RatingReviewService {
       }
       final reqIDs = requests.map((r) => r.reqID).toList();
       final serviceIDs = requests.map((r) => r.serviceID).toSet().toList();
-      final handymanIDs = requests.map((r) => r.handymanID).toSet().toList();
+      final handymanIDs = requests
+          .map((r) => r.handymanID)
+          .whereType<String>()
+          .toSet()
+          .toList();
       final reviewData = getReviewsForServiceRequests(reqIDs);
       final serviceData = batchFetch<ServiceModel>(
         ids: serviceIDs,
@@ -226,7 +230,7 @@ class RatingReviewService {
           .collection('Service')
           .doc(request.serviceID)
           .get();
-      final handymanUserFuture = fetchHandymanUserModels([request.handymanID]);
+      final handymanUserFuture = fetchHandymanUserModels([?request.handymanID]);
 
       final results2 = await Future.wait([
         serviceFuture,
@@ -294,7 +298,7 @@ class RatingReviewService {
           .collection('Service')
           .doc(request.serviceID)
           .get();
-      final handymanUserFuture = fetchHandymanUserModels([request.handymanID]);
+      final handymanUserFuture = fetchHandymanUserModels([?request.handymanID]);
 
       final results = await Future.wait([serviceFuture, handymanUserFuture]);
 
@@ -437,7 +441,11 @@ class RatingReviewService {
 
       final reqIDs = requests.map((r) => r.reqID).toSet().toList();
       final serviceIDs = requests.map((r) => r.serviceID).toSet().toList();
-      final handymanIDs = requests.map((r) => r.handymanID).toSet().toList();
+      final handymanIDs = requests
+          .map((r) => r.handymanID)
+          .whereType<String>()
+          .toSet()
+          .toList();
 
       final reviewData = getAllReviewsAndFilter(reqIDs);
       final serviceData = fetchAllServicesAndFilter(serviceIDs);

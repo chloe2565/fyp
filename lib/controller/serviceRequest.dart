@@ -1,10 +1,15 @@
 import 'dart:async';
 import 'dart:io';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:intl/intl.dart';
+import 'package:latlong2/latlong.dart' as l;
 import '../model/filterViewModel.dart';
+import '../service/fcm_service.dart';
 import '../service/firestore_service.dart';
+import '../service/rf_handyman_service.dart';
 import '../service/user.dart';
 import '../service/serviceRequest.dart';
 import '../model/databaseModel.dart';
@@ -28,7 +33,6 @@ FilterOutput performFiltering(FilterInput input) {
     return false;
   }
 
-  // Helper function to check if date is within range
   bool isDateInRange(
     DateTime scheduleDate,
     DateTime? startDate,
@@ -145,6 +149,10 @@ class ServiceRequestController extends ChangeNotifier {
   final ServiceRequestService serviceRequest = ServiceRequestService();
   final UserService user = UserService();
   final db = FirestoreService.instance.db;
+  final HandymanMatchingService matchingService = HandymanMatchingService(
+    apiBaseUrl:
+        'https://fyp-randomforest.onrender.com', // Replace with your server IP
+  );
 
   String? currentCustomerID;
   String? currentEmployeeID;
@@ -417,8 +425,9 @@ class ServiceRequestController extends ChangeNotifier {
     super.dispose();
   }
 
-  Future<bool> addNewRequest({
+  Future<String?> addNewRequestWithAsyncMatching({
     required String locationAddress,
+    required l.LatLng locationCoordinates,
     required DateTime scheduledDateTime,
     required String description,
     required String serviceID,
@@ -427,17 +436,77 @@ class ServiceRequestController extends ChangeNotifier {
   }) async {
     if (currentCustomerID == null) {
       print("Error: User not logged in. Cannot submit request.");
-      return false;
+      return null;
     }
 
     try {
       final String newReqID = await serviceRequest.generateNextID();
-      final String hardcodedHandymanID = "H0001";
       final uploadedUrls = await serviceRequest.uploadRequestImages(
         imageFiles: imageFiles,
         reqID: newReqID,
       );
+      final photoUrls = uploadedUrls.whereType<String>().toList();
 
+      if (photoUrls.isEmpty && imageFiles.isNotEmpty) {
+        throw Exception('Failed to upload images');
+      }
+
+      // Create service request with "pending" status
+      final ServiceRequestModel newRequest = ServiceRequestModel(
+        reqID: newReqID,
+        reqDateTime: DateTime.now(),
+        scheduledDateTime: scheduledDateTime,
+        reqAddress: locationAddress,
+        reqDesc: description,
+        reqPicName: photoUrls,
+        reqStatus: 'pending',
+        reqCustomCancel: remark,
+        custID: currentCustomerID!,
+        serviceID: serviceID,
+        handymanID: null,
+      );
+      await serviceRequest.addServiceRequest(newRequest);
+
+      print('Service request created with ID: $newReqID, status: pending');
+
+      // Handyman matching in background
+      findAndAssignHandyman(
+        reqID: newReqID,
+        serviceID: serviceID,
+        scheduledDateTime: scheduledDateTime,
+        locationCoordinates: locationCoordinates,
+        customerID: currentCustomerID!,
+      );
+
+      return newReqID;
+    } catch (e) {
+      print("Error creating service request: $e");
+      return null;
+    }
+  }
+
+  // Manual matching
+  Future<String?> addNewRequestWithManualMatching({
+    required String locationAddress,
+    required l.LatLng locationCoordinates,
+    required DateTime scheduledDateTime,
+    required String description,
+    required String serviceID,
+    required List<File> imageFiles,
+    String? remark,
+  }) async {
+    if (currentCustomerID == null) {
+      print("Error: User not logged in. Cannot submit request.");
+      return null;
+    }
+
+    try {
+      final String newReqID = await serviceRequest.generateNextID();
+
+      final uploadedUrls = await serviceRequest.uploadRequestImages(
+        imageFiles: imageFiles,
+        reqID: newReqID,
+      );
       final photoUrls = uploadedUrls.whereType<String>().toList();
 
       if (photoUrls.isEmpty && imageFiles.isNotEmpty) {
@@ -452,20 +521,301 @@ class ServiceRequestController extends ChangeNotifier {
         reqDesc: description,
         reqPicName: photoUrls,
         reqStatus: 'pending',
-        reqRemark: remark,
+        reqCustomCancel: remark,
         custID: currentCustomerID!,
         serviceID: serviceID,
-        handymanID: hardcodedHandymanID,
+        handymanID: null,
       );
 
       await serviceRequest.addServiceRequest(newRequest);
-      loadRequests();
 
-      return true;
+      print(
+        'Service request created with ID: $newReqID (manual assignment mode)',
+      );
+
+      // Send notification to admin
+      final fcmService = FCMService();
+      final adminSnapshot = await db
+          .collection('Employee')
+          .where('empType', isEqualTo: 'admin')
+          .where('empStatus', isEqualTo: 'active')
+          .get();
+
+      for (var adminDoc in adminSnapshot.docs) {
+        final userID = adminDoc.data()['userID']?.toString();
+        if (userID != null) {
+          await fcmService.sendNotificationToUser(
+            userID: userID,
+            title: 'New Service Request',
+            body: 'A new service request requires handyman assignment.',
+            data: {'type': 'new_service_request_pending', 'reqID': newReqID},
+          );
+        }
+      }
+
+      await loadRequests();
+
+      return newReqID;
     } catch (e) {
-      print("Error in controller while adding request: $e");
-      return false;
+      print("Error creating service request (manual mode): $e");
+      return null;
     }
+  }
+
+  // Background process to find and assign handyman
+  Future<void> findAndAssignHandyman({
+    required String reqID,
+    required String serviceID,
+    required DateTime scheduledDateTime,
+    required l.LatLng locationCoordinates,
+    required String customerID,
+  }) async {
+    try {
+      print('Starting background handyman matching for request: $reqID');
+
+      // Get service duration
+      final serviceDoc = await db.collection('Service').doc(serviceID).get();
+
+      if (!serviceDoc.exists) {
+        throw Exception('Service not found: $serviceID');
+      }
+
+      final serviceData = serviceDoc.data();
+      final serviceDuration = serviceData?['serviceDuration'] ?? '3 hours';
+      final durationHours = parseDuration(serviceDuration.toString());
+
+      // Find best matching handyman
+      final bestMatch = await matchingService.findBestHandyman(
+        serviceID: serviceID,
+        scheduledDateTime: scheduledDateTime,
+        customerLocation: {
+          'latitude': locationCoordinates.latitude,
+          'longitude': locationCoordinates.longitude,
+        },
+        serviceDurationHours: durationHours,
+      );
+
+      if (bestMatch == null) {
+        // No handyman found - cancel request and notify customer
+        await handleNoHandymanFound(reqID, customerID, serviceID);
+        return;
+      }
+
+      final matchedHandymanID = bestMatch['handyman_id'] as String;
+      final matchScore = bestMatch['match_score'] as double;
+      final handymanName = bestMatch['handyman_name'] as String;
+
+      print(
+        'Best match found: $handymanName (Score: ${(matchScore * 100).toStringAsFixed(1)}%)',
+      );
+
+      // Update request with handyman and change status to confirmed
+      await db.collection('ServiceRequest').doc(reqID).update({
+        'handymanID': matchedHandymanID,
+        'reqStatus': 'confirmed',
+      });
+
+      print(
+        'Service request $reqID confirmed with handyman: $matchedHandymanID',
+      );
+
+      final customerQuery = await db
+          .collection('Customer')
+          .where('custID', isEqualTo: customerID)
+          .limit(1)
+          .get();
+
+      if (customerQuery.docs.isNotEmpty) {
+        final customerUserID = customerQuery.docs.first
+            .data()['userID']
+            ?.toString();
+
+        if (customerUserID != null && customerUserID.isNotEmpty) {
+          // Send notification to customer
+          final fcmService = FCMService();
+          await fcmService.sendNotificationToUser(
+            userID: customerUserID,
+            title: 'Handyman Found!',
+            body: 'Your service request has been confirmed with $handymanName.',
+            data: {
+              'type': 'service_request_confirmed',
+              'reqID': reqID,
+              'handymanID': matchedHandymanID,
+            },
+          );
+        } else {
+          print('No userID found for customer: $customerID');
+        }
+      } else {
+        print('Customer not found with custID: $customerID');
+      }
+
+      // Send notification to handyman
+      final handymanDoc = await db
+          .collection('Handyman')
+          .doc(matchedHandymanID)
+          .get();
+
+      if (handymanDoc.exists) {
+        final empID = handymanDoc.data()?['empID']?.toString();
+
+        if (empID != null && empID.isNotEmpty) {
+          final empQuery = await db
+              .collection('Employee')
+              .where('empID', isEqualTo: empID)
+              .limit(1)
+              .get();
+
+          if (empQuery.docs.isNotEmpty) {
+            final handymanUserID = empQuery.docs.first
+                .data()['userID']
+                ?.toString();
+
+            if (handymanUserID != null && handymanUserID.isNotEmpty) {
+              final fcmService = FCMService();
+              await fcmService.sendNotificationToUser(
+                userID: handymanUserID,
+                title: 'New Service Request',
+                body: 'You have been assigned to a new service request.',
+                data: {'type': 'new_service_request', 'reqID': reqID},
+              );
+            }
+          }
+        }
+      }
+      await loadRequests();
+    } catch (e) {
+      print("Error in background handyman matching: $e");
+      // Handle error - cancel request and notify customer
+      await handleNoHandymanFound(reqID, customerID, serviceID);
+    }
+  }
+
+  Future<void> handleNoHandymanFound(
+    String reqID,
+    String customerID,
+    String serviceID,
+  ) async {
+    try {
+      print('No handyman available for request: $reqID');
+      await db.collection('ServiceRequest').doc(reqID).update({
+        'reqStatus': 'cancelled',
+        'reqCustomCancel': 'No available handyman found for the requested time',
+        'reqCancelDateTime': FieldValue.serverTimestamp(),
+      });
+
+      final customerQuery = await db
+          .collection('Customer')
+          .where('custID', isEqualTo: customerID)
+          .limit(1)
+          .get();
+
+      String? userID;
+      if (customerQuery.docs.isNotEmpty) {
+        userID = customerQuery.docs.first.data()['userID']?.toString();
+      }
+
+      if (userID != null && userID.isNotEmpty) {
+        print('Sending cancellation notification to userID: $userID');
+
+        final fcmService = FCMService();
+        final notificationSent = await fcmService.sendNotificationToUser(
+          userID: userID,
+          title: 'Service Request Cancelled',
+          body:
+              'Sorry, no handyman is available for your requested time. Please try another time slot.',
+          data: {'type': 'service_request_cancelled', 'reqID': reqID},
+        );
+
+        if (!notificationSent) {
+          print('FCM notification failed, will rely on app UI refresh');
+        }
+      } else {
+        print('Could not find userID for customer: $customerID');
+      }
+
+      showLocalCancellationNotification(reqID);
+      await loadRequests();
+    } catch (e) {
+      print('Error handling no handyman found: $e');
+
+      try {
+        showLocalCancellationNotification(reqID);
+        await loadRequests();
+      } catch (reloadError) {
+        print('Error reloading requests: $reloadError');
+      }
+    }
+  }
+
+  void showLocalCancellationNotification(String reqID) {
+    try {
+      final FlutterLocalNotificationsPlugin localNotifications =
+          FlutterLocalNotificationsPlugin();
+
+      const AndroidNotificationDetails androidDetails =
+          AndroidNotificationDetails(
+            'service_request_channel',
+            'Service Requests',
+            channelDescription: 'Notifications for service request updates',
+            importance: Importance.high,
+            priority: Priority.high,
+            icon: '@mipmap/ic_launcher',
+          );
+
+      const NotificationDetails notificationDetails = NotificationDetails(
+        android: androidDetails,
+        iOS: DarwinNotificationDetails(),
+      );
+
+      localNotifications.show(
+        reqID.hashCode,
+        'Service Request Cancelled',
+        'Sorry, no handyman is available for your requested time. Please try another time slot.',
+        notificationDetails,
+      );
+
+      print('Local notification shown for cancelled request: $reqID');
+    } catch (e) {
+      print('Error showing local notification: $e');
+    }
+  }
+
+  double parseDuration(String duration) {
+    if (duration.isEmpty) return 3.0;
+
+    final cleaned = duration
+        .toLowerCase()
+        .replaceAll('hours', '')
+        .replaceAll('hour', '')
+        .replaceAll('h', '')
+        .trim();
+
+    final rangePattern = RegExp(r'(\d+\.?\d*)\s*(?:to|-)\s*(\d+\.?\d*)');
+    final rangeMatch = rangePattern.firstMatch(cleaned);
+
+    if (rangeMatch != null) {
+      final min = double.parse(rangeMatch.group(1)!);
+      final max = double.parse(rangeMatch.group(2)!);
+      return max;
+    }
+
+    final singlePattern = RegExp(r'(\d+\.?\d*)');
+    final singleMatch = singlePattern.firstMatch(cleaned);
+
+    if (singleMatch != null) {
+      return double.parse(singleMatch.group(1)!);
+    }
+
+    print(
+      'Warning: Could not parse duration "$duration", using default 3.0 hours',
+    );
+    return 3.0;
+  }
+
+  // Check if AI matching service is available
+  Future<bool> isAIMatchingAvailable() async {
+    return await matchingService.checkAPIHealth();
   }
 
   Future<void> cancelRequest(String reqID) async {

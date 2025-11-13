@@ -402,7 +402,7 @@ class EmpRatingReviewDetailScreenState
         children: [
           buildDetailItem('Rating ID', review.rateID),
           buildDetailItem('Service Request ID', request.reqID),
-          buildDetailItem('Handyman ID', request.handymanID),
+          buildDetailItem('Handyman ID', request.handymanID ?? 'Not Assigned'),
           buildDetailItem(
             'Rate and Review Created At',
             dateTimeFormat.format(review.ratingCreatedAt),

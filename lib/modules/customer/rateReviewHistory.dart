@@ -140,8 +140,8 @@ class RateReviewHistoryScreenState extends State<RateReviewHistoryScreen> {
 
     switch (index) {
       case 0:
-        Navigator.pop(context);
-        return;
+        routeToPush = '/custHome';
+        break;
       case 1:
         routeToPush = '/request';
         break;

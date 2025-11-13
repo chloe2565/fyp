@@ -314,7 +314,7 @@ class RatingReviewCard extends StatelessWidget {
                             ),
                             Expanded(
                               child: Text(
-                                request.handymanID,
+                                request.handymanID ?? 'Not Assigned',
                                 style: const TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w500,
