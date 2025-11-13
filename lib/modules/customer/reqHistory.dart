@@ -321,7 +321,8 @@ class RequestHistoryScreenState extends State<RequestHistoryScreen> {
             MapEntry('Amount to Pay', requestViewModel.amountToPay!),
           );
         }
-        if (requestViewModel.payDueDate != null) {
+        if (requestViewModel.payDueDate != null &&
+            requestViewModel.paymentStatus?.toLowerCase() != 'paid') {
           historyDetails.add(
             MapEntry('Pay Due Date', requestViewModel.payDueDate!),
           );
@@ -329,6 +330,15 @@ class RequestHistoryScreenState extends State<RequestHistoryScreen> {
         if (requestViewModel.paymentStatus != null) {
           historyDetails.add(
             MapEntry('Payment Status', requestViewModel.paymentStatus!),
+          );
+        }
+        if (requestViewModel.paymentStatus?.toLowerCase() == 'paid' &&
+            requestViewModel.paymentCreatedAt != null) {
+          historyDetails.add(
+            MapEntry(
+              'Payment Created Date',
+              requestViewModel.paymentCreatedAt!,
+            ),
           );
         }
 

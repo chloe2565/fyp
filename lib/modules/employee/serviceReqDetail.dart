@@ -202,7 +202,7 @@ class EmpRequestDetailScreenState extends State<EmpRequestDetailScreen> {
             Row(
               children: [
                 const Text(
-                  'Urgency: ',
+                  'Urgency Level: ',
                   style: TextStyle(fontWeight: FontWeight.w600),
                 ),
                 Container(
@@ -230,7 +230,7 @@ class EmpRequestDetailScreenState extends State<EmpRequestDetailScreen> {
             // Recommendations
             if (nlpAnalysis!.recommendations.isNotEmpty) ...[
               const Text(
-                'Recommendations:',
+                'Recommendations (Tools, Replacment Parts...):',
                 style: TextStyle(fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 8),
@@ -246,7 +246,7 @@ class EmpRequestDetailScreenState extends State<EmpRequestDetailScreen> {
               Row(
                 children: [
                   const Text(
-                    'Complexity: ',
+                    'Difficulty Level: ',
                     style: TextStyle(fontWeight: FontWeight.w600),
                   ),
                   Text(

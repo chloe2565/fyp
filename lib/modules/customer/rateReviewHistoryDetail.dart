@@ -357,8 +357,6 @@ class RateReviewHistoryDetailScreenState
       );
     }
 
-    const String basePath = 'assets/reviews';
-
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),

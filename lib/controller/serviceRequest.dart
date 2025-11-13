@@ -275,6 +275,7 @@ class ServiceRequestController extends ChangeNotifier {
       final req = map['request'] as ServiceRequestModel;
       final service = map['service'] as ServiceModel;
       final billing = map['billing'] as BillingModel?;
+      final paymentCreatedAt = map['paymentCreatedAt'] as DateTime?;
       final String locationData = req.reqAddress;
       final handymanName = map['handymanName'] as String;
       final bookingDate = DateFormat(
@@ -284,6 +285,7 @@ class ServiceRequestController extends ChangeNotifier {
       String? formattedAmount;
       String? formattedDueDate;
       String? formattedBillStatus;
+      String? formattedPaymentCreatedDate;
 
       if (billing != null) {
         formattedAmount = 'RM ${billing.billAmt.toStringAsFixed(2)}';
@@ -291,6 +293,13 @@ class ServiceRequestController extends ChangeNotifier {
           'MMMM dd, yyyy',
         ).format(billing.billDueDate);
         formattedBillStatus = capitalizeFirst(billing.billStatus);
+
+        if (billing.billStatus.toLowerCase() == 'paid' &&
+            paymentCreatedAt != null) {
+          formattedPaymentCreatedDate = DateFormat(
+            'MMMM dd, yyyy',
+          ).format(paymentCreatedAt);
+        }
       }
 
       return RequestViewModel(
@@ -308,6 +317,7 @@ class ServiceRequestController extends ChangeNotifier {
         amountToPay: formattedAmount,
         payDueDate: formattedDueDate,
         paymentStatus: formattedBillStatus,
+        paymentCreatedAt: formattedPaymentCreatedDate,
         requestModel: req,
         handymanName: handymanName,
       );

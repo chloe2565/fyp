@@ -223,7 +223,47 @@ class ServiceRequestService {
     }
   }
 
-  // Fetch requests for customer
+  Future<Map<String, DateTime>> fetchPaymentCreatedDates(
+    Map<String, BillingModel> billingMap,
+  ) async {
+    final paidBillIds = billingMap.entries
+        .where((entry) => entry.value.billStatus.toLowerCase() == 'paid')
+        .map((entry) => entry.value.billingID)
+        .where((id) => id.isNotEmpty)
+        .toSet()
+        .toList();
+
+    if (paidBillIds.isEmpty) {
+      print('No paid billings to fetch payment dates for');
+      return {};
+    }
+
+    try {
+      final query = await db
+          .collection('Payment')
+          .where('billingID', whereIn: paidBillIds)
+          .where('payStatus', isEqualTo: 'paid')
+          .get();
+
+      final Map<String, DateTime> paymentMap = {};
+      for (var doc in query.docs) {
+        final data = doc.data();
+        final billingID = data['billingID'] as String?;
+        final payCreatedAt = data['payCreatedAt'] as Timestamp?;
+
+        if (billingID != null && payCreatedAt != null) {
+          paymentMap[billingID] = payCreatedAt.toDate();
+        }
+      }
+
+      print('Fetched ${paymentMap.length} payment dates for paid billings');
+      return paymentMap;
+    } catch (e) {
+      print('Error fetching payment info: $e');
+      return {};
+    }
+  }
+
   Future<List<Map<String, dynamic>>> fetchRequests(
     String custID,
     List<String> statuses,
@@ -265,6 +305,7 @@ class ServiceRequestService {
       final serviceMap = await batchFetchServices(serviceIds);
       final handymanNameMap = await handyman.fetchHandymanNames(handymanIds);
       final billingMap = await fetchBillingInfo(reqIds);
+      final paymentCreatedMap = await fetchPaymentCreatedDates(billingMap);
 
       final List<Map<String, dynamic>> detailsList = [];
       for (final req in requests) {
@@ -277,13 +318,18 @@ class ServiceRequestService {
 
         final billing = billingMap[req.reqID];
 
-        // Only add if service exists
+        DateTime? paymentCreatedAt;
+        if (billing != null && billing.billStatus.toLowerCase() == 'paid') {
+          paymentCreatedAt = paymentCreatedMap[billing.billingID];
+        }
+
         if (service != null) {
           detailsList.add({
             'request': req,
             'service': service,
             'handymanName': handymanName,
             'billing': billing,
+            'paymentCreatedAt': paymentCreatedAt,
           });
         } else {
           print('Warning: Service not found for request ${req.reqID}');
@@ -296,7 +342,6 @@ class ServiceRequestService {
     }
   }
 
-  // Fetch requests for employee
   Future<List<Map<String, dynamic>>> fetchRequestsForEmployee(
     String empID,
     String empType,
@@ -365,6 +410,7 @@ class ServiceRequestService {
       final serviceMap = await batchFetchServices(serviceIds);
       final handymanNameMap = await handyman.fetchHandymanNames(handymanIds);
       final billingMap = await fetchBillingInfo(reqIds);
+      final paymentCreatedMap = await fetchPaymentCreatedDates(billingMap);
 
       final List<Map<String, dynamic>> detailsList = [];
       for (final req in requests) {
@@ -377,13 +423,18 @@ class ServiceRequestService {
 
         final billing = billingMap[req.reqID];
 
-        // Only add if service exists (handyman can be null for pending requests)
+        DateTime? paymentCreatedAt;
+        if (billing != null && billing.billStatus.toLowerCase() == 'paid') {
+          paymentCreatedAt = paymentCreatedMap[billing.billingID];
+        }
+
         if (service != null) {
           detailsList.add({
             'request': req,
             'service': service,
             'handymanName': handymanName,
             'billing': billing,
+            'paymentCreatedAt': paymentCreatedAt,
           });
         } else {
           print('Warning: Service not found for request ${req.reqID}');

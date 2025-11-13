@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:path/path.dart' as p;
 import '../model/databaseModel.dart';
 import '../model/rateReviewHistoryDetailViewModel.dart';
 import '../shared/helper.dart';
