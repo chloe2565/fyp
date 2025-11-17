@@ -266,6 +266,9 @@ class EmpEmployeeScreenState extends State<EmpEmployeeScreen> {
                                     employee['empType'] as String? ?? 'N/A',
                                 empStatus:
                                     employee['empStatus'] as String? ?? 'N/A',
+                                assignedServices:
+                                    employee['assignedServices']
+                                        as List<String>?,
                               ),
                             ),
                           ),
@@ -506,12 +509,14 @@ class EmployeeListItemCard extends StatelessWidget {
   final String? userPicName;
   final String empType;
   final String empStatus;
+  final List<String>? assignedServices;
 
   const EmployeeListItemCard({
     required this.name,
     this.userPicName,
     required this.empType,
     required this.empStatus,
+    this.assignedServices,
     super.key,
   });
 
@@ -575,6 +580,21 @@ class EmployeeListItemCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 6),
+                if (empType.toLowerCase() == 'handyman' &&
+                    assignedServices != null &&
+                    assignedServices!.isNotEmpty) ...[
+                  Text(
+                    assignedServices!.join(', '),
+                    style: TextStyle(
+                      color: Colors.blue.shade700,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 6),
+                ],
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 8,

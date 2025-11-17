@@ -20,11 +20,10 @@ class LoginScreenState extends State<LoginScreen> {
     controller = UserController(
       showErrorSnackBar: (message) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(message),
-              backgroundColor: Theme.of(context).colorScheme.error,
-            ),
+         showErrorDialog(
+            context,
+            title: 'Login Failed',
+            message: message,
           );
         }
       },

@@ -1,13 +1,14 @@
 import 'dart:io';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../model/databaseModel.dart';
+import 'customer.dart';
 import 'firestore_service.dart';
 import 'handyman.dart';
 import 'image_service.dart';
 
 class ServiceRequestService {
   final FirebaseFirestore db = FirestoreService.instance.db;
+  final CustomerService custService = CustomerService();
   final HandymanService handyman = HandymanService();
   final CollectionReference servicesCollection = FirebaseFirestore.instance
       .collection('Service');
@@ -176,25 +177,6 @@ class ServiceRequestService {
     }
   }
 
-  Future<void> cancelRequest(String reqID) async {
-    final query = await db
-        .collection('ServiceRequest')
-        .where('reqID', isEqualTo: reqID)
-        .limit(1)
-        .get();
-    if (query.docs.isNotEmpty) {
-      await query.docs.first.reference.update({
-        'reqStatus': 'cancelled',
-        'reqCancelDateTime': Timestamp.now(),
-      });
-      print('Request $reqID cancelled');
-    }
-  }
-
-  Future<void> rescheduleRequest(String reqID) async {
-    print('Reschedule requested for $reqID');
-  }
-
   Future<Map<String, BillingModel>> fetchBillingInfo(
     List<String> reqIds,
   ) async {
@@ -273,6 +255,7 @@ class ServiceRequestService {
           .collection('ServiceRequest')
           .where('custID', isEqualTo: custID)
           .where('reqStatus', whereIn: statuses)
+          .orderBy('reqDateTime', descending: true)
           .get();
 
       if (requestQuery.docs.isEmpty) {
@@ -354,6 +337,7 @@ class ServiceRequestService {
         final requestQuery = await db
             .collection('ServiceRequest')
             .where('reqStatus', whereIn: statuses)
+            .orderBy('reqDateTime', descending: true)
             .get();
 
         requests = requestQuery.docs
@@ -377,6 +361,7 @@ class ServiceRequestService {
             .collection('ServiceRequest')
             .where('handymanID', isEqualTo: handymanID)
             .where('reqStatus', whereIn: statuses)
+            .orderBy('reqDateTime', descending: true)
             .get();
 
         requests = requestQuery.docs
@@ -401,6 +386,12 @@ class ServiceRequestService {
           .toSet()
           .toList();
 
+      final custIds = requests
+          .map((req) => req.custID)
+          .where((id) => id.isNotEmpty)
+          .toSet()
+          .toList();
+
       final reqIds = requests
           .map((req) => req.reqID)
           .where((id) => id.isNotEmpty)
@@ -409,6 +400,8 @@ class ServiceRequestService {
 
       final serviceMap = await batchFetchServices(serviceIds);
       final handymanNameMap = await handyman.fetchHandymanNames(handymanIds);
+      final customerDetailsMap = await custService
+          .fetchUserDetailsByCustomerIDs(custIds);
       final billingMap = await fetchBillingInfo(reqIds);
       final paymentCreatedMap = await fetchPaymentCreatedDates(billingMap);
 
@@ -420,6 +413,10 @@ class ServiceRequestService {
             req.handymanID != null && req.handymanID!.isNotEmpty
             ? (handymanNameMap[req.handymanID] ?? 'Not Assigned')
             : 'Not Assigned';
+
+        final customerDetails =
+            customerDetailsMap[req.custID] ??
+            {'name': 'Unknown', 'contact': 'N/A'};
 
         final billing = billingMap[req.reqID];
 
@@ -433,6 +430,8 @@ class ServiceRequestService {
             'request': req,
             'service': service,
             'handymanName': handymanName,
+            'customerName': customerDetails['name']!,
+            'customerContact': customerDetails['contact']!,
             'billing': billing,
             'paymentCreatedAt': paymentCreatedAt,
           });
@@ -480,5 +479,42 @@ class ServiceRequestService {
         throw Exception("Service request not found");
       }
     });
+  }
+
+  Future<void> cancelRequest(String reqID, String cancellationReason) async {
+    final query = await db
+        .collection('ServiceRequest')
+        .where('reqID', isEqualTo: reqID)
+        .limit(1)
+        .get();
+    if (query.docs.isNotEmpty) {
+      await query.docs.first.reference.update({
+        'reqStatus': 'cancelled',
+        'reqCancelDateTime': Timestamp.now(),
+        'reqCustomCancel': cancellationReason,
+      });
+      print('Request $reqID cancelled with reason: $cancellationReason');
+    }
+  }
+
+  Future<void> rescheduleRequest(String reqID) async {
+    print('Reschedule requested for $reqID');
+  }
+
+  Future<void> updateRequestStatus(String reqID, String newStatus) async {
+    try {
+      Map<String, dynamic> updateData = {'reqStatus': newStatus};
+
+      // Add completion timestamp if status is completed
+      if (newStatus.toLowerCase() == 'completed') {
+        updateData['reqCompleteTime'] = Timestamp.now();
+      }
+
+      await db.collection('ServiceRequest').doc(reqID).update(updateData);
+      print('Request $reqID status updated to: $newStatus');
+    } catch (e) {
+      print('Error updating request status: $e');
+      rethrow;
+    }
   }
 }

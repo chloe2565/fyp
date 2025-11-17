@@ -11,10 +11,17 @@ class DashboardService {
       final startOfDay = DateTime(now.year, now.month, now.day);
       final endOfDay = DateTime(now.year, now.month, now.day, 23, 59, 59);
 
-      // Get request status counts for today
+      // Calculate start of this week (Monday)
+      final weekday = now.weekday;
+      final startOfWeek = DateTime(now.year, now.month, now.day)
+          .subtract(Duration(days: weekday - 1));
+      final endOfWeek = startOfWeek
+          .add(const Duration(days: 6, hours: 23, minutes: 59, seconds: 59));
+
+      // Get request status counts for this week
       final requestStatusCounts = await getRequestStatusCounts(
-        startOfDay,
-        endOfDay,
+        startOfWeek,
+        endOfWeek,
       );
 
       // Get handyman availability for today
@@ -23,8 +30,8 @@ class DashboardService {
         endOfDay,
       );
 
-      // Get top 3 services for today
-      final topServices = await getTopServices(startOfDay, endOfDay);
+      // Get top 3 services for this week
+      final topServices = await getTopServices(startOfWeek, endOfWeek);
 
       return {
         'requestStatusCounts': requestStatusCounts,
@@ -38,14 +45,14 @@ class DashboardService {
   }
 
   Future<Map<String, int>> getRequestStatusCounts(
-    DateTime startOfDay,
-    DateTime endOfDay,
+    DateTime startDate,
+    DateTime endDate,
   ) async {
     try {
       final requestsSnapshot = await db
           .collection('ServiceRequest')
-          .where('scheduledDateTime', isGreaterThanOrEqualTo: startOfDay)
-          .where('scheduledDateTime', isLessThanOrEqualTo: endOfDay)
+          .where('scheduledDateTime', isGreaterThanOrEqualTo: startDate)
+          .where('scheduledDateTime', isLessThanOrEqualTo: endDate)
           .get();
 
       final requests = requestsSnapshot.docs
@@ -54,9 +61,9 @@ class DashboardService {
 
       final statusCounts = <String, int>{
         'completed': 0,
-        'on leave': 0,
-        'late': 0,
-        'absent': 0,
+        'confirmed': 0,
+        'departed': 0,
+        'pending': 0,
       };
 
       for (var request in requests) {
@@ -78,26 +85,40 @@ class DashboardService {
     DateTime endOfDay,
   ) async {
     try {
-      // Get all handymen with availability records for today
-      final availabilitySnapshot = await db
-          .collection('HandymanAvailability')
-          .where('availabilityStartDateTime', isLessThanOrEqualTo: endOfDay)
-          .where('availabilityEndDateTime', isGreaterThanOrEqualTo: startOfDay)
-          .get();
-
-      final availableHandymanIds = availabilitySnapshot.docs
-          .map((doc) => HandymanAvailabilityModel.fromMap(doc.data()))
-          .where((availability) =>
-              availability.availabilityStartDateTime.isBefore(endOfDay) &&
-              availability.availabilityEndDateTime.isAfter(startOfDay))
-          .map((availability) => availability.handymanID)
-          .toSet();
-
-      // Get total count of all handymen
+      // Get total count of all handymen first
       final handymanSnapshot = await db.collection('Handyman').get();
       final totalHandymen = handymanSnapshot.docs.length;
-      final availableCount = availableHandymanIds.length;
-      final unavailableCount = totalHandymen - availableCount;
+
+      if (totalHandymen == 0) {
+        return {'available': 0, 'unavailable': 0};
+      }
+
+      // Get all handymen with availability records that overlap with today
+      final availabilitySnapshot = await db
+          .collection('HandymanAvailability')
+          .get();
+
+      final unavailableHandymanIds = <String>{};
+
+      for (var doc in availabilitySnapshot.docs) {
+        final availability = HandymanAvailabilityModel.fromMap(doc.data());
+        
+        // Check if the availability period overlaps with today
+        final availStart = availability.availabilityStartDateTime;
+        final availEnd = availability.availabilityEndDateTime;
+        
+        // Availability overlaps with today if:
+        // - It starts before or during today AND
+        // - It ends during or after today
+        if (availStart.isBefore(endOfDay) || availStart.isAtSameMomentAs(endOfDay)) {
+          if (availEnd.isAfter(startOfDay) || availEnd.isAtSameMomentAs(startOfDay)) {
+            unavailableHandymanIds.add(availability.handymanID);
+          }
+        }
+      }
+
+      final unavailableCount = unavailableHandymanIds.length;
+      final availableCount = totalHandymen - unavailableCount;
 
       return {
         'available': availableCount,
@@ -110,15 +131,15 @@ class DashboardService {
   }
 
   Future<Map<String, int>> getTopServices(
-    DateTime startOfDay,
-    DateTime endOfDay,
+    DateTime startDate,
+    DateTime endDate,
   ) async {
     try {
-      // Get all service requests for today
+      // Get all service requests for the date range
       final requestsSnapshot = await db
           .collection('ServiceRequest')
-          .where('scheduledDateTime', isGreaterThanOrEqualTo: startOfDay)
-          .where('scheduledDateTime', isLessThanOrEqualTo: endOfDay)
+          .where('reqDateTime', isGreaterThanOrEqualTo: startDate)
+          .where('reqDateTime', isLessThanOrEqualTo: endDate)
           .get();
 
       final requests = requestsSnapshot.docs
@@ -129,11 +150,11 @@ class DashboardService {
         return {};
       }
 
-      // Get unique service IDs
+      // Get service IDs
       final serviceIds = requests.map((r) => r.serviceID).toSet().toList();
       final serviceCounts = <String, int>{};
 
-      // Fetch service names in batches (Firestore whereIn limit is 30)
+      // Fetch service names
       for (var i = 0; i < serviceIds.length; i += 30) {
         final sublist = serviceIds.sublist(
           i,

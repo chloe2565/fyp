@@ -148,7 +148,7 @@ class EmpRatingReviewScreenState extends State<EmpRatingReviewScreen> {
             ),
             backgroundColor: Theme.of(context).scaffoldBackgroundColor,
             title: const Text(
-              'Rate and Review',
+              'Ratings & Reviews',
               style: TextStyle(
                 color: Colors.black,
                 fontWeight: FontWeight.bold,
@@ -165,7 +165,7 @@ class EmpRatingReviewScreenState extends State<EmpRatingReviewScreen> {
                     buildSearchField(
                       context: context,
                       controller: searchController,
-                      hintText: 'Search reviews...',
+                      hintText: 'Search by service, handyman, or customer...',
                       onFilterPressed: showFilterDialog,
                       hasFilter: hasFilter,
                       numberOfFilters: numberOfFilters,
@@ -191,12 +191,12 @@ class EmpRatingReviewScreenState extends State<EmpRatingReviewScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.search_off, size: 64, color: Colors.grey.shade400),
+            Icon(Icons.rate_review_outlined, size: 64, color: Colors.grey.shade400),
             const SizedBox(height: 16),
             Text(
               searchController.text.isNotEmpty || numberOfFilters > 0
-                  ? 'No reviews found.'
-                  : 'No rating reviews found.',
+                  ? 'No reviews match your filters.'
+                  : 'No ratings and reviews found.',
               style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
             ),
           ],
@@ -249,7 +249,16 @@ class RatingReviewCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final request = reviewData['request'] as ServiceRequestModel;
     final review = reviewData['review'] as RatingReviewModel;
+    final service = reviewData['service'] as ServiceModel?;
+    final handymanUser = reviewData['handymanUser'] as UserModel?;
+    final customerUser = reviewData['customerUser'] as UserModel?;
+    
     final rating = review.ratingNum;
+    final serviceName = service?.serviceName ?? 'Unknown Service';
+    final handymanName = handymanUser?.userName ?? 'Not Assigned';
+    final customerName = customerUser?.userName ?? 'Unknown Customer';
+    final icon = ServiceHelper.getIconForService(serviceName);
+    final bgColor = ServiceHelper.getColorForService(serviceName);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -263,111 +272,139 @@ class RatingReviewCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Header Row: Service Icon + Name + Rating
               Row(
                 children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: bgColor,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(icon, color: Colors.black, size: 24),
+                  ),
+                  const SizedBox(width: 12),
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          review.rateID,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                'Service Request ID',
-                                style: TextStyle(
-                                  color: Colors.grey[600],
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ),
-                            Expanded(
-                              child: Text(
-                                'Handyman ID',
-                                style: TextStyle(
-                                  color: Colors.grey[600],
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                request.reqID,
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                            Expanded(
-                              child: Text(
-                                request.handymanID ?? 'Not Assigned',
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                      ],
+                    child: Text(
+                      serviceName,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
                     ),
                   ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Row(
-                        children: [
-                          const Text(
-                            'Rating',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          const Icon(Icons.star, color: Colors.amber, size: 16),
-                          const SizedBox(width: 2),
-                          Text(
-                            rating.toStringAsFixed(1),
-                            style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
+                      const Icon(Icons.star, color: Colors.amber, size: 20),
+                      const SizedBox(width: 4),
                       Text(
-                        dateFormat.format(request.scheduledDateTime),
-                        style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                      ),
-                      Text(
-                        timeFormat.format(request.scheduledDateTime),
-                        style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                        rating.toStringAsFixed(1),
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ],
                   ),
                 ],
               ),
+              
+              const SizedBox(height: 16),
+              
+              // Details Grid
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildDetailItem(
+                      'Customer',
+                      capitalizeFirst(customerName),
+                    ),
+                  ),
+                  Expanded(
+                    child: _buildDetailItem(
+                      'Handyman',
+                      capitalizeFirst(handymanName),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildDetailItem(
+                      'Service Date',
+                      dateFormat.format(request.scheduledDateTime),
+                    ),
+                  ),
+                  Expanded(
+                    child: _buildDetailItem(
+                      'Service Time',
+                      timeFormat.format(request.scheduledDateTime),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildDetailItem(
+                      'Review Date',
+                      dateFormat.format(review.ratingCreatedAt),
+                    ),
+                  ),
+                  Expanded(
+                    child: _buildDetailItem(
+                      'Service Status',
+                      capitalizeFirst(request.reqStatus),
+                    ),
+                  ),
+                ],
+              ),
+              
+              // Review Preview (only if has text)
+              if (review.ratingText.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Text(
+                  review.ratingText,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.grey[600],
+                    fontStyle: FontStyle.italic,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
             ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildDetailItem(String label, String value) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            color: Colors.grey[600],
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
     );
   }
 }

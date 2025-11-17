@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../controller/ratingReview.dart';
+import '../../controller/user.dart';
 import '../../model/databaseModel.dart';
 import '../../service/user.dart';
 import '../../service/image_service.dart';
@@ -30,21 +31,36 @@ class EmpRatingReviewDetailScreenState
   bool isAdmin = false;
   bool isLoadingRole = true;
   bool isSubmittingReply = false;
+  
+  String? customerName;
+  bool isLoadingCustomerName = false;
+  UserController? userController;
 
   late RatingReviewModel review;
   late ServiceRequestModel request;
+  late ServiceModel? service;
+  late UserModel? handymanUser;
   late List<String> imagePaths;
 
-  static final dateTimeFormat = DateFormat('yyyy-MM-dd HH:mm:ss');
+  static final dateFormat = DateFormat('dd MMM yyyy');
+  static final timeFormat = DateFormat('hh:mm a');
+  static final dateTimeFormat = DateFormat('MMM dd, yyyy hh:mm a');
 
   @override
   void initState() {
     super.initState();
     review = widget.reviewData['review'] as RatingReviewModel;
     request = widget.reviewData['request'] as ServiceRequestModel;
+    service = widget.reviewData['service'] as ServiceModel?;
+    handymanUser = widget.reviewData['handymanUser'] as UserModel?;
     imagePaths = review.ratingPicName ?? [];
+    
+    userController = UserController(
+      showErrorSnackBar: (error) => print('Error: $error'),
+    );
 
     loadEmployeeRole();
+    loadCustomerName();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       widget.controller.loadReviewDetails(request.reqID);
@@ -59,6 +75,35 @@ class EmpRatingReviewDetailScreenState
           isAdmin = true;
         }
         isLoadingRole = false;
+      });
+    }
+  }
+
+  Future<void> loadCustomerName() async {
+    if (!mounted) return;
+    setState(() => isLoadingCustomerName = true);
+
+    try {
+      if (userController != null) {
+        final name = await userController!.getCustomerNameByCustID(
+          request.custID,
+        );
+
+        if (!mounted) return;
+        setState(() {
+          customerName = name;
+          isLoadingCustomerName = false;
+        });
+      } else {
+        if (!mounted) return;
+        setState(() => isLoadingCustomerName = false);
+      }
+    } catch (e) {
+      print('Error in loadCustomerName: $e');
+      if (!mounted) return;
+      setState(() {
+        customerName = null;
+        isLoadingCustomerName = false;
       });
     }
   }
@@ -111,7 +156,7 @@ class EmpRatingReviewDetailScreenState
                           Text(
                             isEditing
                                 ? 'Edit Reply'
-                                : 'Reply Rating and Review',
+                                : 'Reply to Customer Review',
                             style: const TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.bold,
@@ -120,20 +165,30 @@ class EmpRatingReviewDetailScreenState
                           ),
                           const SizedBox(height: 16),
                           Text(
-                            'Review',
+                            'Customer Review',
                             style: TextStyle(
                               color: Colors.grey.shade600,
                               fontSize: 14,
                             ),
                           ),
                           const SizedBox(height: 4),
-                          Text(
-                            review.ratingText,
-                            maxLines: 3,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 15,
-                              color: Colors.black54,
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.grey[100],
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              review.ratingText.isEmpty 
+                                  ? 'No review text provided.'
+                                  : review.ratingText,
+                              maxLines: 3,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                color: Colors.black54,
+                                fontStyle: FontStyle.italic,
+                              ),
                             ),
                           ),
                           const SizedBox(height: 24),
@@ -148,9 +203,10 @@ class EmpRatingReviewDetailScreenState
                             decoration: InputDecoration(
                               labelText: isEditing
                                   ? 'Edit your reply'
-                                  : 'Enter reply',
+                                  : 'Write your reply',
                               alignLabelWithHint: true,
                               border: const OutlineInputBorder(),
+                              hintText: 'Thank you for your feedback...',
                             ),
                             maxLines: 4,
                             validator: (value) =>
@@ -240,7 +296,6 @@ class EmpRatingReviewDetailScreenState
     StateSetter setDialogState, {
     required bool isEditing,
   }) async {
-    // Close reply dialog
     Navigator.of(context).pop();
 
     BuildContext? dialogContext;
@@ -284,7 +339,6 @@ class EmpRatingReviewDetailScreenState
 
       if (!mounted) return;
 
-      // Close loading dialog
       if (dialogContext != null && Navigator.canPop(dialogContext!)) {
         Navigator.of(dialogContext!).pop();
       }
@@ -301,7 +355,6 @@ class EmpRatingReviewDetailScreenState
     } catch (e) {
       if (!mounted) return;
 
-      // Close loading dialog
       if (dialogContext != null && Navigator.canPop(dialogContext!)) {
         Navigator.of(dialogContext!).pop();
       }
@@ -330,14 +383,14 @@ class EmpRatingReviewDetailScreenState
           await controller.deleteReply(replyID);
 
           if (mounted) {
-            Navigator.of(context).pop(); // Close loading dialog
+            Navigator.of(context).pop();
             showSuccessDialog(
               context,
               title: 'Successful',
               message: 'The reply has been deleted.',
               primaryButtonText: 'OK',
               onPrimary: () {
-                Navigator.of(context).pop(); // Close success dialog
+                Navigator.of(context).pop();
                 widget.onReplyPosted();
               },
             );
@@ -365,7 +418,7 @@ class EmpRatingReviewDetailScreenState
             leading: const BackButton(color: Colors.black),
             backgroundColor: Theme.of(context).scaffoldBackgroundColor,
             title: const Text(
-              'Rate and Review Details',
+              'Review Details',
               style: TextStyle(
                 color: Colors.black,
                 fontWeight: FontWeight.bold,
@@ -374,6 +427,7 @@ class EmpRatingReviewDetailScreenState
             ),
             centerTitle: true,
           ),
+          backgroundColor: Colors.grey[50],
           body: buildBody(widget.controller),
         );
       },
@@ -394,29 +448,46 @@ class EmpRatingReviewDetailScreenState
     }
 
     final ReviewReplyModel? reply = controller.detailViewModel!.reply;
+    final serviceName = service?.serviceName ?? 'Unknown Service';
+    final icon = ServiceHelper.getIconForService(serviceName);
+    final bgColor = ServiceHelper.getColorForService(serviceName);
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          buildDetailItem('Rating ID', review.rateID),
-          buildDetailItem('Service Request ID', request.reqID),
-          buildDetailItem('Handyman ID', request.handymanID ?? 'Not Assigned'),
-          buildDetailItem(
-            'Rate and Review Created At',
-            dateTimeFormat.format(review.ratingCreatedAt),
-          ),
-          buildRatingSection(review.ratingNum),
-          buildSectionTitle('Photos'),
-          buildPhotosSection(),
-          buildSectionTitle('Review'),
-          buildReviewTextSection(review.ratingText),
-
-          buildSectionTitle('Admin Reply'),
-          buildReplySection(reply),
-
-          const SizedBox(height: 32),
+          // Service Header Card
+          buildServiceHeaderCard(serviceName, icon, bgColor),
+          const SizedBox(height: 12),
+          
+          // Rating Card
+          buildRatingCard(),
+          const SizedBox(height: 12),
+          
+          // Service Details Card
+          buildServiceDetailsCard(),
+          const SizedBox(height: 12),
+          
+          // Location Card
+          buildLocationCard(),
+          const SizedBox(height: 12),
+          
+          // Photos Card
+          if (imagePaths.isNotEmpty) ...[
+            buildPhotosCard(),
+            const SizedBox(height: 12),
+          ],
+          
+          // Review Text Card
+          buildReviewTextCard(),
+          const SizedBox(height: 12),
+          
+          // Admin Reply Card
+          buildAdminReplyCard(reply),
+          const SizedBox(height: 24),
+          
+          // Action Buttons
           buildReplyButton(controller, reply),
           const SizedBox(height: 16),
         ],
@@ -424,23 +495,51 @@ class EmpRatingReviewDetailScreenState
     );
   }
 
-  Widget buildDetailItem(String title, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+  Widget buildServiceHeaderCard(String serviceName, IconData icon, Color bgColor) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
           ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: const TextStyle(
-              color: Colors.black,
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: bgColor,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: Colors.black, size: 32),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  serviceName,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Customer Review',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -448,132 +547,409 @@ class EmpRatingReviewDetailScreenState
     );
   }
 
-  Widget buildSectionTitle(String title) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8.0, top: 16.0),
-      child: Text(
-        title,
-        style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+  Widget buildRatingCard() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
-    );
-  }
-
-  Widget buildRatingSection(double rating) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Rating',
-            style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+          const Text(
+            'Customer Rating',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 12),
           Row(
             children: [
-              const Icon(Icons.star, color: Colors.amber, size: 24),
-              const SizedBox(width: 8),
+              // Star Rating Display
+              ...List.generate(5, (index) {
+                return Icon(
+                  index < review.ratingNum.floor()
+                      ? Icons.star
+                      : (index < review.ratingNum
+                          ? Icons.star_half
+                          : Icons.star_border),
+                  color: Colors.amber,
+                  size: 32,
+                );
+              }),
+              const SizedBox(width: 12),
               Text(
-                rating.toStringAsFixed(1),
+                review.ratingNum.toStringAsFixed(1),
                 style: const TextStyle(
-                  color: Colors.black,
-                  fontSize: 16,
+                  fontSize: 24,
                   fontWeight: FontWeight.bold,
+                ),
+              ),
+              Text(
+                ' / 5.0',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.grey[600],
                 ),
               ),
             ],
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget buildPhotosSection() {
-    if (imagePaths.isEmpty) {
-      return const Text(
-        'No photos provided.',
-        style: TextStyle(color: Colors.black54, fontSize: 15),
-      );
-    }
-
-    return SizedBox(
-      height: 100,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        itemCount: imagePaths.length,
-        itemBuilder: (context, index) {
-          final imageUrl = imagePaths[index];
-
-          return Padding(
-            padding: const EdgeInsets.only(right: 8.0),
-            child: GestureDetector(
-              onTap: () => openGallery(context, index),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(8.0),
-                child: imageUrl.toNetworkImage(
-                  width: 100,
-                  height: 100,
-                  fit: BoxFit.cover,
-                ),
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget buildReviewTextSection(String reviewText) {
-    return Text(
-      reviewText.isEmpty ? "No review text provided." : reviewText,
-      textAlign: TextAlign.justify,
-      style: const TextStyle(
-        color: Colors.black,
-        fontSize: 15,
-        fontWeight: FontWeight.w400,
-        height: 1.5,
-      ),
-    );
-  }
-
-  Widget buildReplySection(ReviewReplyModel? reply) {
-    if (reply == null) {
-      return const Text(
-        'No reply has been posted yet.',
-        style: TextStyle(color: Colors.black54, fontSize: 15),
-      );
-    }
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.grey[100],
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+          const SizedBox(height: 8),
           Text(
-            reply.replyText,
-            textAlign: TextAlign.justify,
-            style: const TextStyle(
-              color: Colors.black87,
-              fontSize: 15,
-              height: 1.5,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'Replied on: ${dateTimeFormat.format(reply.replyCreatedAt)}',
+            'Reviewed on ${dateTimeFormat.format(review.ratingCreatedAt)}',
             style: TextStyle(
-              color: Colors.grey[600],
               fontSize: 12,
+              color: Colors.grey[600],
               fontStyle: FontStyle.italic,
             ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget buildServiceDetailsCard() {
+    final handymanName = handymanUser?.userName ?? 'Not Assigned';
+    
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Service Information',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 16),
+          buildInfoRow(
+            Icons.person,
+            'Customer',
+            isLoadingCustomerName
+                ? 'Loading...'
+                : (customerName != null && customerName!.isNotEmpty
+                      ? customerName!
+                      : 'Unknown Customer'),
+          ),
+          const SizedBox(height: 12),
+          buildInfoRow(
+            Icons.handyman,
+            'Handyman',
+            handymanName.isNotEmpty
+                ? capitalizeFirst(handymanName)
+                : 'Not Assigned',
+          ),
+          const SizedBox(height: 12),
+          buildInfoRow(
+            Icons.calendar_today,
+            'Service Date',
+            dateFormat.format(request.scheduledDateTime),
+          ),
+          const SizedBox(height: 12),
+          buildInfoRow(
+            Icons.access_time,
+            'Service Time',
+            timeFormat.format(request.scheduledDateTime),
+          ),
+          const SizedBox(height: 12),
+          buildInfoRow(
+            Icons.info_outline,
+            'Service Status',
+            capitalizeFirst(request.reqStatus),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget buildLocationCard() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.location_on, color: Colors.red[400], size: 24),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Service Location',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  request.reqAddress,
+                  style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget buildPhotosCard() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Text(
+                'Customer Photos',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              const Spacer(),
+              Text(
+                '${imagePaths.length} photo${imagePaths.length > 1 ? 's' : ''}',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey[600],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 100,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: imagePaths.length,
+              itemBuilder: (context, index) {
+                final imageUrl = imagePaths[index];
+
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8.0),
+                  child: GestureDetector(
+                    onTap: () => openGallery(context, index),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8.0),
+                      child: imageUrl.toNetworkImage(
+                        width: 100,
+                        height: 100,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget buildReviewTextCard() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.format_quote, color: Colors.grey[400], size: 24),
+              const SizedBox(width: 8),
+              const Text(
+                'Customer Review',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            review.ratingText.isEmpty
+                ? "No review text provided."
+                : review.ratingText,
+            textAlign: TextAlign.justify,
+            style: TextStyle(
+              fontSize: 15,
+              color: Colors.grey[800],
+              height: 1.6,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget buildAdminReplyCard(ReviewReplyModel? reply) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: reply != null ? Colors.blue[50] : Colors.grey[100],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: reply != null ? Colors.blue[200]! : Colors.grey[300]!,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.reply,
+                color: reply != null ? Colors.blue[700] : Colors.grey[600],
+                size: 24,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Admin Response',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: reply != null ? Colors.blue[900] : Colors.grey[700],
+                ),
+              ),
+              const Spacer(),
+              if (reply != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.green[100],
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.check_circle, size: 14, color: Colors.green[700]),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Replied',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.green[700],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (reply == null)
+            Text(
+              'No response has been posted yet.',
+              style: TextStyle(
+                color: Colors.grey[600],
+                fontSize: 14,
+                fontStyle: FontStyle.italic,
+              ),
+            )
+          else ...[
+            Text(
+              reply.replyText,
+              textAlign: TextAlign.justify,
+              style: TextStyle(
+                color: Colors.blue[900],
+                fontSize: 15,
+                height: 1.6,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Icon(Icons.schedule, size: 14, color: Colors.blue[600]),
+                const SizedBox(width: 4),
+                Text(
+                  'Replied on ${dateTimeFormat.format(reply.replyCreatedAt)}',
+                  style: TextStyle(
+                    color: Colors.blue[600],
+                    fontSize: 12,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget buildInfoRow(IconData icon, String label, String value) {
+    return Row(
+      children: [
+        Icon(icon, size: 20, color: Colors.grey[600]),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -586,10 +962,11 @@ class EmpRatingReviewDetailScreenState
     }
 
     if (reply == null) {
-      // Reply button
       return SizedBox(
         width: double.infinity,
-        child: ElevatedButton(
+        child: ElevatedButton.icon(
+          icon: const Icon(Icons.reply, size: 20),
+          label: const Text('Reply to Review', style: TextStyle(fontSize: 16)),
           style: ElevatedButton.styleFrom(
             backgroundColor: Theme.of(context).colorScheme.primary,
             foregroundColor: Colors.white,
@@ -599,15 +976,15 @@ class EmpRatingReviewDetailScreenState
             ),
           ),
           onPressed: () => showReplyDialog(controller),
-          child: const Text('Reply', style: TextStyle(fontSize: 16)),
         ),
       );
     } else {
-      // Edit reply and delete reply button
       return Row(
         children: [
           Expanded(
-            child: ElevatedButton(
+            child: ElevatedButton.icon(
+              icon: const Icon(Icons.edit, size: 18),
+              label: const Text('Edit Reply', style: TextStyle(fontSize: 16)),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Theme.of(context).colorScheme.primary,
                 foregroundColor: Colors.white,
@@ -618,12 +995,13 @@ class EmpRatingReviewDetailScreenState
               ),
               onPressed: () =>
                   showReplyDialog(controller, existingReply: reply),
-              child: const Text('Edit Reply', style: TextStyle(fontSize: 16)),
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 12),
           Expanded(
-            child: ElevatedButton(
+            child: ElevatedButton.icon(
+              icon: const Icon(Icons.delete_outline, size: 18),
+              label: const Text('Delete Reply', style: TextStyle(fontSize: 16)),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Theme.of(context).colorScheme.error,
                 foregroundColor: Colors.white,
@@ -633,7 +1011,6 @@ class EmpRatingReviewDetailScreenState
                 ),
               ),
               onPressed: () => deleteReply(controller, reply.replyID),
-              child: const Text('Delete Reply', style: TextStyle(fontSize: 16)),
             ),
           ),
         ],

@@ -14,6 +14,7 @@ import 'modules/customer/reqHistory.dart';
 import 'modules/customer/register.dart';
 import 'modules/customer/homepage.dart';
 import 'modules/employee/allEmployee.dart';
+import 'modules/employee/allReport.dart';
 import 'modules/employee/billPayment.dart';
 import 'modules/employee/empProfile.dart';
 import 'modules/employee/ratingReview.dart';
@@ -66,6 +67,7 @@ class MyApp extends StatelessWidget {
         '/empRating': (context) => const EmpRatingReviewScreen(),
         '/empEmployee': (context) => const EmpEmployeeScreen(),
         '/empProfile': (context) => const EmpProfileScreen(),
+        '/empReport': (context) => const EmpReportScreen(),
       },
     );
   }

@@ -11,6 +11,9 @@ list(APPEND FLUTTER_PLUGIN_LIST
   firebase_storage
   flutter_secure_storage_windows
   geolocator_windows
+  permission_handler_windows
+  printing
+  share_plus
   url_launcher_windows
 )
 

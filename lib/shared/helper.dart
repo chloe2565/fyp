@@ -201,7 +201,7 @@ class Validator {
         endError = 'End date cannot be in the future';
       }
     }
-    
+
     // End date cannot be earlier than start date
     if (startDate != null && endDate != null) {
       final start = DateUtils.dateOnly(startDate);
@@ -249,7 +249,7 @@ class Validator {
       if (max < 0 || max > 5) return 'Rating must be 0.0 - 5.0';
       if (min != null && max < min) return 'Max cannot be less than min';
     }
-    
+
     return null;
   }
 
@@ -263,14 +263,18 @@ class Validator {
     }
 
     const minDuration = Duration(minutes: 5);
-    if (endDateTime.difference(startDateTime).isNegative || 
+    if (endDateTime.difference(startDateTime).isNegative ||
         endDateTime.difference(startDateTime) < minDuration) {
-        return 'Unavailable period must be at least ${minDuration.inMinutes} minutes.';
+      return 'Unavailable period must be at least ${minDuration.inMinutes} minutes.';
     }
     return null;
   }
-  
-  static String? validateSelectedDateTime(DateTime? dateTime, TimeOfDay? timeOfDay, String fieldName) {
+
+  static String? validateSelectedDateTime(
+    DateTime? dateTime,
+    TimeOfDay? timeOfDay,
+    String fieldName,
+  ) {
     if (dateTime == null || timeOfDay == null) {
       return '$fieldName is required';
     }
@@ -329,6 +333,13 @@ class Formatter {
     }
 
     return '';
+  }
+
+  static String formatDateTime(DateTime? dt) {
+    if (dt == null) return 'N/A';
+    
+    final format = DateFormat('dd MMM yyyy hh:mm a');
+    return format.format(dt);
   }
 }
 
@@ -802,7 +813,7 @@ Widget buildReviewTile(ReviewDisplayData reviewData) {
   final String formattedDate = DateFormat(
     'dd MMM yyyy',
   ).format(review.ratingCreatedAt);
-  
+
   return Padding(
     padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
     child: Row(
@@ -1076,9 +1087,39 @@ String capitalizeFirst(String text) {
   return text[0].toUpperCase() + text.substring(1).toLowerCase();
 }
 
+String getStatusLabel(String status) {
+  switch (status.toLowerCase()) {
+    case 'pending':
+      return 'Pending';
+    case 'confirmed':
+      return 'Confirmed';
+    case 'departed':
+      return 'Departed';
+    case 'completed':
+      return 'Completed';
+    case 'cancelled':
+      return 'Cancelled';
+    case 'on leave':
+      return 'On Leave';
+    case 'late':
+      return 'Late';
+    case 'absent':
+      return 'Absent';
+    case 'paid':
+      return 'Paid';
+    case 'active':
+      return 'Active';
+    case 'inactive':
+      return 'Inactive';
+    default:
+      return 'Unknown';
+  }
+}
+
 Color getStatusColor(String status) {
   switch (status.toLowerCase()) {
     case 'pending':
+    case 'on leave':
       return Colors.amber;
     case 'confirmed':
       return Color(0xFFFD722E);
@@ -1093,6 +1134,7 @@ Color getStatusColor(String status) {
     case 'cancelled':
     case 'failed':
     case 'inactive':
+    case 'absent':
       return Colors.red;
     default:
       return Colors.grey;
@@ -1641,9 +1683,9 @@ class ConfirmDialog extends StatelessWidget {
               height: 80,
               decoration: const BoxDecoration(
                 shape: BoxShape.circle,
-                color: Color(0xFFEA4335),
+                color: Colors.amber,
               ),
-              child: const Icon(Icons.close, size: 48, color: Colors.white),
+              child: const Icon(Icons.warning, size: 48, color: Colors.white),
             ),
             const SizedBox(height: 24),
 
@@ -1674,7 +1716,7 @@ class ConfirmDialog extends StatelessWidget {
                 Expanded(
                   child: FilledButton(
                     style: FilledButton.styleFrom(
-                      backgroundColor: Theme.of(context).colorScheme.error,
+                      backgroundColor: Colors.amber,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -2025,14 +2067,14 @@ Widget buildReviewTextField(RatingReviewController controller) {
 // Employee side info card
 class EmpInfoCard extends StatelessWidget {
   final IconData icon;
-  final String reqID;
+  final String title;
   final List<MapEntry<String, String>> details;
   final VoidCallback onViewDetails;
 
   const EmpInfoCard({
     super.key,
     required this.icon,
-    required this.reqID,
+    required this.title,
     required this.details,
     required this.onViewDetails,
   });
@@ -2071,7 +2113,7 @@ class EmpInfoCard extends StatelessWidget {
                     ),
                     const SizedBox(width: 10),
                     Text(
-                      reqID,
+                      title,
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
@@ -2079,25 +2121,25 @@ class EmpInfoCard extends StatelessWidget {
                     ),
                   ],
                 ),
-                Flexible(
-                  fit: FlexFit.loose,
-                  child: ElevatedButton(
-                    onPressed: onViewDetails,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Theme.of(context).colorScheme.primary,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
-                      minimumSize: const Size(0, 36),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                    ),
-                    child: const Text('View Details'),
-                  ),
-                ),
+                // Flexible(
+                //   fit: FlexFit.loose,
+                //   child: ElevatedButton(
+                //     onPressed: onViewDetails,
+                //     style: ElevatedButton.styleFrom(
+                //       backgroundColor: Theme.of(context).colorScheme.primary,
+                //       foregroundColor: Colors.white,
+                //       padding: const EdgeInsets.symmetric(
+                //         horizontal: 16,
+                //         vertical: 8,
+                //       ),
+                //       minimumSize: const Size(0, 36),
+                //       shape: RoundedRectangleBorder(
+                //         borderRadius: BorderRadius.circular(6),
+                //       ),
+                //     ),
+                //     child: const Text('View Details'),
+                //   ),
+                // ),
               ],
             ),
 
@@ -2148,6 +2190,164 @@ class EmpInfoCard extends StatelessWidget {
     );
   }
 }
+
+void showCancelRequestDialog(
+  BuildContext context, {
+  required String reqID,
+  required Future<void> Function(String reqID, String reason) onConfirmCancel,
+  VoidCallback? onSuccess,
+}) {
+  final TextEditingController reasonController = TextEditingController();
+
+  showDialog(
+    context: context,
+    builder: (BuildContext dialogContext) {
+      return AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text(
+          'Cancel Service Request',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Please provide a reason for cancelling this service request:',
+              style: TextStyle(fontSize: 14, color: Colors.black87),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: reasonController,
+              maxLines: 3,
+              maxLength: 200,
+              decoration: InputDecoration(
+                hintText: 'Enter cancellation reason...',
+                hintStyle: TextStyle(color: Colors.grey.shade400),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: Colors.red, width: 2),
+                ),
+                counterText: '',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Back'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final reason = reasonController.text.trim();
+              if (reason.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Please enter a cancellation reason'),
+                    backgroundColor: Colors.red,
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+                return;
+              }
+              Navigator.of(dialogContext).pop();
+
+              showConfirmDialog(
+                context,
+                title: 'Confirm Cancellation',
+                message:
+                    'Are you sure you want to cancel this service request? This action cannot be undone.',
+                affirmativeText: 'Confirm Cancel',
+                negativeText: 'Back',
+                onAffirmative: () async {
+                  // Show loading dialog
+                  showLoadingDialog(context, 'Cancelling service request...');
+
+                  try {
+                    await onConfirmCancel(reqID, reason);
+
+                    if (context.mounted) {
+                      Navigator.of(context).pop(); // Close loading dialog
+
+                      showSuccessDialog(
+                        context,
+                        title: 'Request Cancelled',
+                        message:
+                            'Your service request has been cancelled successfully',
+                        primaryButtonText: 'OK',
+                        onPrimary: () {
+                          Navigator.of(context).pop(); // Close success dialog
+                          if (onSuccess != null) {
+                            onSuccess();
+                          }
+                        },
+                      );
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      Navigator.of(context).pop(); // Close loading dialog
+
+                      showErrorDialog(
+                        context,
+                        title: 'Cancellation Failed',
+                        message: 'Failed to cancel request: $e',
+                        buttonText: 'OK',
+                      );
+                    }
+                  }
+                },
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: const Text('Next'),
+          ),
+        ],
+      );
+    },
+  );
+}
+
+IconData getStatusIcon(String status) {
+  switch (status.toLowerCase()) {
+    case 'pending':
+      return Icons.schedule;
+    case 'confirmed':
+      return Icons.check_circle_outline;
+    case 'departed':
+      return Icons.directions_walk;
+    case 'completed':
+      return Icons.check_circle;
+    case 'cancelled':
+      return Icons.cancel;
+    default:
+      return Icons.info_outline;
+  }
+}
+
+IconData getReportIcon(String type) {
+  switch (type.toLowerCase()) {
+    case 'handyman performance':
+      return Icons.trending_up;
+    case 'financial':
+      return Icons.attach_money;
+    case 'service request':
+      return Icons.build;
+    default:
+      return Icons.description;
+  }
+}
+
+
 
 
 

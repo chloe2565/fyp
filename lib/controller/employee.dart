@@ -1,5 +1,4 @@
 import 'dart:io';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../model/databaseModel.dart';
@@ -38,6 +37,10 @@ class EmployeeController extends ChangeNotifier {
   List<HandymanAvailabilityModel> handymanAvailabilities = [];
   bool isLoadingAvailability = false;
 
+  // NEW: Timetable properties
+  List<Map<String, dynamic>> handymanServiceRequests = [];
+  bool isLoadingTimetable = false;
+
   Future<void> loadPageData(UserController userController) async {
     isLoadingRole = true;
     notifyListeners();
@@ -63,6 +66,20 @@ class EmployeeController extends ChangeNotifier {
 
     try {
       allEmployeesRaw = await empService.getAllEmployeesWithUserInfo();
+
+      for (var employee in allEmployeesRaw) {
+        if (employee['empType'] == 'handyman') {
+          final empID = employee['empID'] as String;
+          final handyman = await empService.getHandymanByEmpID(empID);
+          if (handyman != null) {
+            final services = await empService.getAssignedServicesByHandymanID(
+              handyman.handymanID,
+            );
+            employee['assignedServices'] = services;
+          }
+        }
+      }
+
       searchEmployees("");
     } catch (e) {
       print("Error loading employees: $e");
@@ -227,6 +244,7 @@ class EmployeeController extends ChangeNotifier {
         'handymanID': handyman.handymanID,
         'empID': handyman.empID,
         'handymanBio': handyman.handymanBio,
+        'handymanRating': handyman.handymanRating,
       };
     } catch (e) {
       print('Error getHandymanDetails: $e');
@@ -294,6 +312,7 @@ class EmployeeController extends ChangeNotifier {
     }
   }
 
+  // OLD METHOD - kept for backward compatibility
   Future<void> loadHandymanAvailability(
     String handymanID,
     DateTime weekStart,
@@ -316,6 +335,30 @@ class EmployeeController extends ChangeNotifier {
     notifyListeners();
   }
 
+  // NEW: Load both availability and service requests for timetable view
+  Future<void> loadHandymanTimetableData(String handymanID) async {
+    isLoadingTimetable = true;
+    notifyListeners();
+    print('handymanID in controller file is $handymanID');
+
+    try {
+      // Load all availability records (no date filtering)
+      handymanAvailabilities = await empService.getAllHandymanAvailability(
+        handymanID,
+      );
+
+      // Load all service requests (confirmed, departed, completed)
+      handymanServiceRequests = await empService.getHandymanServiceRequests(
+        handymanID,
+      );
+    } catch (e) {
+      print('Error loading handyman timetable data: $e');
+    }
+
+    isLoadingTimetable = false;
+    notifyListeners();
+  }
+
   List<HandymanAvailabilityModel> getUnavailabilitiesForDate(DateTime date) {
     final startOfDay = DateTime(date.year, date.month, date.day);
     final endOfDay = startOfDay.add(const Duration(days: 1));
@@ -324,6 +367,52 @@ class EmployeeController extends ChangeNotifier {
       return (avail.availabilityStartDateTime.isBefore(endOfDay) &&
           avail.availabilityEndDateTime.isAfter(startOfDay));
     }).toList();
+  }
+
+  // NEW: Get service requests for a specific date
+  List<Map<String, dynamic>> getServiceRequestsForDate(DateTime date) {
+    final startOfDay = DateTime(date.year, date.month, date.day);
+    final endOfDay = startOfDay.add(const Duration(days: 1));
+
+    return handymanServiceRequests.where((data) {
+      final request = data['request'] as ServiceRequestModel;
+      final scheduledDate = request.scheduledDateTime;
+      return scheduledDate.isAfter(
+            startOfDay.subtract(const Duration(seconds: 1)),
+          ) &&
+          scheduledDate.isBefore(endOfDay);
+    }).toList();
+  }
+
+  // NEW: Parse service duration string to hours
+  double parseServiceDuration(String duration) {
+    if (duration.isEmpty) return 1.0;
+
+    final cleaned = duration
+        .toLowerCase()
+        .replaceAll('hours', '')
+        .replaceAll('hour', '')
+        .replaceAll('h', '')
+        .trim();
+
+    // Handle range format like "2 to 3" or "2-3"
+    final rangePattern = RegExp(r'(\d+\.?\d*)\s*(?:to|-)\s*(\d+\.?\d*)');
+    final rangeMatch = rangePattern.firstMatch(cleaned);
+
+    if (rangeMatch != null) {
+      final max = double.parse(rangeMatch.group(2)!);
+      return max;
+    }
+
+    // Handle single number
+    final singlePattern = RegExp(r'(\d+\.?\d*)');
+    final singleMatch = singlePattern.firstMatch(cleaned);
+
+    if (singleMatch != null) {
+      return double.parse(singleMatch.group(1)!);
+    }
+
+    return 1.0;
   }
 
   Future<void> addHandymanUnavailability(

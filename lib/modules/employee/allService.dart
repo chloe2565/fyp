@@ -352,7 +352,6 @@ class EmpAllServicesScreenState extends State<EmpAllServicesScreen> {
                               },
                               child: ServiceListItemCard(
                                 title: service.serviceName,
-                                subtitle: service.serviceID,
                                 status: service.serviceStatus,
                                 icon: ServiceHelper.getIconForService(
                                   service.serviceName,
@@ -597,14 +596,12 @@ class FilterDialogState extends State<FilterDialog> {
 
 class ServiceListItemCard extends StatelessWidget {
   final String title;
-  final String subtitle;
   final String status;
   final IconData icon;
   final Color color;
 
   const ServiceListItemCard({
     required this.title,
-    required this.subtitle,
     required this.status,
     required this.icon,
     required this.color,
@@ -651,15 +648,6 @@ class ServiceListItemCard extends StatelessWidget {
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  subtitle,
-                  style: const TextStyle(
-                    color: Colors.grey,
-                    fontWeight: FontWeight.w500,
-                    fontSize: 14,
-                  ),
                 ),
                 const SizedBox(height: 6),
                 Container(

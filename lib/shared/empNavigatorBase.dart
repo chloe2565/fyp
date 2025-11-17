@@ -60,10 +60,11 @@ class EmpNavigationBarState extends State<EmpNavigationBar> {
       );
       items.insert(
         1,
-        const PopupMenuItem(
-          value: 'empAllService',
-          child: Text('Service'),
-        ),
+        const PopupMenuItem(value: 'empAllService', child: Text('Service')),
+      );
+      items.insert(
+        1,
+        const PopupMenuItem(value: 'empReport', child: Text('Reports')),
       );
     }
 
@@ -91,6 +92,9 @@ class EmpNavigationBarState extends State<EmpNavigationBar> {
       case 'empBillPayment':
         Navigator.pushNamed(context, '/empBillPayment');
         break;
+      case 'empReport':
+        Navigator.pushNamed(context, '/empReport');
+        break;
       case 'empProfile':
         Navigator.pushNamed(context, '/empProfile');
         break;
@@ -107,10 +111,7 @@ class EmpNavigationBarState extends State<EmpNavigationBar> {
     }
 
     final navItems = <BottomNavigationBarItem>[
-      const BottomNavigationBarItem(
-        icon: Icon(Icons.home),
-        label: 'Dashboard',
-      ),
+      const BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Dashboard'),
       const BottomNavigationBarItem(
         icon: Icon(Icons.description),
         label: 'Requests',

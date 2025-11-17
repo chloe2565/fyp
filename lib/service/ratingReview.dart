@@ -141,6 +141,72 @@ class RatingReviewService {
     }
   }
 
+  // NEW METHOD: Fetch customer user model by custID
+  Future<UserModel?> fetchCustomerUserModel(String custID) async {
+    try {
+      // Get Customer document
+      final customerDoc = await db.collection('Customer').doc(custID).get();
+      if (!customerDoc.exists) {
+        print('Customer document not found for custID: $custID');
+        return null;
+      }
+      
+      final customerData = customerDoc.data() as Map<String, dynamic>;
+      final customer = CustomerModel.fromMap(customerData);
+      
+      // Get User document using userID from customer
+      final userDoc = await db.collection('User').doc(customer.userID).get();
+      if (!userDoc.exists) {
+        print('User document not found for userID: ${customer.userID}');
+        return null;
+      }
+      
+      final userData = userDoc.data() as Map<String, dynamic>;
+      return UserModel.fromMap(userData);
+    } catch (e) {
+      print('Error in fetchCustomerUserModel: $e');
+      return null;
+    }
+  }
+
+  // NEW METHOD: Batch fetch customer user models
+  Future<Map<String, UserModel>> fetchCustomerUserModels(
+    List<String> custIDs,
+  ) async {
+    if (custIDs.isEmpty) return {};
+
+    try {
+      // Get Customers
+      final customerMap = await batchFetch<CustomerModel>(
+        ids: custIDs,
+        collection: 'Customer',
+        fromMap: (data) => CustomerModel.fromMap(data),
+      );
+
+      // Get Users
+      final userIDs = customerMap.values.map((c) => c.userID).toSet().toList();
+      final userMap = await batchFetch<UserModel>(
+        ids: userIDs,
+        collection: 'User',
+        fromMap: (data) => UserModel.fromMap(data),
+      );
+
+      // Map custID to final UserModel
+      final Map<String, UserModel> result = {};
+      for (final custID in custIDs) {
+        final customer = customerMap[custID];
+        final user = userMap[customer?.userID];
+        if (user != null) {
+          result[custID] = user;
+        }
+      }
+      return result;
+    } catch (e) {
+      print("Error in fetchCustomerUserModels: $e");
+      rethrow;
+    }
+  }
+
   Future<Map<String, T>> batchFetch<T>({
     required List<String> ids,
     required String collection,
@@ -445,15 +511,21 @@ class RatingReviewService {
           .whereType<String>()
           .toSet()
           .toList();
+      final custIDs = requests
+          .map((r) => r.custID)
+          .toSet()
+          .toList();
 
       final reviewData = getAllReviewsAndFilter(reqIDs);
       final serviceData = fetchAllServicesAndFilter(serviceIDs);
       final handymanData = fetchHandymanUserModels(handymanIDs);
+      final customerData = fetchCustomerUserModels(custIDs);
 
       final results = await Future.wait([
         reviewData,
         serviceData,
         handymanData,
+        customerData,
       ]);
 
       final reviewMap = {
@@ -461,18 +533,21 @@ class RatingReviewService {
       };
       final serviceMap = results[1] as Map<String, ServiceModel>;
       final handymanUserMap = results[2] as Map<String, UserModel>;
+      final customerUserMap = results[3] as Map<String, UserModel>;
 
       // Only include requests that have reviews
       for (final req in requests) {
         final review = reviewMap[req.reqID];
         if (review != null) {
           final service = serviceMap[req.serviceID];
-          final user = handymanUserMap[req.handymanID];
+          final handymanUser = handymanUserMap[req.handymanID];
+          final customerUser = customerUserMap[req.custID];
 
           allReviewsList.add({
             'request': req,
             'service': service,
-            'handymanUser': user,
+            'handymanUser': handymanUser,
+            'customerUser': customerUser,
             'review': review,
           });
         }

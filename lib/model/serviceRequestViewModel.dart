@@ -7,6 +7,7 @@ class RequestViewModel {
   final IconData icon; 
   final List<MapEntry<String, String>> details; // Info card on request history screen
   final String reqStatus; 
+  final DateTime reqDateTime;
   final DateTime scheduledDateTime;
   final String? amountToPay;
   final String? payDueDate;
@@ -14,6 +15,8 @@ class RequestViewModel {
   final String? paymentCreatedAt;
   final ServiceRequestModel requestModel; 
   final String handymanName;
+  final String customerName; 
+  final String customerContact;
 
   RequestViewModel({
     required this.reqID,
@@ -21,6 +24,7 @@ class RequestViewModel {
     required this.icon,
     required this.details,
     required this.reqStatus,
+    required this.reqDateTime,
     required this.scheduledDateTime,
     this.amountToPay,
     this.payDueDate,
@@ -28,5 +32,7 @@ class RequestViewModel {
     this.paymentCreatedAt,
     required this.requestModel,
     required this.handymanName,
+    required this.customerName,
+    required this.customerContact,
   });
 }

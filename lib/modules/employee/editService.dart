@@ -439,7 +439,7 @@ class EmpModifyServiceScreenState extends State<EmpModifyServiceScreen> {
   }
 
   Widget buildLabel(String text) {
-    return Text(text, style: const TextStyle(color: Colors.grey, fontSize: 14));
+    return Text(text, style: TextStyle(color: Colors.grey.shade700, fontSize: 14));
   }
 
   Widget buildPhotoUploader() {
@@ -448,6 +448,7 @@ class EmpModifyServiceScreenState extends State<EmpModifyServiceScreen> {
       icon: const Icon(Icons.upload_file_outlined, size: 18),
       label: const Text('Upload photos'),
       style: OutlinedButton.styleFrom(
+        backgroundColor: Colors.white,
         foregroundColor: Colors.grey.shade700,
         side: BorderSide(color: Colors.grey.shade300),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),

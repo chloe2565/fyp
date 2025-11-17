@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:fl_chart/fl_chart.dart';
 import '../../controller/user.dart';
 import '../../controller/empHomepage.dart';
 import '../../service/image_service.dart';
 import '../../shared/empNavigatorBase.dart';
 import '../../model/databaseModel.dart';
+import '../../shared/helper.dart';
 
 class EmpHomepage extends StatefulWidget {
   const EmpHomepage({super.key});
@@ -165,37 +167,6 @@ class EmpHomepageState extends State<EmpHomepage> {
           },
         ),
         actions: [
-          // Stack(
-          //   alignment: Alignment.topRight,
-          //   children: [
-          //     const Icon(
-          //       Icons.notifications_none_outlined,
-          //       color: Colors.black,
-          //       size: 30,
-          //     ),
-          //     Container(
-          //       margin: const EdgeInsets.only(top: 4, right: 2),
-          //       width: 15,
-          //       height: 15,
-          //       decoration: BoxDecoration(
-          //         color: Colors.orange,
-          //         shape: BoxShape.circle,
-          //         border: Border.all(color: Colors.white, width: 2),
-          //       ),
-          //       child: const Center(
-          //         child: Text(
-          //           '1',
-          //           style: TextStyle(
-          //             fontSize: 8,
-          //             color: Colors.white,
-          //             fontWeight: FontWeight.bold,
-          //           ),
-          //         ),
-          //       ),
-          //     ),
-          //   ],
-          // ),
-          // const SizedBox(width: 16),
           Container(
             decoration: BoxDecoration(borderRadius: BorderRadius.circular(12)),
             child: PopupMenuButton<String>(
@@ -276,6 +247,9 @@ class EmpHomepageState extends State<EmpHomepage> {
   }
 
   Widget buildServiceRequestsCard(Map<String, int> statusCounts) {
+    final total = statusCounts.values.fold(0, (sum, count) => sum + count);
+    final hasData = total > 0;
+
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -285,92 +259,127 @@ class EmpHomepageState extends State<EmpHomepage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Today Service Requests',
+              'This Week Service Requests',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Status',
-                  style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+            const SizedBox(height: 20),
+            if (!hasData)
+              SizedBox(
+                height: 200,
+                child: Center(
+                  child: Text(
+                    'No service requests this week',
+                    style: TextStyle(color: Colors.grey.shade600),
+                  ),
                 ),
-                Text(
-                  'Number',
-                  style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            buildStatusRow(
-              'Completed',
-              statusCounts['completed'] ?? 0,
-              Colors.green,
-            ),
-            buildStatusRow(
-              'On Leave',
-              statusCounts['on leave'] ?? 0,
-              Colors.orange,
-            ),
-            buildStatusRow('Late', statusCounts['late'] ?? 0, Colors.pink),
-            buildStatusRow('Absent', statusCounts['absent'] ?? 0, Colors.red),
-            const SizedBox(height: 12),
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton(
-                onPressed: () {
-                  Navigator.pushNamed(context, '/empRequest');
-                },
+              )
+            else
+              SizedBox(
+                height: 200,
                 child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: const [
-                    Text(
-                      'View service requests',
-                      style: TextStyle(color: Colors.orange),
+                  children: [
+                    Expanded(
+                      flex: 3,
+                      child: PieChart(
+                        PieChartData(
+                          sectionsSpace: 2,
+                          centerSpaceRadius: 40,
+                          sections: statusCounts.entries
+                              .where((entry) => entry.value > 0)
+                              .map((entry) {
+                            final percentage = (entry.value / total) * 100;
+                            return PieChartSectionData(
+                              color: getStatusColor(entry.key),
+                              value: entry.value.toDouble(),
+                              title: '${percentage.toStringAsFixed(0)}%',
+                              radius: 50,
+                              titleStyle: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
                     ),
-                    SizedBox(width: 4),
-                    Icon(Icons.arrow_forward, color: Colors.orange, size: 18),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      flex: 2,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: statusCounts.entries.map((entry) {
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 12,
+                                  height: 12,
+                                  decoration: BoxDecoration(
+                                    color: getStatusColor(entry.key),
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    getStatusLabel(entry.key),
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey.shade700,
+                                    ),
+                                  ),
+                                ),
+                                Text(
+                                  '${entry.value}',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ),
                   ],
                 ),
               ),
-            ),
+            // const SizedBox(height: 12),
+            // Align(
+            //   alignment: Alignment.centerRight,
+            //   child: TextButton(
+            //     onPressed: () {
+            //       Navigator.pushNamed(context, '/empRequest');
+            //     },
+            //     child: Row(
+            //       mainAxisSize: MainAxisSize.min,
+            //       children: const [
+            //         Text(
+            //           'View service requests',
+            //           style: TextStyle(color: Colors.orange),
+            //         ),
+            //         SizedBox(width: 4),
+            //         Icon(Icons.arrow_forward, color: Colors.orange, size: 18),
+            //       ],
+            //     ),
+            //   ),
+            // ),
           ],
         ),
       ),
     );
   }
 
-  Widget buildStatusRow(String label, int count, Color color) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 8,
-                height: 8,
-                decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                label,
-                style: TextStyle(fontSize: 14, color: Colors.grey.shade700),
-              ),
-            ],
-          ),
-          Text(
-            count.toString(),
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget buildHandymanAvailabilityCard(Map<String, int> availability) {
+    final available = availability['available'] ?? 0;
+    final unavailable = availability['unavailable'] ?? 0;
+    final total = available + unavailable;
+    final hasData = total > 0;
+
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -383,51 +392,149 @@ class EmpHomepageState extends State<EmpHomepage> {
               'Today Handymen Availability',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Status',
-                  style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+            const SizedBox(height: 20),
+            if (!hasData)
+              SizedBox(
+                height: 200,
+                child: Center(
+                  child: Text(
+                    'No handyman data available',
+                    style: TextStyle(color: Colors.grey.shade600),
+                  ),
                 ),
-                Text(
-                  'Number',
-                  style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            buildStatusRow(
-              'Available',
-              availability['available'] ?? 0,
-              Colors.green,
-            ),
-            buildStatusRow(
-              'Unavailable',
-              availability['unavailable'] ?? 0,
-              Colors.red,
-            ),
-            const SizedBox(height: 12),
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton(
-                onPressed: () {
-                  Navigator.pushNamed(context, '/empEmployee');
-                },
+              )
+            else
+              SizedBox(
+                height: 200,
                 child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: const [
-                    Text(
-                      'View employees',
-                      style: TextStyle(color: Colors.orange),
+                  children: [
+                    Expanded(
+                      flex: 3,
+                      child: PieChart(
+                        PieChartData(
+                          sectionsSpace: 2,
+                          centerSpaceRadius: 40,
+                          sections: [
+                            if (available > 0)
+                              PieChartSectionData(
+                                color: Colors.green,
+                                value: available.toDouble(),
+                                title: '${((available / total) * 100).toStringAsFixed(0)}%',
+                                radius: 50,
+                                titleStyle: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            if (unavailable > 0)
+                              PieChartSectionData(
+                                color: Colors.red,
+                                value: unavailable.toDouble(),
+                                title: '${((unavailable / total) * 100).toStringAsFixed(0)}%',
+                                radius: 50,
+                                titleStyle: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
                     ),
-                    SizedBox(width: 4),
-                    Icon(Icons.arrow_forward, color: Colors.orange, size: 18),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      flex: 2,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                width: 12,
+                                height: 12,
+                                decoration: const BoxDecoration(
+                                  color: Colors.green,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              const Expanded(
+                                child: Text(
+                                  'Available',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.black87,
+                                  ),
+                                ),
+                              ),
+                              Text(
+                                '$available',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Container(
+                                width: 12,
+                                height: 12,
+                                decoration: const BoxDecoration(
+                                  color: Colors.red,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              const Expanded(
+                                child: Text(
+                                  'Unavailable',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.black87,
+                                  ),
+                                ),
+                              ),
+                              Text(
+                                '$unavailable',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),
-            ),
+            // const SizedBox(height: 12),
+            // Align(
+            //   alignment: Alignment.centerRight,
+            //   child: TextButton(
+            //     onPressed: () {
+            //       Navigator.pushNamed(context, '/empEmployee');
+            //     },
+            //     child: Row(
+            //       mainAxisSize: MainAxisSize.min,
+            //       children: const [
+            //         Text(
+            //           'View employees',
+            //           style: TextStyle(color: Colors.orange),
+            //         ),
+            //         SizedBox(width: 4),
+            //         Icon(Icons.arrow_forward, color: Colors.orange, size: 18),
+            //       ],
+            //     ),
+            //   ),
+            // ),
           ],
         ),
       ),
@@ -435,6 +542,17 @@ class EmpHomepageState extends State<EmpHomepage> {
   }
 
   Widget buildTopServicesCard(Map<String, int> services) {
+    final hasData = services.isNotEmpty;
+    final maxValue = hasData
+        ? services.values.reduce((a, b) => a > b ? a : b).toDouble()
+        : 0.0;
+
+    final barColors = [
+      Colors.blue,
+      Colors.purple,
+      Colors.teal,
+    ];
+
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -444,77 +562,158 @@ class EmpHomepageState extends State<EmpHomepage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Monthly Top 3 Popular Services',
+              'This Week Top 3 Popular Services',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Services',
-                  style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
-                ),
-                Text(
-                  'Number',
-                  style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            if (services.isEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                child: Text(
-                  'No services data available',
-                  style: TextStyle(color: Colors.grey.shade600),
+            const SizedBox(height: 20),
+            if (!hasData)
+              SizedBox(
+                height: 200,
+                child: Center(
+                  child: Text(
+                    'No services data available',
+                    style: TextStyle(color: Colors.grey.shade600),
+                  ),
                 ),
               )
             else
-              ...services.entries.map(
-                (entry) => Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 6),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        entry.key,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey.shade700,
+              SizedBox(
+                height: 220,
+                child: BarChart(
+                  BarChartData(
+                    alignment: BarChartAlignment.spaceAround,
+                    maxY: maxValue * 1.2,
+                    barTouchData: BarTouchData(
+                      enabled: true,
+                      touchTooltipData: BarTouchTooltipData(
+                        getTooltipColor: (group) => Colors.blueGrey.shade800,
+                        getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                          final serviceName = services.keys.elementAt(groupIndex);
+                          return BarTooltipItem(
+                            '$serviceName\n',
+                            const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                            children: [
+                              TextSpan(
+                                text: rod.toY.toInt().toString(),
+                                style: const TextStyle(
+                                  color: Colors.yellow,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          );
+                        },
+                      ),
+                    ),
+                    titlesData: FlTitlesData(
+                      show: true,
+                      bottomTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                          showTitles: true,
+                          getTitlesWidget: (value, meta) {
+                            final index = value.toInt();
+                            if (index >= 0 && index < services.length) {
+                              final serviceName = services.keys.elementAt(index);
+                              return Padding(
+                                padding: const EdgeInsets.only(top: 8),
+                                child: Text(
+                                  serviceName.length > 10
+                                      ? '${serviceName.substring(0, 10)}...'
+                                      : serviceName,
+                                  style: TextStyle(
+                                    color: Colors.grey.shade700,
+                                    fontWeight: FontWeight.w500,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              );
+                            }
+                            return const Text('');
+                          },
+                          reservedSize: 40,
                         ),
                       ),
-                      Text(
-                        entry.value.toString(),
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
+                      leftTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                          showTitles: true,
+                          reservedSize: 40,
+                          getTitlesWidget: (value, meta) {
+                            return Text(
+                              value.toInt().toString(),
+                              style: TextStyle(
+                                color: Colors.grey.shade600,
+                                fontWeight: FontWeight.w500,
+                                fontSize: 12,
+                              ),
+                            );
+                          },
                         ),
                       ),
-                    ],
+                      topTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false),
+                      ),
+                      rightTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false),
+                      ),
+                    ),
+                    borderData: FlBorderData(show: false),
+                    gridData: FlGridData(
+                      show: true,
+                      drawVerticalLine: false,
+                      horizontalInterval: maxValue / 4,
+                      getDrawingHorizontalLine: (value) {
+                        return FlLine(
+                          color: Colors.grey.shade300,
+                          strokeWidth: 1,
+                        );
+                      },
+                    ),
+                    barGroups: services.entries.toList().asMap().entries.map((entry) {
+                      final index = entry.key;
+                      final serviceEntry = entry.value;
+                      return BarChartGroupData(
+                        x: index,
+                        barRods: [
+                          BarChartRodData(
+                            toY: serviceEntry.value.toDouble(),
+                            color: barColors[index % barColors.length],
+                            width: 30,
+                            borderRadius: const BorderRadius.only(
+                              topLeft: Radius.circular(6),
+                              topRight: Radius.circular(6),
+                            ),
+                          ),
+                        ],
+                      );
+                    }).toList(),
                   ),
                 ),
               ),
-            const SizedBox(height: 12),
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton(
-                onPressed: () {
-                  Navigator.pushNamed(context, '/empAllService');
-                },
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: const [
-                    Text(
-                      'View services',
-                      style: TextStyle(color: Colors.orange),
-                    ),
-                    SizedBox(width: 4),
-                    Icon(Icons.arrow_forward, color: Colors.orange, size: 18),
-                  ],
-                ),
-              ),
-            ),
+            // const SizedBox(height: 12),
+            // Align(
+            //   alignment: Alignment.centerRight,
+            //   child: TextButton(
+            //     onPressed: () {
+            //       Navigator.pushNamed(context, '/empAllService');
+            //     },
+            //     child: Row(
+            //       mainAxisSize: MainAxisSize.min,
+            //       children: const [
+            //         Text(
+            //           'View services',
+            //           style: TextStyle(color: Colors.orange),
+            //         ),
+            //         SizedBox(width: 4),
+            //         Icon(Icons.arrow_forward, color: Colors.orange, size: 18),
+            //       ],
+            //     ),
+            //   ),
+            // ),
           ],
         ),
       ),

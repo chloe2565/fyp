@@ -37,6 +37,7 @@ class EmpEditEmployeeScreenState extends State<EmpEditEmployeeScreen> {
   String? selectedStatus;
   File? newProfileImage;
   String? currentProfilePicName;
+  double? handymanRating;
 
   late Future<Map<String, String>> servicesFuture;
   Map<String, String> allServicesMap = {};
@@ -79,7 +80,13 @@ class EmpEditEmployeeScreenState extends State<EmpEditEmployeeScreen> {
           final handymanDetails = await controller.getHandymanDetails(
             emp['empID'],
           );
-          bioController.text = handymanDetails?['handymanBio'] ?? '';
+
+          if (handymanDetails != null) {
+            bioController.text = handymanDetails['handymanBio'] ?? '';
+            handymanRating = handymanDetails['handymanRating'] as double?;
+          } else if (emp.containsKey('handymanBio')) {
+            bioController.text = emp['handymanBio'] ?? '';
+          }
         }
       }
     } catch (e) {
@@ -391,6 +398,21 @@ class EmpEditEmployeeScreenState extends State<EmpEditEmployeeScreen> {
                                 map!.isEmpty ? 'Select at least one' : null,
                           );
                         },
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+
+                    // --- Employee Rating ---
+                    if (selectedEmpType == 'handyman') ...[
+                      buildLabel('Handyman Rating'),
+                      buildTextFormField(
+                        controller: TextEditingController(
+                          text: handymanRating == null || handymanRating == 0.0
+                              ? 'No ratings yet'
+                              : '${handymanRating!.toStringAsFixed(1)} ⭐',
+                        ),
+                        readOnly: true,
+                        enabled: false,
                       ),
                       const SizedBox(height: 16),
                     ],

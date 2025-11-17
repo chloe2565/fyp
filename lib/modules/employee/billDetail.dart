@@ -17,7 +17,8 @@ class EmpBillDetailScreen extends StatefulWidget {
 
 class EmpBillDetailScreenState extends State<EmpBillDetailScreen> {
   static final currencyFormat = NumberFormat("#,##0.00", "en_MY");
-  static final dateTimeFormat = DateFormat('yyyy-MM-dd HH:mm:ss');
+  static final dateTimeFormat = DateFormat('MMMM dd, yyyy hh:mm a');
+  static final dateFormat = DateFormat('MMMM dd, yyyy');
 
   final BillService billService = BillService();
   bool isLoading = true;
@@ -98,8 +99,7 @@ class EmpBillDetailScreenState extends State<EmpBillDetailScreen> {
                         Text(
                           'Please provide a reason for cancelling this bill. This action will set the bill and payment status to "cancelled" and the amount to RM 0.00.',
                           textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.titleMedium
-                              ?.copyWith(
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
                                 fontWeight: FontWeight.w500,
                                 color: Colors.black,
                               ),
@@ -111,18 +111,14 @@ class EmpBillDetailScreenState extends State<EmpBillDetailScreen> {
                             labelText: 'Reason for Cancellation',
                             border: OutlineInputBorder(),
                           ),
-                          validator: (value) =>
-                              Validator.validateNotEmpty(value, 'Reason'),
+                          validator: (value) => Validator.validateNotEmpty(value, 'Reason'),
                         ),
                         const SizedBox(height: 32),
-
                         SizedBox(
                           width: double.infinity,
                           child: FilledButton(
                             style: FilledButton.styleFrom(
-                              backgroundColor: Theme.of(
-                                context,
-                              ).colorScheme.error,
+                              backgroundColor: Theme.of(context).colorScheme.error,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12),
                               ),
@@ -137,9 +133,7 @@ class EmpBillDetailScreenState extends State<EmpBillDetailScreen> {
                             ),
                             onPressed: () {
                               if (dialogFormKey.currentState!.validate()) {
-                                Navigator.of(
-                                  context,
-                                ).pop(reasonController.text);
+                                Navigator.of(context).pop(reasonController.text);
                               }
                             },
                           ),
@@ -149,7 +143,6 @@ class EmpBillDetailScreenState extends State<EmpBillDetailScreen> {
                   ),
                 ),
               ),
-
               Positioned(
                 top: 8,
                 right: 8,
@@ -220,7 +213,7 @@ class EmpBillDetailScreenState extends State<EmpBillDetailScreen> {
         leading: const BackButton(color: Colors.black),
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         title: const Text(
-          'Billing Record Details',
+          'Billing Details',
           style: TextStyle(
             color: Colors.black,
             fontWeight: FontWeight.bold,
@@ -229,6 +222,7 @@ class EmpBillDetailScreenState extends State<EmpBillDetailScreen> {
         ),
         centerTitle: true,
       ),
+      backgroundColor: Colors.grey[50],
       body: buildBodyContent(),
     );
   }
@@ -250,86 +244,99 @@ class EmpBillDetailScreenState extends State<EmpBillDetailScreen> {
   }
 
   Widget buildDetailsBody(BuildContext context, BillDetailViewModel vm) {
+    final icon = ServiceHelper.getIconForService(vm.serviceName ?? 'Unknown');
+    final bgColor = ServiceHelper.getColorForService(vm.serviceName ?? 'Unknown');
+
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          buildDetailItem('Billing ID', widget.bill.billingID),
-          buildDetailItem('Service Request ID', widget.bill.reqID),
-          buildDetailItem(
-            'Service Price (RM)',
-            currencyFormat.format(vm.serviceBasePrice),
-          ),
-          buildDetailItem(
-            'Outstation Fee (RM)',
-            currencyFormat.format(vm.outstationFee),
-          ),
-          buildDetailItem(
-            'Total Price (RM)',
-            currencyFormat.format(vm.totalPrice),
-          ),
-          buildDetailItem('Billing Status', vm.billStatus),
-          buildDetailItem(
-            'Billing Created At',
-            dateTimeFormat.format(widget.bill.billDueDate),
-          ),
-          buildDetailItem(
-            'Admin Remark',
-            (vm.adminRemark != null && vm.adminRemark!.trim().isNotEmpty)
-                ? vm.adminRemark!
-                : 'None',
-          ),
+          // Service Header Card
+          buildServiceHeaderCard(context, vm, icon, bgColor),
+          const SizedBox(height: 12),
 
-          Padding(
-            padding: const EdgeInsets.only(top: 32.0, bottom: 16.0),
-            child: Row(
+          // Status Card
+          buildStatusCard(context, vm),
+          const SizedBox(height: 12),
+
+          // Customer Information Card
+          buildCustomerInfoCard(context, vm),
+          const SizedBox(height: 12),
+
+          // Service & Handyman Card
+          buildServiceDetailsCard(context, vm),
+          const SizedBox(height: 12),
+
+          // Pricing Breakdown Card
+          buildPricingCard(context, vm),
+          const SizedBox(height: 12),
+
+          // Timeline Card
+          buildTimelineCard(context, vm),
+          const SizedBox(height: 12),
+
+          // Admin Remarks Card
+          if (vm.adminRemark != null && vm.adminRemark!.trim().isNotEmpty)
+            buildAdminRemarksCard(context, vm.adminRemark!),
+          if (vm.adminRemark != null && vm.adminRemark!.trim().isNotEmpty)
+            const SizedBox(height: 12),
+
+          // Action Buttons
+          buildActionButtons(context),
+          const SizedBox(height: 20),
+        ],
+      ),
+    );
+  }
+
+  Widget buildServiceHeaderCard(
+    BuildContext context,
+    BillDetailViewModel vm,
+    IconData icon,
+    Color bgColor,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: bgColor,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: Colors.black, size: 32),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Edit
-                Expanded(
-                  child: ElevatedButton.icon(
-                    label: const Text('Edit'),
-                    style: ElevatedButton.styleFrom(
-                      minimumSize: const Size(0, 48),
-                      backgroundColor: Theme.of(context).colorScheme.primary,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    onPressed: isLoading || isProcessingAction
-                        ? null
-                        : () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => EmpEditBillScreen(
-                                  bill: widget.bill,
-                                  onBillUpdated: loadBillDetails,
-                                ),
-                              ),
-                            );
-                          },
+                Text(
+                  vm.serviceName ?? 'Unknown Service',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-
-                const SizedBox(width: 16),
-
-                // Cancel = Delete
-                Expanded(
-                  child: ElevatedButton.icon(
-                    label: const Text('Cancel Bill'),
-                    style: ElevatedButton.styleFrom(
-                      minimumSize: const Size(0, 48),
-                      backgroundColor: Theme.of(context).colorScheme.error,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    onPressed: isLoading || isProcessingAction
-                        ? null
-                        : onCancelPressed,
+                const SizedBox(height: 4),
+                Text(
+                  'Bill ID: ${widget.bill.billingID}',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey[600],
                   ),
                 ),
               ],
@@ -340,26 +347,338 @@ class EmpBillDetailScreenState extends State<EmpBillDetailScreen> {
     );
   }
 
-  Widget buildDetailItem(String label, String value) {
-    final isStatusField = label.toLowerCase().contains('status');
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+  Widget buildStatusCard(BuildContext context, BillDetailViewModel vm) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
         children: [
-          Text(label, style: TextStyle(color: Colors.grey[600], fontSize: 14)),
-          const SizedBox(height: 4),
+          Icon(
+            Icons.info_outline,
+            color: getStatusColor(vm.billStatus),
+            size: 24,
+          ),
+          const SizedBox(width: 12),
           Text(
-            isStatusField ? capitalizeFirst(value) : value,
+            'Billing Status: ',
+            style: TextStyle(fontSize: 15, color: Colors.grey[700]),
+          ),
+          Text(
+            capitalizeFirst(vm.billStatus),
             style: TextStyle(
-              color: isStatusField ? getStatusColor(value) : Colors.black,
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
+              color: getStatusColor(vm.billStatus),
+              fontSize: 15,
+              fontWeight: FontWeight.bold,
             ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget buildCustomerInfoCard(BuildContext context, BillDetailViewModel vm) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Customer Information',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 16),
+          buildInfoRow(Icons.person, 'Name', vm.customerName ?? 'Unknown'),
+          const SizedBox(height: 12),
+          buildInfoRow(Icons.phone, 'Contact', vm.customerContact ?? 'N/A'),
+          const SizedBox(height: 12),
+          buildInfoRow(Icons.location_on, 'Address', vm.customerAddress ?? 'N/A'),
+        ],
+      ),
+    );
+  }
+
+  Widget buildServiceDetailsCard(BuildContext context, BillDetailViewModel vm) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Service Details',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 16),
+          buildInfoRow(Icons.build, 'Service', vm.serviceName ?? 'Unknown'),
+          const SizedBox(height: 12),
+          buildInfoRow(Icons.engineering, 'Handyman', vm.handymanName ?? 'Not Assigned'),
+          const SizedBox(height: 12),
+          buildInfoRow(Icons.receipt, 'Request ID', widget.bill.reqID),
+        ],
+      ),
+    );
+  }
+
+  Widget buildPricingCard(BuildContext context, BillDetailViewModel vm) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Pricing Breakdown',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 16),
+          _buildPriceRow('Service Price', vm.serviceBasePrice ?? 0.0),
+          const SizedBox(height: 8),
+          _buildPriceRow('Outstation Fee', vm.outstationFee),
+          const Divider(height: 24),
+          _buildPriceRow('Total Amount', vm.totalPrice, isTotal: true),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPriceRow(String label, double amount, {bool isTotal = false}) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: isTotal ? 16 : 14,
+            fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
+            color: isTotal ? Colors.black : Colors.grey[700],
+          ),
+        ),
+        Text(
+          'RM ${currencyFormat.format(amount)}',
+          style: TextStyle(
+            fontSize: isTotal ? 18 : 14,
+            fontWeight: isTotal ? FontWeight.bold : FontWeight.w500,
+            color: isTotal ? Colors.green[700] : Colors.black,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget buildTimelineCard(BuildContext context, BillDetailViewModel vm) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Timeline',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 16),
+          buildInfoRow(
+            Icons.schedule,
+            'Service Scheduled',
+            dateTimeFormat.format(vm.bookingTimestamp),
+          ),
+          const SizedBox(height: 12),
+          buildInfoRow(
+            Icons.check_circle,
+            'Service Completed',
+            dateTimeFormat.format(vm.serviceCompleteTimestamp),
+          ),
+          const SizedBox(height: 12),
+          buildInfoRow(
+            Icons.receipt_long,
+            'Bill Created',
+            dateTimeFormat.format(widget.bill.billCreatedAt),
+          ),
+          const SizedBox(height: 12),
+          buildInfoRow(
+            Icons.event,
+            'Due Date',
+            dateFormat.format(widget.bill.billDueDate),
+          ),
+          if (vm.paymentTimestamp != null) ...[
+            const SizedBox(height: 12),
+            buildInfoRow(
+              Icons.paid,
+              'Payment Received',
+              dateTimeFormat.format(vm.paymentTimestamp!),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget buildAdminRemarksCard(BuildContext context, String remark) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.amber[50],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.amber[200]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.note_alt, color: Colors.amber[700], size: 24),
+              const SizedBox(width: 8),
+              Text(
+                'Admin Remarks',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.amber[900],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            remark,
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.amber[900],
+              height: 1.4,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget buildInfoRow(IconData icon, String label, String value) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 20, color: Colors.grey[600]),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget buildActionButtons(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: ElevatedButton.icon(
+            icon: const Icon(Icons.edit, size: 18),
+            label: const Text('Edit Bill'),
+            style: ElevatedButton.styleFrom(
+              minimumSize: const Size(0, 48),
+              backgroundColor: Theme.of(context).colorScheme.primary,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            onPressed: isLoading || isProcessingAction
+                ? null
+                : () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => EmpEditBillScreen(
+                          bill: widget.bill,
+                          onBillUpdated: loadBillDetails,
+                        ),
+                      ),
+                    );
+                  },
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: ElevatedButton.icon(
+            icon: const Icon(Icons.cancel_outlined, size: 18),
+            label: const Text('Cancel Bill'),
+            style: ElevatedButton.styleFrom(
+              minimumSize: const Size(0, 48),
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            onPressed: isLoading || isProcessingAction ? null : onCancelPressed,
+          ),
+        ),
+      ],
     );
   }
 }

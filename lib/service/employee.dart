@@ -519,7 +519,7 @@ class EmployeeService {
     }
   }
 
-  // Get handyman availability for a date range
+  // Get handyman availability for a date range (OLD METHOD - kept for backward compatibility)
   Future<List<HandymanAvailabilityModel>> getHandymanAvailability(
     String handymanID,
     DateTime startDate,
@@ -529,10 +529,14 @@ class EmployeeService {
       final snap = await db
           .collection('HandymanAvailability')
           .where('handymanID', isEqualTo: handymanID)
-          .where('availabilityStartDateTime',
-              isGreaterThanOrEqualTo: Timestamp.fromDate(startDate))
-          .where('availabilityStartDateTime',
-              isLessThan: Timestamp.fromDate(endDate))
+          .where(
+            'availabilityStartDateTime',
+            isGreaterThanOrEqualTo: Timestamp.fromDate(startDate),
+          )
+          .where(
+            'availabilityStartDateTime',
+            isLessThan: Timestamp.fromDate(endDate),
+          )
           .orderBy('availabilityStartDateTime')
           .get();
 
@@ -543,6 +547,112 @@ class EmployeeService {
           .toList();
     } catch (e) {
       print('Error in getHandymanAvailability: $e');
+      return [];
+    }
+  }
+
+  // FIXED: Get ALL handyman availability records (no composite index needed)
+  Future<List<HandymanAvailabilityModel>> getAllHandymanAvailability(
+    String handymanID,
+  ) async {
+    try {
+      // Simple query - only filter by handymanID, sort in Dart
+      final snap = await db
+          .collection('HandymanAvailability')
+          .where('handymanID', isEqualTo: handymanID)
+          .get();
+
+      if (snap.docs.isEmpty) {
+        print('No availability records found for handyman: $handymanID');
+        return [];
+      }
+
+      print(
+        'Found ${snap.docs.length} availability records for handyman: $handymanID',
+      );
+
+      final results = snap.docs
+          .map((doc) => HandymanAvailabilityModel.fromMap(doc.data()))
+          .toList();
+
+      // Sort in Dart instead of Firestore to avoid composite index requirement
+      results.sort(
+        (a, b) =>
+            a.availabilityStartDateTime.compareTo(b.availabilityStartDateTime),
+      );
+
+      return results;
+    } catch (e) {
+      print('Error in getAllHandymanAvailability: $e');
+      return [];
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getHandymanServiceRequests(
+    String handymanID,
+  ) async {
+    try {
+      print('handymanID in service file is $handymanID');
+      final snap = await db
+          .collection('ServiceRequest')
+          .where('handymanID', isEqualTo: handymanID)
+          .get();
+
+      if (snap.docs.isEmpty) {
+        print('No service requests found for handyman: $handymanID');
+        return [];
+      }
+
+      print(
+        'Found ${snap.docs.length} total service requests for handyman: $handymanID',
+      );
+
+      List<Map<String, dynamic>> result = [];
+
+      for (var doc in snap.docs) {
+        final reqData = ServiceRequestModel.fromMap(doc.data());
+
+        final status = reqData.reqStatus.toLowerCase();
+        if (status != 'confirmed' &&
+            status != 'departed' &&
+            status != 'completed') {
+          continue;
+        }
+
+        final serviceDoc = await db
+            .collection('Service')
+            .doc(reqData.serviceID)
+            .get();
+
+        String serviceName = 'Unknown Service';
+        String serviceDuration = '1 hour';
+
+        if (serviceDoc.exists) {
+          final serviceData = serviceDoc.data();
+          serviceName = serviceData?['serviceName'] ?? 'Unknown Service';
+          serviceDuration = serviceData?['serviceDuration'] ?? '1 hour';
+        }
+
+        result.add({
+          'request': reqData,
+          'serviceName': serviceName,
+          'serviceDuration': serviceDuration,
+        });
+      }
+
+      print(
+        'Filtered to ${result.length} service requests with status: confirmed/departed/completed',
+      );
+
+      result.sort((a, b) {
+        final reqA = a['request'] as ServiceRequestModel;
+        final reqB = b['request'] as ServiceRequestModel;
+        return reqA.scheduledDateTime.compareTo(reqB.scheduledDateTime);
+      });
+
+      return result;
+    } catch (e) {
+      print('Error in getHandymanServiceRequests: $e');
       return [];
     }
   }

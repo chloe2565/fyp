@@ -493,6 +493,7 @@ class EmpAddServiceScreenState extends State<EmpAddServiceScreen> {
           fontSize: 15,
           fontWeight: FontWeight.w500,
         ),
+        backgroundColor: Colors.white,
         foregroundColor: Colors.grey.shade700,
         side: BorderSide(color: Colors.grey.shade300),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),

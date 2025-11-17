@@ -150,82 +150,96 @@ class EmpServiceDetailScreenState extends State<EmpServiceDetailScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-        title: const Text(
-          'Service Details',
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+        title: const Text('Service Details'),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.black),
+        titleTextStyle: const TextStyle(
+          color: Colors.black,
+          fontWeight: FontWeight.bold,
+          fontSize: 20,
         ),
         centerTitle: true,
-        elevation: 0,
       ),
+      backgroundColor: Colors.grey[50],
       body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              buildDetailRow('Service ID', service.serviceID),
-              buildDetailRow('Service Name', service.serviceName),
-              buildSectionTitle('Photos'),
-              buildPhotosSection(),
-              const SizedBox(height: 16),
-              buildDetailRow('Service Duration', service.serviceDuration),
-              buildDetailRow(
-                'Service Price (RM / hour)',
-                service.servicePrice?.toStringAsFixed(2) ?? 'N/A',
-              ),
-              buildSectionTitle('Description'),
-              Text(
-                service.serviceDesc,
-                textAlign: TextAlign.justify,
-                style: TextStyle(
-                  color: Colors.black,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const SizedBox(height: 16),
-              buildDetailRow(
-                'Service Status',
-                capitalizeFirst(service.serviceStatus),
-                valueColor: getStatusColor(service.serviceStatus),
-              ),
-              buildDetailRow(
-                'Service Created At',
-                DateFormat('yyyy-MM-dd').format(service.serviceCreatedAt),
-              ),
-              buildSectionTitle('Handyman Assigned'),
-              buildHandymenSection(),
-              const SizedBox(height: 32),
-              if (widget.isAdmin) buildActionButtons(),
-            ],
-          ),
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Service Header Card
+            buildServiceHeaderCard(context),
+            const SizedBox(height: 12),
+
+            // Status Card
+            buildStatusCard(context),
+            const SizedBox(height: 12),
+
+            // Service Details Card
+            buildServiceDetailsCard(context),
+            const SizedBox(height: 12),
+
+            // Photos Card
+            buildPhotosCard(context),
+            const SizedBox(height: 12),
+
+            // Description Card
+            buildDescriptionCard(context),
+            const SizedBox(height: 12),
+
+            // Handyman Assigned Card
+            buildHandymenCard(context),
+            const SizedBox(height: 12),
+
+            // Action Buttons
+            if (widget.isAdmin) buildActionButtons(),
+            const SizedBox(height: 20),
+          ],
         ),
       ),
     );
   }
 
-  Widget buildDetailRow(String title, String value, {Color? valueColor}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+  Widget buildServiceHeaderCard(BuildContext context) {
+    final icon = ServiceHelper.getIconForService(service.serviceName);
+    final bgColor = ServiceHelper.getColorForService(service.serviceName);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
           ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: TextStyle(
-              color: valueColor ?? Colors.black,
-              fontSize: 15,
-              fontWeight: FontWeight.w500,
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: bgColor,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: Colors.black, size: 32),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  service.serviceName,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -233,95 +247,313 @@ class EmpServiceDetailScreenState extends State<EmpServiceDetailScreen> {
     );
   }
 
-  Widget buildSectionTitle(String title) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 16.0, bottom: 8.0),
-      child: Text(
-        title,
-        style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+  Widget buildServiceDetailsCard(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Service Information',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 16),
+          buildInfoRow(
+            Icons.schedule,
+            'Service Created At',
+            DateFormat('MMMM dd, yyyy').format(service.serviceCreatedAt),
+          ),
+          const SizedBox(height: 12),
+          buildInfoRow(
+            Icons.access_time,
+            'Service Duration',
+            service.serviceDuration,
+          ),
+          const SizedBox(height: 12),
+          buildInfoRow(
+            Icons.attach_money,
+            'Service Price',
+            'RM ${service.servicePrice?.toStringAsFixed(2) ?? 'N/A'} / hour',
+          ),
+        ],
       ),
     );
   }
 
-  Widget buildPhotosSection() {
-    return FutureBuilder<List<ServicePictureModel>>(
-      future: picturesFuture,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        if (snapshot.hasError) {
-          return Text('Error loading photos: ${snapshot.error}');
-        }
-        if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return const Text('No photos available');
-        }
-
-        final pictures = snapshot.data!;
-        imagePaths = pictures.map((p) => p.picName).toList();
-
-        return SizedBox(
-          height: 100,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            itemCount: pictures.length,
-            itemBuilder: (context, index) {
-              final picture = pictures[index];
-              final String imageUrl = picture.picName;
-
-              return Padding(
-                padding: const EdgeInsets.only(right: 8.0),
-                child: GestureDetector(
-                  onTap: () => openGallery(context, index),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(8.0),
-                    child: imageUrl.toNetworkImage(
-                      width: 100,
-                      height: 100,
-                      fit: BoxFit.cover,
-                    ),
+  Widget buildPhotosCard(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Service Photos',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 12),
+          FutureBuilder<List<ServicePictureModel>>(
+            future: picturesFuture,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(20),
+                    child: CircularProgressIndicator(),
                   ),
+                );
+              }
+              if (snapshot.hasError) {
+                return Text(
+                  'Error loading photos: ${snapshot.error}',
+                  style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                );
+              }
+              if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                return Text(
+                  'No photos available',
+                  style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                );
+              }
+
+              final pictures = snapshot.data!;
+              imagePaths = pictures.map((p) => p.picName).toList();
+
+              return SizedBox(
+                height: 100,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: pictures.length,
+                  separatorBuilder: (context, index) =>
+                      const SizedBox(width: 10),
+                  itemBuilder: (context, index) {
+                    final picture = pictures[index];
+                    final String imageUrl = picture.picName;
+
+                    return GestureDetector(
+                      onTap: () => openGallery(context, index),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8.0),
+                        child: imageUrl.toNetworkImage(
+                          width: 100,
+                          height: 100,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    );
+                  },
                 ),
               );
             },
           ),
-        );
-      },
+        ],
+      ),
     );
   }
 
-  Widget buildHandymenSection() {
-    return FutureBuilder<List<String>>(
-      future: assignedHandymenFuture,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const CircularProgressIndicator();
-        }
-        if (snapshot.hasError) {
-          return Text(
-            'Error loading handymen',
-            style: TextStyle(color: Theme.of(context).colorScheme.error),
-          );
-        }
-        if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return const Text(
-            'No handymen assigned',
-            style: TextStyle(
-              color: Colors.black,
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
-            ),
-          );
-        }
-        return Text(
-          snapshot.data!.join(', '),
-          style: const TextStyle(
-            color: Colors.black,
-            fontSize: 15,
-            fontWeight: FontWeight.w500,
+  Widget buildDescriptionCard(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
           ),
-        );
-      },
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Service Description',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            service.serviceDesc,
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey[700],
+              height: 1.5,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget buildStatusCard(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.info_outline,
+                color: getStatusColor(service.serviceStatus),
+                size: 24,
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'Service Status: ',
+                style: TextStyle(fontSize: 15, color: Colors.grey[700]),
+              ),
+              Text(
+                capitalizeFirst(service.serviceStatus),
+                style: TextStyle(
+                  color: getStatusColor(service.serviceStatus),
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget buildHandymenCard(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Text(
+                'Handyman Assigned',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          FutureBuilder<List<String>>(
+            future: assignedHandymenFuture,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 8),
+                  child: CircularProgressIndicator(),
+                );
+              }
+              if (snapshot.hasError) {
+                return Text(
+                  'Error loading handymen',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.error,
+                    fontSize: 14,
+                  ),
+                );
+              }
+              if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                return Text(
+                  'No handymen assigned',
+                  style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                );
+              }
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: snapshot.data!.map((name) {
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Row(
+                      children: [
+                        Icon(Icons.person, size: 18, color: Colors.grey[600]),
+                        const SizedBox(width: 8),
+                        Text(
+                          name,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget buildInfoRow(IconData icon, String label, String value) {
+    return Row(
+      children: [
+        Icon(icon, size: 20, color: Colors.grey[600]),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -329,32 +561,34 @@ class EmpServiceDetailScreenState extends State<EmpServiceDetailScreen> {
     return Row(
       children: [
         Expanded(
-          child: ElevatedButton(
+          child: ElevatedButton.icon(
             onPressed: navigateToModify,
+            icon: const Icon(Icons.edit, size: 20),
+            label: const Text('Modify'),
             style: ElevatedButton.styleFrom(
               backgroundColor: Theme.of(context).colorScheme.primary,
               foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 16),
+              padding: const EdgeInsets.symmetric(vertical: 14),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(8),
               ),
             ),
-            child: const Text('Modify', style: TextStyle(fontSize: 16)),
           ),
         ),
-        const SizedBox(width: 16),
+        const SizedBox(width: 12),
         Expanded(
-          child: ElevatedButton(
+          child: ElevatedButton.icon(
             onPressed: handleDelete,
+            icon: const Icon(Icons.delete_outline, size: 20),
+            label: const Text('Delete'),
             style: ElevatedButton.styleFrom(
               backgroundColor: Theme.of(context).colorScheme.error,
               foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 16),
+              padding: const EdgeInsets.symmetric(vertical: 14),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(8),
               ),
             ),
-            child: const Text('Delete', style: TextStyle(fontSize: 16)),
           ),
         ),
       ],

@@ -3,7 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../controller/serviceRequest.dart';
 import '../../shared/empNavigatorBase.dart';
-import '../../shared/helper.dart'; // Ensure buildSearchField is available here
+import '../../shared/helper.dart';
 import '../../shared/serviceRequestFilterDialog.dart';
 import 'serviceReqDetail.dart';
 
@@ -82,14 +82,16 @@ class EmpRequestScreenState extends State<EmpRequestScreen> {
       child: ListenableBuilder(
         listenable: controller,
         builder: (context, child) {
-          final int serviceFilterCount =
-              controller.selectedServices.isNotEmpty ? 1 : 0;
-          final int statusFilterCount =
-              controller.selectedStatuses.isNotEmpty ? 1 : 0;
+          final int serviceFilterCount = controller.selectedServices.isNotEmpty
+              ? 1
+              : 0;
+          final int statusFilterCount = controller.selectedStatuses.isNotEmpty
+              ? 1
+              : 0;
           final int dateRangeFilterCount =
               (controller.startDate != null || controller.endDate != null)
-                  ? 1
-                  : 0;
+              ? 1
+              : 0;
 
           final int numberOfFilters =
               serviceFilterCount + statusFilterCount + dateRangeFilterCount;
@@ -122,25 +124,24 @@ class EmpRequestScreenState extends State<EmpRequestScreen> {
             body: !isInitialized
                 ? const Center(child: CircularProgressIndicator())
                 : controller.isFiltering
-                    ? const Center(
-                        child: CircularProgressIndicator(
-                          valueColor:
-                              AlwaysStoppedAnimation<Color>(Colors.orange),
-                        ),
-                      )
-                    : Column(
-                        children: [
-                          // Search Field with Filter Button (Similar to reqHistory.dart)
-                          buildSearchField(
+                ? const Center(
+                    child: CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.orange),
+                    ),
+                  )
+                : Column(
+                    children: [
+                      // Search Field with Filter Button
+                      buildSearchField(
+                        context: context,
+                        hintText: 'Search requests...',
+                        controller: searchController,
+                        onFilterPressed: () {
+                          showServiceRequestFilterDialog(
                             context: context,
-                            hintText: 'Search requests...',
-                            controller: searchController,
-                            onFilterPressed: () {
-                              showServiceRequestFilterDialog(
-                                context: context,
-                                controller: controller,
-                                onApply: (services, statuses, startDate,
-                                    endDate) async {
+                            controller: controller,
+                            onApply:
+                                (services, statuses, startDate, endDate) async {
                                   await controller.applyMultiFilters(
                                     services: services,
                                     statuses: statuses,
@@ -148,34 +149,34 @@ class EmpRequestScreenState extends State<EmpRequestScreen> {
                                     endDate: endDate,
                                   );
                                 },
-                                onReset: () async {
-                                  searchController.clear();
-                                  await controller.clearFilters();
-                                },
-                              );
+                            onReset: () async {
+                              searchController.clear();
+                              await controller.clearFilters();
                             },
-                            hasFilter: hasFilter,
-                            numberOfFilters: numberOfFilters,
-                          ),
-
-                          FilterChipsDisplay(controller: controller),
-                          const SizedBox(height: 8),
-                          buildPrimaryTabBar(
-                            context: context,
-                            tabs: ['Pending', 'Upcoming', 'History'],
-                          ),
-
-                          Expanded(
-                            child: TabBarView(
-                              children: [
-                                buildPendingList(),
-                                buildUpcomingList(),
-                                buildHistoryList(),
-                              ],
-                            ),
-                          ),
-                        ],
+                          );
+                        },
+                        hasFilter: hasFilter,
+                        numberOfFilters: numberOfFilters,
                       ),
+
+                      FilterChipsDisplay(controller: controller),
+                      const SizedBox(height: 8),
+                      buildPrimaryTabBar(
+                        context: context,
+                        tabs: ['Pending', 'Upcoming', 'History'],
+                      ),
+
+                      Expanded(
+                        child: TabBarView(
+                          children: [
+                            buildPendingList(),
+                            buildUpcomingList(),
+                            buildHistoryList(),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
             bottomNavigationBar: EmpNavigationBar(
               currentIndex: currentIndex,
               onTap: onNavBarTap,
@@ -207,18 +208,22 @@ class EmpRequestScreenState extends State<EmpRequestScreen> {
       itemCount: viewModels.length,
       itemBuilder: (context, index) {
         final requestViewModel = viewModels[index];
-        final date = DateFormat(
-          'dd MMM yyyy',
-        ).format(requestViewModel.scheduledDateTime);
-        final time = DateFormat(
-          'hh:mm a',
-        ).format(requestViewModel.scheduledDateTime);
 
         final pendingDetails = [
+          MapEntry('Customer Name', requestViewModel.customerName),
+          MapEntry(
+            'Contact Number',
+            Formatter.formatPhoneNumber(requestViewModel.customerContact),
+          ),
+          MapEntry(
+            'Created At',
+            Formatter.formatDateTime(requestViewModel.reqDateTime),
+          ),
+          MapEntry(
+            'Booking Date & Time',
+            Formatter.formatDateTime(requestViewModel.scheduledDateTime),
+          ),
           MapEntry('Location', requestViewModel.requestModel.reqAddress),
-          MapEntry('Booking Date', date),
-          MapEntry('Start Time', time),
-          MapEntry('Service', requestViewModel.title),
           MapEntry('Handyman Name', requestViewModel.handymanName),
           MapEntry('Status', requestViewModel.reqStatus),
         ];
@@ -231,7 +236,7 @@ class EmpRequestScreenState extends State<EmpRequestScreen> {
         final differenceInDays = scheduledDate.difference(today).inDays;
 
         final List<Widget> pendingActions = [];
-        if (differenceInDays >= 3) {
+        if (differenceInDays >= 1) {
           pendingActions.addAll([
             OutlinedButton(
               onPressed: () =>
@@ -253,7 +258,14 @@ class EmpRequestScreenState extends State<EmpRequestScreen> {
               child: const Text('Reschedule'),
             ),
             OutlinedButton(
-              onPressed: () => controller.cancelRequest(requestViewModel.reqID),
+              onPressed: () {
+                showCancelRequestDialog(
+                  context,
+                  reqID: requestViewModel.reqID,
+                  onConfirmCancel: controller.cancelRequest,
+                  onSuccess: controller.loadRequestsForEmployee,
+                );
+              },
               style: OutlinedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 10,
@@ -287,7 +299,7 @@ class EmpRequestScreenState extends State<EmpRequestScreen> {
           },
           child: EmpInfoCard(
             icon: requestViewModel.icon,
-            reqID: requestViewModel.reqID,
+            title: requestViewModel.title,
             details: pendingDetails,
             onViewDetails: () {
               Navigator.push(
@@ -330,18 +342,22 @@ class EmpRequestScreenState extends State<EmpRequestScreen> {
       itemCount: viewModels.length,
       itemBuilder: (context, index) {
         final requestViewModel = viewModels[index];
-        final date = DateFormat(
-          'dd MMM yyyy',
-        ).format(requestViewModel.scheduledDateTime);
-        final time = DateFormat(
-          'hh:mm a',
-        ).format(requestViewModel.scheduledDateTime);
 
         final upcomingDetails = [
+          MapEntry('Customer Name', requestViewModel.customerName),
+          MapEntry(
+            'Contact Number',
+            Formatter.formatPhoneNumber(requestViewModel.customerContact),
+          ),
+          MapEntry(
+            'Created At',
+            Formatter.formatDateTime(requestViewModel.reqDateTime),
+          ),
+          MapEntry(
+            'Booking Date & Time',
+            Formatter.formatDateTime(requestViewModel.scheduledDateTime),
+          ),
           MapEntry('Location', requestViewModel.requestModel.reqAddress),
-          MapEntry('Booking Date', date),
-          MapEntry('Start Time', time),
-          MapEntry('Service', requestViewModel.title),
           MapEntry('Handyman Name', requestViewModel.handymanName),
           MapEntry('Status', requestViewModel.reqStatus),
         ];
@@ -355,7 +371,7 @@ class EmpRequestScreenState extends State<EmpRequestScreen> {
         final status = requestViewModel.reqStatus.toLowerCase();
 
         final List<Widget> upcomingActions = [];
-        if (status == 'confirmed' && differenceInDays >= 3) {
+        if (status == 'confirmed' && differenceInDays >= 1) {
           upcomingActions.addAll([
             OutlinedButton(
               onPressed: () =>
@@ -377,7 +393,14 @@ class EmpRequestScreenState extends State<EmpRequestScreen> {
               child: const Text('Reschedule'),
             ),
             OutlinedButton(
-              onPressed: () => controller.cancelRequest(requestViewModel.reqID),
+              onPressed: () {
+                showCancelRequestDialog(
+                  context,
+                  reqID: requestViewModel.reqID,
+                  onConfirmCancel: controller.cancelRequest,
+                  onSuccess: controller.loadRequestsForEmployee,
+                );
+              },
               style: OutlinedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 10,
@@ -411,7 +434,7 @@ class EmpRequestScreenState extends State<EmpRequestScreen> {
           },
           child: EmpInfoCard(
             icon: requestViewModel.icon,
-            reqID: requestViewModel.reqID,
+            title: requestViewModel.title,
             details: upcomingDetails,
             onViewDetails: () {
               Navigator.push(
@@ -454,18 +477,22 @@ class EmpRequestScreenState extends State<EmpRequestScreen> {
       itemCount: viewModels.length,
       itemBuilder: (context, index) {
         final requestViewModel = viewModels[index];
-        final date = DateFormat(
-          'dd MMM yyyy',
-        ).format(requestViewModel.scheduledDateTime);
-        final time = DateFormat(
-          'hh:mm a',
-        ).format(requestViewModel.scheduledDateTime);
 
         final historyDetails = [
+          MapEntry('Customer Name', requestViewModel.customerName),
+          MapEntry(
+            'Contact Number',
+            Formatter.formatPhoneNumber(requestViewModel.customerContact),
+          ),
+          MapEntry(
+            'Created At',
+            Formatter.formatDateTime(requestViewModel.reqDateTime),
+          ),
+          MapEntry(
+            'Booking Date & Time',
+            Formatter.formatDateTime(requestViewModel.scheduledDateTime),
+          ),
           MapEntry('Location', requestViewModel.requestModel.reqAddress),
-          MapEntry('Booking Date', date),
-          MapEntry('Start Time', time),
-          MapEntry('Service', requestViewModel.title),
           MapEntry('Handyman Name', requestViewModel.handymanName),
           MapEntry('Status', requestViewModel.reqStatus),
         ];
@@ -493,7 +520,7 @@ class EmpRequestScreenState extends State<EmpRequestScreen> {
           },
           child: EmpInfoCard(
             icon: requestViewModel.icon,
-            reqID: requestViewModel.reqID,
+            title: requestViewModel.title,
             details: historyDetails,
             onViewDetails: () {
               Navigator.push(

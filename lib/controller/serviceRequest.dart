@@ -7,6 +7,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:intl/intl.dart';
 import 'package:latlong2/latlong.dart' as l;
 import '../model/filterViewModel.dart';
+import '../service/bill.dart';
 import '../service/fcm_service.dart';
 import '../service/firestore_service.dart';
 import '../service/rf_handyman_service.dart';
@@ -150,8 +151,7 @@ class ServiceRequestController extends ChangeNotifier {
   final UserService user = UserService();
   final db = FirestoreService.instance.db;
   final HandymanMatchingService matchingService = HandymanMatchingService(
-    apiBaseUrl:
-        'https://fyp-randomforest.onrender.com', // Replace with your server IP
+    apiBaseUrl: 'https://fyp-randomforest.onrender.com',
   );
 
   String? currentCustomerID;
@@ -278,10 +278,10 @@ class ServiceRequestController extends ChangeNotifier {
       final paymentCreatedAt = map['paymentCreatedAt'] as DateTime?;
       final String locationData = req.reqAddress;
       final handymanName = map['handymanName'] as String;
-      final bookingDate = DateFormat(
-        'MMMM dd, yyyy',
-      ).format(req.scheduledDateTime);
-      final startTime = DateFormat('hh:mm a').format(req.scheduledDateTime);
+      final customerName = map['customerName'] as String? ?? 'Unknown';
+      final customerContact = map['customerContact'] as String? ?? 'N/A';
+      final reqDateTime = Formatter.formatDateTime(req.reqDateTime);
+      final bookingDateTime = Formatter.formatDateTime(req.scheduledDateTime);
       String? formattedAmount;
       String? formattedDueDate;
       String? formattedBillStatus;
@@ -307,12 +307,13 @@ class ServiceRequestController extends ChangeNotifier {
         title: service.serviceName,
         icon: ServiceHelper.getIconForService(service.serviceName),
         reqStatus: capitalizeFirst(req.reqStatus),
+        reqDateTime: req.reqDateTime,
         scheduledDateTime: req.scheduledDateTime,
         details: [
+          MapEntry('Created At', reqDateTime),
+          MapEntry('Booking Date & Time', bookingDateTime),
           MapEntry('Location', locationData),
-          MapEntry('Booking date', bookingDate),
-          MapEntry('Start time', startTime),
-          MapEntry('Handyman name', capitalizeFirst(handymanName)),
+          MapEntry('Handyman Assigned', handymanName),
         ],
         amountToPay: formattedAmount,
         payDueDate: formattedDueDate,
@@ -320,6 +321,8 @@ class ServiceRequestController extends ChangeNotifier {
         paymentCreatedAt: formattedPaymentCreatedDate,
         requestModel: req,
         handymanName: handymanName,
+        customerName: customerName,
+        customerContact: customerContact,
       );
     }).toList();
     return viewModels;
@@ -828,20 +831,34 @@ class ServiceRequestController extends ChangeNotifier {
     return await matchingService.checkAPIHealth();
   }
 
-  Future<void> cancelRequest(String reqID) async {
+  Future<void> cancelRequest(String reqID, String cancellationReason) async {
     try {
-      await serviceRequest.cancelRequest(reqID);
-      if (currentEmployeeID != null) {
-        loadRequestsForEmployee();
-      } else {
-        loadRequests();
-      }
+      await serviceRequest.cancelRequest(reqID, cancellationReason);
     } catch (e) {
       print('Error cancelling request: $e');
+      rethrow; // Rethrow to handle in UI
     }
   }
 
   Future<void> rescheduleRequest(String reqID) async {
     await serviceRequest.rescheduleRequest(reqID);
+  }
+
+  Future<void> updateRequestStatus(String reqID, String newStatus) async {
+    try {
+      await serviceRequest.updateRequestStatus(reqID, newStatus);
+
+      // Auto-create billing when status changes to completed
+      if (newStatus.toLowerCase() == 'completed') {
+        final billService = BillService();
+        await billService.createBillingForCompletedRequest(reqID);
+        print('Billing auto-created for completed request: $reqID');
+      }
+
+      await loadRequestsForEmployee();
+    } catch (e) {
+      print('Error updating request status: $e');
+      rethrow;
+    }
   }
 }

@@ -43,11 +43,8 @@ class BillService {
       }).toList();
 
       return filteredBills
-        .map((doc) => BillingModel.fromMap({
-              ...doc.data(),
-              'billID': doc.id, 
-            }))
-        .toList();
+          .map((doc) => BillingModel.fromMap({...doc.data(), 'billID': doc.id}))
+          .toList();
     } catch (e) {
       print("Error fetching bills: $e");
       return [];
@@ -270,6 +267,79 @@ class BillService {
     } catch (e) {
       print("Error fetching pending bills: $e");
       return [];
+    }
+  }
+
+  Future<void> createBillingForCompletedRequest(String reqID) async {
+    try {
+      // Check if billing already exists for this request
+      final existingBilling = await db
+          .collection('Billing')
+          .where('reqID', isEqualTo: reqID)
+          .limit(1)
+          .get();
+
+      if (existingBilling.docs.isNotEmpty) {
+        print('Billing already exists for request $reqID');
+        return;
+      }
+
+      // Get the service request
+      final reqDoc = await db.collection('ServiceRequest').doc(reqID).get();
+      if (!reqDoc.exists) {
+        throw Exception('Service request not found: $reqID');
+      }
+      final request = ServiceRequestModel.fromMap(reqDoc.data()!);
+
+      // Get the service to fetch price
+      final serviceDoc = await db
+          .collection('Service')
+          .doc(request.serviceID)
+          .get();
+      if (!serviceDoc.exists) {
+        throw Exception('Service not found: ${request.serviceID}');
+      }
+      final service = ServiceModel.fromMap(serviceDoc.data()!);
+
+      // Get provider ID (first active provider)
+      final providerQuery = await db
+          .collection('ServiceProvider')
+          .where('providerStatus', isEqualTo: 'active')
+          .limit(1)
+          .get();
+
+      String providerID = '';
+      if (providerQuery.docs.isNotEmpty) {
+        providerID = providerQuery.docs.first.data()['providerID'] ?? '';
+      }
+
+      // Calculate total amount
+      const double FIXED_OUTSTATION_FEE = 15.00;
+      final double servicePrice = service.servicePrice ?? 0.0;
+      final double totalAmount = servicePrice + FIXED_OUTSTATION_FEE;
+
+      // Generate billing ID
+      final String billingID = await generateNextBillID();
+
+      // Create billing model
+      final newBill = BillingModel(
+        billingID: billingID,
+        reqID: reqID,
+        billStatus: 'pending',
+        billAmt: totalAmount,
+        billDueDate: DateTime.now().add(const Duration(days: 3)),
+        billCreatedAt: DateTime.now(),
+        providerID: providerID,
+        adminRemark: '',
+      );
+
+      // Save to Firestore
+      await db.collection('Billing').doc(billingID).set(newBill.toMap());
+
+      print('Billing $billingID created automatically for request $reqID');
+    } catch (e) {
+      print('Error creating billing for completed request: $e');
+      rethrow;
     }
   }
 }

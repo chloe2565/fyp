@@ -122,8 +122,12 @@ class RatingReviewController with ChangeNotifier {
       final result = await service.getRatingReviewPageDataForEmployee();
       allReviewsData = result['allReviews'] ?? [];
 
+      // Fetch customer user data and reply status for each review
       for (var reviewData in allReviewsData) {
         final review = reviewData['review'] as RatingReviewModel?;
+        final request = reviewData['request'] as ServiceRequestModel?;
+        
+        // Fetch reply status
         if (review != null) {
           try {
             final reply = await replyService.getReplyForReview(review.rateID);
@@ -132,6 +136,17 @@ class RatingReviewController with ChangeNotifier {
           } catch (e) {
             reviewData['hasReply'] = false;
             reviewData['reply'] = null;
+          }
+        }
+        
+        // Fetch customer user data
+        if (request != null) {
+          try {
+            final customerUser = await service.fetchCustomerUserModel(request.custID);
+            reviewData['customerUser'] = customerUser;
+          } catch (e) {
+            reviewData['customerUser'] = null;
+            print('Error fetching customer user for custID ${request.custID}: $e');
           }
         }
       }
@@ -175,14 +190,16 @@ class RatingReviewController with ChangeNotifier {
       }).toList();
 
       filteredAllReviews = allReviewsData.where((item) {
-        final user = item['handymanUser'] as UserModel?;
+        final handymanUser = item['handymanUser'] as UserModel?;
+        final customerUser = item['customerUser'] as UserModel?;
         final request = item['request'] as ServiceRequestModel?;
         final review = item['review'] as RatingReviewModel?;
+        final service = item['service'] as ServiceModel?;
         return (review?.rateID.toLowerCase().contains(lowerQuery) ?? false) ||
             (request?.reqID.toLowerCase().contains(lowerQuery) ?? false) ||
-            (request!.handymanID?.toLowerCase().contains(lowerQuery) ??
-                false) ||
-            (user?.userName.toLowerCase().contains(lowerQuery) ?? false);
+            (handymanUser?.userName.toLowerCase().contains(lowerQuery) ?? false) ||
+            (customerUser?.userName.toLowerCase().contains(lowerQuery) ?? false) ||
+            (service?.serviceName.toLowerCase().contains(lowerQuery) ?? false);
       }).toList();
     }
     notifyListeners();
@@ -202,15 +219,17 @@ class RatingReviewController with ChangeNotifier {
       // Search query filter
       if (searchQuery != null && searchQuery.isNotEmpty) {
         final lowerQuery = searchQuery.toLowerCase();
-        final user = item['handymanUser'] as UserModel?;
+        final handymanUser = item['handymanUser'] as UserModel?;
+        final customerUser = item['customerUser'] as UserModel?;
         final request = item['request'] as ServiceRequestModel?;
         final review = item['review'] as RatingReviewModel?;
+        final service = item['service'] as ServiceModel?;
         final matchesSearch =
             (review?.rateID.toLowerCase().contains(lowerQuery) ?? false) ||
             (request?.reqID.toLowerCase().contains(lowerQuery) ?? false) ||
-            (request!.handymanID?.toLowerCase().contains(lowerQuery) ??
-                false) ||
-            (user?.userName.toLowerCase().contains(lowerQuery) ?? false);
+            (handymanUser?.userName.toLowerCase().contains(lowerQuery) ?? false) ||
+            (customerUser?.userName.toLowerCase().contains(lowerQuery) ?? false) ||
+            (service?.serviceName.toLowerCase().contains(lowerQuery) ?? false);
         if (!matchesSearch) return false;
       }
 

@@ -7,6 +7,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../model/databaseModel.dart';
+import '../modules/employee/handymanHomepage.dart';
 import '../modules/employee/homepage.dart';
 import '../service/auth_service.dart';
 import '../service/image_service.dart';
@@ -17,6 +18,7 @@ import '../shared/custNavigatorBase.dart';
 import '../login.dart';
 import '../modules/customer/register.dart';
 import '../modules/customer/homepage.dart';
+import 'employee.dart';
 
 class UserController {
   final UserService userService = UserService();
@@ -119,6 +121,47 @@ class UserController {
     }
   }
 
+  Future<String?> getUserNameById(String userID) async {
+    try {
+      final userDoc = await FirebaseFirestore.instance
+          .collection('User')
+          .doc(userID)
+          .get();
+
+      if (userDoc.exists) {
+        return userDoc.data()?['userName'] as String?;
+      }
+      return null;
+    } catch (e) {
+      print('Error fetching user name: $e');
+      return null;
+    }
+  }
+
+  Future<String?> getCustomerNameByCustID(String custID) async {
+    try {
+      final customerSnapshot = await FirebaseFirestore.instance
+          .collection('Customer')
+          .where('custID', isEqualTo: custID)
+          .limit(1)
+          .get();
+
+      if (customerSnapshot.docs.isEmpty) {
+        print('Customer not found for custID: $custID');
+        return null;
+      }
+
+      final customerData = customerSnapshot.docs.first.data();
+      final String userID = customerData['userID'];
+      final userName = await getUserNameById(userID);
+
+      return userName;
+    } catch (e) {
+      print('Error fetching customer name by custID: $e');
+      return null;
+    }
+  }
+
   Future<String?> getEmpType(String userID) async {
     try {
       final snapshot = await FirebaseFirestore.instance
@@ -173,12 +216,19 @@ class UserController {
             final empType = await getEmpType(user.userID);
             await storage.write(key: 'empType', value: empType ?? 'handyman');
 
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const EmpHomepage(),
-              ), // Employee homepage
-            );
+            if (empType == 'handyman') {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => HandymanHomepageScreen(),
+                ),
+              );
+            } else {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => const EmpHomepage()),
+              );
+            }
           } else {
             showErrorSnackBar('Invalid user type: ${user.userType}');
           }
@@ -197,26 +247,76 @@ class UserController {
     }
   }
 
-  // In your login.dart or wherever you handle login, add this after successful login:
+  Future<void> saveUserFCMToken(String userID) async {
+    try {
+      final fcmToken = await FirebaseMessaging.instance.getToken();
 
-Future<void> saveUserFCMToken(String userID) async {
-  try {
-    final fcmToken = await FirebaseMessaging.instance.getToken();
-    
-    if (fcmToken != null) {
-      await FirebaseFirestore.instance.collection('User').doc(userID).update({
-        'fcmToken': fcmToken,
-        'fcmTokenUpdatedAt': FieldValue.serverTimestamp(),
-      });
-      
-      print('FCM token saved successfully for user: $userID');
-    } else {
-      print('Warning: Could not get FCM token');
+      if (fcmToken != null) {
+        await FirebaseFirestore.instance.collection('User').doc(userID).update({
+          'fcmToken': fcmToken,
+          'fcmTokenUpdatedAt': FieldValue.serverTimestamp(),
+        });
+
+        print('FCM token saved successfully for user: $userID');
+      } else {
+        print('Warning: Could not get FCM token');
+      }
+    } catch (e) {
+      print('Error saving FCM token: $e');
     }
-  } catch (e) {
-    print('Error saving FCM token: $e');
   }
-}
+
+  Future<String?> getCurrentProviderID() async {
+    try {
+      final authUser = FirebaseAuth.instance.currentUser;
+      if (authUser == null) {
+        print('No authenticated user found.');
+        return null;
+      }
+
+      // Get User document by authID
+      final userSnapshot = await FirebaseFirestore.instance
+          .collection('User')
+          .where('authID', isEqualTo: authUser.uid)
+          .limit(1)
+          .get();
+
+      if (userSnapshot.docs.isEmpty) {
+        print('User document not found');
+        return null;
+      }
+
+      final String userID = userSnapshot.docs.first.data()['userID'];
+
+      final employeeSnapshot = await FirebaseFirestore.instance
+          .collection('Employee')
+          .where('userID', isEqualTo: userID)
+          .limit(1)
+          .get();
+
+      if (employeeSnapshot.docs.isEmpty) {
+        print('Employee document not found');
+        return null;
+      }
+
+      final String empID = employeeSnapshot.docs.first.data()['empID'];
+      final providerSnapshot = await FirebaseFirestore.instance
+          .collection('ServiceProvider')
+          .where('empID', isEqualTo: empID)
+          .limit(1)
+          .get();
+
+      if (providerSnapshot.docs.isEmpty) {
+        print('Service Provider document not found');
+        return null;
+      }
+
+      return providerSnapshot.docs.first.data()['providerID'];
+    } catch (e) {
+      showErrorSnackBar('Failed to get provider ID: $e');
+      return null;
+    }
+  }
 
   Future<void> logout(
     BuildContext context,

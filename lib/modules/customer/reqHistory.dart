@@ -157,7 +157,6 @@ class RequestHistoryScreenState extends State<RequestHistoryScreen> {
                     },
                   ),
 
-                  // FilterChipsDisplay(controller: controller),
                   const SizedBox(height: 8),
                   buildPrimaryTabBar(
                     context: context,
@@ -219,15 +218,12 @@ class RequestHistoryScreenState extends State<RequestHistoryScreen> {
         upcomingDetails.add(MapEntry('Status', requestViewModel.reqStatus));
         final List<Widget> upcomingActions = [];
         final now = DateTime.now();
-        final scheduledDate = DateUtils.dateOnly(
-          requestViewModel.scheduledDateTime,
-        );
-        final today = DateUtils.dateOnly(now);
-        final differenceInDays = scheduledDate.difference(today).inDays;
+        final scheduledDateTime = requestViewModel.scheduledDateTime;
+        final timeUntilScheduled = scheduledDateTime.difference(now);
         final status = requestViewModel.reqStatus.toLowerCase();
 
         if ((status == 'pending' || status == 'confirmed') &&
-            differenceInDays >= 3) {
+            timeUntilScheduled.inHours >= 24) {
           upcomingActions.addAll([
             OutlinedButton(
               onPressed: () =>
@@ -249,7 +245,14 @@ class RequestHistoryScreenState extends State<RequestHistoryScreen> {
               child: const Text('Reschedule'),
             ),
             OutlinedButton(
-              onPressed: () => controller.cancelRequest(requestViewModel.reqID),
+              onPressed: () {
+                showCancelRequestDialog(
+                  context,
+                  reqID: requestViewModel.reqID,
+                  onConfirmCancel: controller.cancelRequest,
+                  onSuccess: controller.loadRequests,
+                );
+              },
               style: OutlinedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 10,
@@ -365,6 +368,97 @@ class RequestHistoryScreenState extends State<RequestHistoryScreen> {
             details: historyDetails,
             actions: historyActions,
           ),
+        );
+      },
+    );
+  }
+
+  void showCancelDialog(BuildContext context, String reqID) {
+    final TextEditingController reasonController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('Cancel Service Request'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Please provide a reason for cancelling this service request:',
+                style: TextStyle(fontSize: 14),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: reasonController,
+                maxLines: 3,
+                maxLength: 200,
+                decoration: InputDecoration(
+                  hintText: 'Enter cancellation reason...',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  counterText: '',
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Back'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final reason = reasonController.text.trim();
+                if (reason.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Please enter a cancellation reason'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                  return;
+                }
+
+                Navigator.of(dialogContext).pop();
+
+                showDialog(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (BuildContext context) {
+                    return const Center(child: CircularProgressIndicator());
+                  },
+                );
+
+                try {
+                  await controller.cancelRequest(reqID, reason);
+                  Navigator.of(context).pop(); // Close loading dialog
+
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Service request cancelled successfully'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                } catch (e) {
+                  Navigator.of(context).pop(); // Close loading dialog
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Error cancelling request: $e'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Confirm Cancel'),
+            ),
+          ],
         );
       },
     );

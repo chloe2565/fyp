@@ -31,10 +31,19 @@ class EmpEmployeeDetailScreenState extends State<EmpEmployeeDetailScreen> {
     detailsFuture = controller.loadSpecificEmployeeDetails(widget.employee);
   }
 
-  void onMenuSelection(String value) {
+  void onMenuSelection(String value) async {
     if (value == 'update_schedule') {
-      final String handymanID = widget.employee['empID'] as String;
-      final String handymanName = widget.employee['userName'] as String;
+      // FIXED: Get handymanID from the loaded specificHandymanModel, not from widget.employee
+      if (controller.specificHandymanModel == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Handyman details not loaded yet. Please try again.')),
+        );
+        return;
+      }
+
+      final String handymanID = controller.specificHandymanModel!.handymanID;
+      final String handymanName = widget.employee['userName'] as String? ?? 'Unknown';
+      
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -331,15 +340,13 @@ class EmpEmployeeDetailScreenState extends State<EmpEmployeeDetailScreen> {
                             Center(
                               child: CircleAvatar(
                                 radius: 55,
-                                backgroundImage: (widget.employee['userPicName'] as String?).getImageProvider()
+                                backgroundImage:
+                                    (widget.employee['userPicName'] as String?)
+                                        .getImageProvider(),
                               ),
                             ),
                             const SizedBox(height: 40),
 
-                            buildDetailItem(
-                              'Employee ID',
-                              widget.employee['empID'] ?? 'N/A',
-                            ),
                             buildDetailItem(
                               'Employee Type',
                               capitalizeFirst(
@@ -385,6 +392,16 @@ class EmpEmployeeDetailScreenState extends State<EmpEmployeeDetailScreen> {
                                     ? 'N/A'
                                     : controller.specificHandymanServiceNames
                                           .join(', '),
+                              ),
+
+                              buildDetailItem(
+                                'Rating',
+                                controller
+                                            .specificHandymanModel!
+                                            .handymanRating ==
+                                        0.0
+                                    ? 'No ratings yet'
+                                    : '${controller.specificHandymanModel!.handymanRating.toStringAsFixed(1)} ⭐',
                               ),
                             ] else if (widget.employee['empType'] == 'admin' &&
                                 controller.specificServiceProviderModel !=

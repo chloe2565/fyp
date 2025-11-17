@@ -606,7 +606,7 @@ class ServiceRequestDetailsScreenState
               const SizedBox(height: 20),
 
               const Text(
-                'Additional Remark',
+                'Additional Remark (Optional)',
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.bold,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../controller/employee.dart';
+import '../../model/databaseModel.dart';
 import '../../shared/helper.dart';
 import '../../service/image_service.dart';
 
@@ -30,19 +31,27 @@ class UpdateHandymanAvailabilityScreenState
   DateTime? unavailableToDate;
   TimeOfDay unavailableFromTime = const TimeOfDay(hour: 9, minute: 30);
   TimeOfDay unavailableToTime = const TimeOfDay(hour: 19, minute: 30);
-  bool isExpanded = false;
 
   String? fromDateError;
   String? toDateError;
   String? fromTimeError;
   String? toTimeError;
 
+  // Key to force timetable rebuild when week changes
+  int timetableKey = 0;
+
+  // Time slots for the timetable (8 AM to 8 PM)
+  final List<int> timeSlots = List.generate(
+    13,
+    (i) => 8 + i,
+  ); // 8 to 20 (8 AM to 8 PM)
+
   @override
   void initState() {
     super.initState();
     selectedWeekStart = getWeekStart(DateTime.now());
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      loadAvailability();
+      loadTimetableData();
     });
   }
 
@@ -60,20 +69,49 @@ class UpdateHandymanAvailabilityScreenState
   }
 
   DateTime getWeekStart(DateTime date) {
-    return date.subtract(Duration(days: date.weekday - 1));
+    // Normalize to start of day first
+    final normalizedDate = DateTime(date.year, date.month, date.day);
+    // Get Monday of the week (weekday: 1=Monday, 7=Sunday)
+    return normalizedDate.subtract(Duration(days: normalizedDate.weekday - 1));
   }
 
-  void loadAvailability() {
-    widget.controller.loadHandymanAvailability(
-      widget.handymanID,
-      selectedWeekStart,
-    );
+  void loadTimetableData() {
+    widget.controller.loadHandymanTimetableData(widget.handymanID).then((_) {
+      // Debug: Print all loaded data
+      print('=== LOADED DATA SUMMARY ===');
+      print(
+        'Total availability records: ${widget.controller.handymanAvailabilities.length}',
+      );
+      for (var avail in widget.controller.handymanAvailabilities) {
+        print(
+          '  Availability: ${avail.availabilityStartDateTime} to ${avail.availabilityEndDateTime}',
+        );
+      }
+      print(
+        'Total service requests: ${widget.controller.handymanServiceRequests.length}',
+      );
+      for (var req in widget.controller.handymanServiceRequests) {
+        final request = req['request'] as ServiceRequestModel;
+        print(
+          '  Request ${request.reqID}: ${request.scheduledDateTime} - Status: ${request.reqStatus}',
+        );
+      }
+      print('=== END DATA SUMMARY ===');
+    });
   }
 
   List<DateTime> getWeekDays() {
-    return List.generate(7, (index) {
-      return selectedWeekStart.add(Duration(days: index));
+    final days = List.generate(7, (index) {
+      return DateTime(
+        selectedWeekStart.year,
+        selectedWeekStart.month,
+        selectedWeekStart.day,
+      ).add(Duration(days: index));
     });
+    print(
+      'Week days for selected week: ${days.map((d) => '${d.year}-${d.month}-${d.day}').join(', ')}',
+    );
+    return days;
   }
 
   String getWeekLabel() {
@@ -108,31 +146,58 @@ class UpdateHandymanAvailabilityScreenState
         date.day == today.day;
   }
 
-  int? getTodayIndex() {
-    final weekDays = getWeekDays();
-    for (int i = 0; i < weekDays.length; i++) {
-      if (isToday(weekDays[i])) {
-        return i;
-      }
-    }
-    return null;
-  }
-
   Future<void> showWeekPicker() async {
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: selectedWeekStart,
-      firstDate: DateTime(2024),
+      firstDate: DateTime(2020),
       lastDate: DateTime.now().add(const Duration(days: 365)),
       helpText: 'Select a week',
     );
 
     if (picked != null) {
-      setState(() {
-        selectedWeekStart = getWeekStart(picked);
-        isExpanded = false;
-      });
-      loadAvailability();
+      final newWeekStart = getWeekStart(picked);
+      if (newWeekStart != selectedWeekStart) {
+        print('=== WEEK CHANGED ===');
+        print('Old week start: $selectedWeekStart');
+        print('New week start: $newWeekStart');
+
+        setState(() {
+          selectedWeekStart = newWeekStart;
+          timetableKey++; // Force timetable to rebuild with new key
+        });
+
+        // Debug: Check what data matches the new week
+        final weekEnd = newWeekStart.add(const Duration(days: 7));
+        print('Week range: $newWeekStart to $weekEnd');
+
+        int availCount = 0;
+        int reqCount = 0;
+
+        for (var avail in widget.controller.handymanAvailabilities) {
+          if (avail.availabilityStartDateTime.isBefore(weekEnd) &&
+              avail.availabilityEndDateTime.isAfter(newWeekStart)) {
+            availCount++;
+            print('  Match availability: ${avail.availabilityStartDateTime}');
+          }
+        }
+
+        for (var reqData in widget.controller.handymanServiceRequests) {
+          final request = reqData['request'] as ServiceRequestModel;
+          if (request.scheduledDateTime.isAfter(
+                newWeekStart.subtract(const Duration(seconds: 1)),
+              ) &&
+              request.scheduledDateTime.isBefore(weekEnd)) {
+            reqCount++;
+            print('  Match request: ${request.scheduledDateTime}');
+          }
+        }
+
+        print(
+          'Total matches for new week: $availCount availabilities, $reqCount requests',
+        );
+        print('=== END WEEK CHANGE ===');
+      }
     }
   }
 
@@ -279,7 +344,7 @@ class UpdateHandymanAvailabilityScreenState
           onPrimary: () {
             Navigator.of(context).pop();
             resetInputFields();
-            loadAvailability();
+            loadTimetableData();
           },
         );
       }
@@ -295,111 +360,438 @@ class UpdateHandymanAvailabilityScreenState
     }
   }
 
-  Widget buildDayRow(int index, DateTime date) {
+  // Get cell status for timetable
+  Map<String, dynamic> getCellStatus(DateTime date, int hour) {
+    final cellStart = DateTime(date.year, date.month, date.day, hour, 0);
+    final cellEnd = cellStart.add(const Duration(hours: 1));
+
+    // Check for leave/MC (unavailability)
     final unavailabilities = widget.controller.getUnavailabilitiesForDate(date);
-    final dayName = getDayName(index);
+
+    if (unavailabilities.isNotEmpty) {
+      print(
+        'Found ${unavailabilities.length} unavailabilities for date: ${date.year}-${date.month}-${date.day}',
+      );
+    }
+
+    for (var avail in unavailabilities) {
+      if (avail.availabilityStartDateTime.isBefore(cellEnd) &&
+          avail.availabilityEndDateTime.isAfter(cellStart)) {
+        final startTime = DateFormat(
+          'HH:mm',
+        ).format(avail.availabilityStartDateTime);
+        final endTime = DateFormat(
+          'HH:mm',
+        ).format(avail.availabilityEndDateTime);
+
+        return {
+          'type': 'unavailable',
+          'label': 'Leave/MC',
+          'timeRange': '$startTime-$endTime',
+          'color': Colors.red.shade100,
+          'textColor': Colors.red.shade900,
+          'borderColor': Colors.red.shade300,
+        };
+      }
+    }
+
+    // Check for service requests
+    final requests = widget.controller.getServiceRequestsForDate(date);
+
+    if (requests.isNotEmpty) {
+      print(
+        'Found ${requests.length} service requests for date: ${date.year}-${date.month}-${date.day}',
+      );
+    }
+
+    for (var reqData in requests) {
+      final request = reqData['request'] as ServiceRequestModel;
+      final serviceName = reqData['serviceName'] as String;
+      final serviceDuration = reqData['serviceDuration'] as String;
+
+      final requestStart = request.scheduledDateTime;
+      final durationHours = widget.controller.parseServiceDuration(
+        serviceDuration,
+      );
+      final requestEnd = requestStart.add(
+        Duration(minutes: (durationHours * 60).toInt()),
+      );
+
+      if (requestStart.isBefore(cellEnd) && requestEnd.isAfter(cellStart)) {
+        final startTime = DateFormat('HH:mm').format(requestStart);
+        final endTime = DateFormat('HH:mm').format(requestEnd);
+        Color bgColor;
+        Color textColor;
+        Color borderColor;
+
+        switch (request.reqStatus.toLowerCase()) {
+          case 'confirmed':
+            bgColor = Colors.blue.shade100;
+            textColor = Colors.blue.shade900;
+            borderColor = Colors.blue.shade300;
+            break;
+          case 'departed':
+            bgColor = Colors.orange.shade100;
+            textColor = Colors.orange.shade900;
+            borderColor = Colors.orange.shade300;
+            break;
+          case 'completed':
+            bgColor = Colors.green.shade100;
+            textColor = Colors.green.shade900;
+            borderColor = Colors.green.shade300;
+            break;
+          default:
+            bgColor = Colors.grey.shade100;
+            textColor = Colors.grey.shade900;
+            borderColor = Colors.grey.shade300;
+        }
+
+        return {
+          'type': 'service',
+          'label': serviceName,
+          'timeRange': '$startTime-$endTime',
+          'status': request.reqStatus,
+          'reqID': request.reqID,
+          'color': bgColor,
+          'textColor': textColor,
+          'borderColor': borderColor,
+        };
+      }
+    }
+
+    // Available
+    return {
+      'type': 'available',
+      'label': '',
+      'timeRange': '',
+      'color': Colors.white,
+      'textColor': Colors.grey,
+      'borderColor': Colors.grey.shade200,
+    };
+  }
+
+  Widget buildTimetable() {
+    final weekDays = getWeekDays();
+    const double timeColumnWidth = 60;
+    const double dayCellWidth = 100;
+    const double cellHeight = 50;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Date column
-          SizedBox(
-            width: 50,
-            child: Column(
-              children: [
-                Text(
-                  DateFormat('dd').format(date),
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
+      key: ValueKey(timetableKey),
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey.shade300),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: SingleChildScrollView(
+          scrollDirection: Axis.vertical,
+          child: Column(
+            children: [
+              // Header row with day names
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade50,
+                  border: Border(
+                    bottom: BorderSide(color: Colors.grey.shade300),
                   ),
                 ),
-                Text(
-                  dayName,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[600],
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 16),
-
-          // Availability status
-          Expanded(
-            child: Column(
-              children: unavailabilities.isEmpty
-                  ? [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 14,
-                        ),
-                        decoration: BoxDecoration(
-                          border: Border.all(
-                            color: const Color(0xFFFF8C42),
-                            width: 1.5,
-                          ),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Available',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
+                child: Row(
+                  children: [
+                    // Empty cell for time column
+                    Container(
+                      width: timeColumnWidth,
+                      height: 60,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        border: Border(
+                          right: BorderSide(color: Colors.grey.shade300),
                         ),
                       ),
-                    ]
-                  : unavailabilities.map((avail) {
+                      child: const Text(
+                        'Time',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                    // Day headers
+                    ...weekDays.asMap().entries.map((entry) {
+                      final index = entry.key;
+                      final date = entry.value;
+                      final isCurrentDay = isToday(date);
+
                       return Container(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 14,
-                        ),
+                        width: dayCellWidth,
+                        height: 60,
+                        alignment: Alignment.center,
                         decoration: BoxDecoration(
-                          border: Border.all(
-                            color: const Color(0xFFFF8C42),
-                            width: 1.5,
+                          color: isCurrentDay
+                              ? const Color(0xFFFF8C42).withValues(alpha: 0.1)
+                              : Colors.transparent,
+                          border: Border(
+                            right: BorderSide(color: Colors.grey.shade300),
                           ),
-                          borderRadius: BorderRadius.circular(10),
                         ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Text(
-                              'Unavailable',
+                            Text(
+                              getDayName(index),
                               style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                                color: isCurrentDay
+                                    ? const Color(0xFFFF8C42)
+                                    : Colors.black87,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              DateFormat('dd MMM').format(date),
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: isCurrentDay
+                                    ? const Color(0xFFFF8C42)
+                                    : Colors.grey.shade600,
                               ),
                             ),
                           ],
                         ),
                       );
-                    }).toList(),
-            ),
+                    }),
+                  ],
+                ),
+              ),
+              // Time slots rows
+              ...timeSlots.map((hour) {
+                return Row(
+                  children: [
+                    // Time label
+                    Container(
+                      width: timeColumnWidth,
+                      height: cellHeight,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade50,
+                        border: Border(
+                          right: BorderSide(color: Colors.grey.shade300),
+                          bottom: BorderSide(color: Colors.grey.shade200),
+                        ),
+                      ),
+                      child: Text(
+                        '${hour.toString().padLeft(2, '0')}:00',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                    // Day cells
+                    ...weekDays.map((date) {
+                      final cellStatus = getCellStatus(date, hour);
+
+                      return GestureDetector(
+                        onTap: () {
+                          if (cellStatus['type'] == 'service') {
+                            showServiceRequestDetails(cellStatus);
+                          } else if (cellStatus['type'] == 'unavailable') {
+                            showUnavailabilityDetails(date, hour);
+                          }
+                        },
+                        child: Container(
+                          width: dayCellWidth,
+                          height: cellHeight,
+                          decoration: BoxDecoration(
+                            color: cellStatus['color'],
+                            border: Border(
+                              right: BorderSide(color: Colors.grey.shade300),
+                              bottom: BorderSide(color: Colors.grey.shade200),
+                            ),
+                          ),
+                          child: cellStatus['label'].toString().isNotEmpty
+                              ? Container(
+                                  margin: const EdgeInsets.all(2),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 4,
+                                    vertical: 2,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    border: Border.all(
+                                      color: cellStatus['borderColor'],
+                                      width: 1,
+                                    ),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Text(
+                                        cellStatus['label'],
+                                        style: TextStyle(
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.w600,
+                                          color: cellStatus['textColor'],
+                                        ),
+                                        textAlign: TextAlign.center,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      if (cellStatus['type'] == 'service') ...[
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          cellStatus['status'],
+                                          style: TextStyle(
+                                            fontSize: 8,
+                                            color: cellStatus['textColor'],
+                                          ),
+                                        ),
+                                      ],
+                                      if (cellStatus['timeRange']
+                                          .toString()
+                                          .isNotEmpty) ...[
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          cellStatus['timeRange'],
+                                          style: TextStyle(
+                                            fontSize: 8,
+                                            fontWeight: FontWeight.w500,
+                                            color: cellStatus['textColor'],
+                                          ),
+                                          textAlign: TextAlign.center,
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                )
+                              : null,
+                        ),
+                      );
+                    }),
+                  ],
+                );
+              }),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void showServiceRequestDetails(Map<String, dynamic> cellStatus) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Service Request'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Service: ${cellStatus['label']}'),
+            const SizedBox(height: 8),
+            Text('Status: ${cellStatus['status']}'),
+            const SizedBox(height: 8),
+            Text('Request ID: ${cellStatus['reqID']}'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
           ),
         ],
       ),
     );
   }
 
+  void showUnavailabilityDetails(DateTime date, int hour) {
+    final unavailabilities = widget.controller.getUnavailabilitiesForDate(date);
+    if (unavailabilities.isEmpty) return;
+
+    final avail = unavailabilities.first;
+    final startStr = DateFormat(
+      'MMM dd, yyyy HH:mm',
+    ).format(avail.availabilityStartDateTime);
+    final endStr = DateFormat(
+      'MMM dd, yyyy HH:mm',
+    ).format(avail.availabilityEndDateTime);
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Leave/MC Details'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('From: $startStr'),
+            const SizedBox(height: 8),
+            Text('To: $endStr'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget buildLegend() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Legend',
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 16,
+            runSpacing: 8,
+            children: [
+              buildLegendItem(Colors.red.shade100, 'Leave/MC'),
+              buildLegendItem(Colors.blue.shade100, 'Confirmed'),
+              buildLegendItem(Colors.orange.shade100, 'Departed'),
+              buildLegendItem(Colors.green.shade100, 'Completed'),
+              buildLegendItem(Colors.white, 'Available'),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget buildLegendItem(Color color, String label) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 16,
+          height: 16,
+          decoration: BoxDecoration(
+            color: color,
+            border: Border.all(color: Colors.grey.shade400),
+            borderRadius: BorderRadius.circular(3),
+          ),
+        ),
+        const SizedBox(width: 6),
+        Text(label, style: const TextStyle(fontSize: 12)),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final todayIndex = getTodayIndex();
-
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -410,7 +802,7 @@ class UpdateHandymanAvailabilityScreenState
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
-          'Update Schedule & Availability',
+          'Handyman Availability Timetable',
           style: TextStyle(
             color: Colors.black,
             fontSize: 17,
@@ -422,7 +814,7 @@ class UpdateHandymanAvailabilityScreenState
       body: ListenableBuilder(
         listenable: widget.controller,
         builder: (context, child) {
-          if (widget.controller.isLoadingAvailability) {
+          if (widget.controller.isLoadingTimetable) {
             return const Center(child: CircularProgressIndicator());
           }
 
@@ -452,11 +844,15 @@ class UpdateHandymanAvailabilityScreenState
                     ),
                   ],
                 ),
-                const SizedBox(height: 28),
+                const SizedBox(height: 24),
 
-                // Week Label
+                // Legend
+                buildLegend(),
+                const SizedBox(height: 20),
+
+                // Week Selector
                 const Text(
-                  'Week',
+                  'Select Week',
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
@@ -465,7 +861,6 @@ class UpdateHandymanAvailabilityScreenState
                 ),
                 const SizedBox(height: 12),
 
-                // Week Selector
                 GestureDetector(
                   onTap: showWeekPicker,
                   child: Container(
@@ -498,110 +893,28 @@ class UpdateHandymanAvailabilityScreenState
                 ),
                 const SizedBox(height: 20),
 
-                // Day Headers
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    const dayItemWidth = 42.0;
-                    final availableWidth = constraints.maxWidth;
-
-                    double calculateOffset(int index) {
-                      if (todayIndex == null) return 0;
-                      return (index * (availableWidth / 7)) +
-                          (availableWidth / 14) -
-                          (dayItemWidth / 2);
-                    }
-
-                    return Stack(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceAround,
-                            children: List.generate(7, (index) {
-                              final dayName = getDayName(index);
-                              final isCurrentDay = todayIndex == index;
-                              return SizedBox(
-                                width: dayItemWidth,
-                                child: Text(
-                                  dayName,
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: isCurrentDay
-                                        ? FontWeight.bold
-                                        : FontWeight.w500,
-                                    color: isCurrentDay
-                                        ? const Color(0xFFFF8C42)
-                                        : Colors.grey[600],
-                                  ),
-                                ),
-                              );
-                            }),
-                          ),
-                        ),
-                        if (todayIndex != null)
-                          Positioned(
-                            left: calculateOffset(todayIndex),
-                            bottom: 0,
-                            child: Container(
-                              width: dayItemWidth,
-                              height: 3,
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFFF8C42),
-                                borderRadius: BorderRadius.circular(2),
-                              ),
-                            ),
-                          ),
-                      ],
-                    );
-                  },
+                // Timetable
+                const Text(
+                  'Weekly Timetable',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                  ),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 12),
 
-                if (!isExpanded) ...[
-                  ...getWeekDays()
-                      .take(2)
-                      .toList()
-                      .asMap()
-                      .entries
-                      .map((entry) => buildDayRow(entry.key, entry.value)),
-                  Center(
-                    child: IconButton(
-                      onPressed: () {
-                        setState(() {
-                          isExpanded = true;
-                        });
-                      },
-                      icon: Icon(
-                        Icons.keyboard_arrow_down,
-                        color: Colors.grey[600],
-                        size: 28,
-                      ),
-                    ),
-                  ),
-                ] else ...[
-                  ...getWeekDays().asMap().entries.map(
-                    (entry) => buildDayRow(entry.key, entry.value),
-                  ),
-                  Center(
-                    child: IconButton(
-                      onPressed: () {
-                        setState(() {
-                          isExpanded = false;
-                        });
-                      },
-                      icon: Icon(
-                        Icons.keyboard_arrow_up,
-                        color: Colors.grey[600],
-                        size: 28,
-                      ),
-                    ),
-                  ),
-                ],
+                SizedBox(
+                  key: ValueKey('timetable_$timetableKey'),
+                  height: 500,
+                  child: buildTimetable(),
+                ),
+
                 const SizedBox(height: 28),
 
+                // Add Unavailable Day Section
                 const Text(
-                  'Add Unavailable Day',
+                  'Add Leave/MC Period',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 16),
