@@ -1147,8 +1147,6 @@ class ViewReportPageState extends State<ViewReportPage> {
                                     .map((h) {
                                       int index = performance.indexOf(h);
                                       int completed = h['completedRequests'];
-                                      String name = h['handymanName']
-                                          .toString();
 
                                       return PieChartSectionData(
                                         value: completed.toDouble(),
@@ -1285,10 +1283,6 @@ class ViewReportPageState extends State<ViewReportPage> {
                               default:
                                 color = Colors.grey[600]!;
                             }
-
-                            String label =
-                                entry.key[0].toUpperCase() +
-                                entry.key.substring(1);
 
                             return PieChartSectionData(
                               value: entry.value.toDouble(),
@@ -1688,8 +1682,6 @@ class ViewReportPageState extends State<ViewReportPage> {
                             double revenue = entry.value.value['revenue']
                                 .toDouble();
                             double percentage = (revenue / totalRevenue) * 100;
-                            String serviceName =
-                                entry.value.value['serviceName'];
 
                             return PieChartSectionData(
                               value: revenue,

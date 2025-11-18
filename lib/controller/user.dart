@@ -18,7 +18,6 @@ import '../shared/custNavigatorBase.dart';
 import '../login.dart';
 import '../modules/customer/register.dart';
 import '../modules/customer/homepage.dart';
-import 'employee.dart';
 
 class UserController {
   final UserService userService = UserService();

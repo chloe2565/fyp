@@ -6,8 +6,13 @@ import '../../shared/helper.dart';
 
 class EmpAddBillScreen extends StatefulWidget {
   final VoidCallback onBillAdded;
+  final String? serviceRequestID;
 
-  const EmpAddBillScreen({super.key, required this.onBillAdded});
+  const EmpAddBillScreen({
+    super.key,
+    required this.onBillAdded,
+    this.serviceRequestID,
+  });
 
   @override
   State<EmpAddBillScreen> createState() => EmpAddBillScreenState();
@@ -20,6 +25,7 @@ class EmpAddBillScreenState extends State<EmpAddBillScreen> {
     text: 'Pending',
   );
   bool isLoading = false;
+  bool pressSelect = false;
 
   @override
   void initState() {
@@ -96,6 +102,18 @@ class EmpAddBillScreenState extends State<EmpAddBillScreen> {
               return const Center(child: CircularProgressIndicator());
             }
 
+            if (widget.serviceRequestID != null && !pressSelect) {
+              pressSelect = true;
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted &&
+                    controller.completableServiceRequestsDropdown.containsKey(
+                      widget.serviceRequestID,
+                    )) {
+                  controller.onServiceRequestSelected(widget.serviceRequestID);
+                }
+              });
+            }
+
             return Form(
               key: formKey,
               child: SingleChildScrollView(
@@ -119,7 +137,9 @@ class EmpAddBillScreenState extends State<EmpAddBillScreen> {
                           .toList(),
                       hint: 'Select a completed request',
                       onChanged: (value) {
-                        controller.onServiceRequestSelected(value);
+                        if (widget.serviceRequestID == null) {
+                          controller.onServiceRequestSelected(value);
+                        }
                       },
                       validator: (value) =>
                           value == null ? 'Please select a request' : null,

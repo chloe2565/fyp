@@ -406,10 +406,10 @@ class _EnhancedBillingCardState extends State<EnhancedBillingCard> {
   @override
   void initState() {
     super.initState();
-    _loadServiceRequestDetails();
+    loadServiceRequestDetails();
   }
 
-  Future<void> _loadServiceRequestDetails() async {
+  Future<void> loadServiceRequestDetails() async {
     try {
       // Get Service Request
       final reqDoc = await _db.collection('ServiceRequest').doc(widget.bill.reqID).get();

@@ -191,7 +191,11 @@ class EmpRatingReviewScreenState extends State<EmpRatingReviewScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.rate_review_outlined, size: 64, color: Colors.grey.shade400),
+            Icon(
+              Icons.rate_review_outlined,
+              size: 64,
+              color: Colors.grey.shade400,
+            ),
             const SizedBox(height: 16),
             Text(
               searchController.text.isNotEmpty || numberOfFilters > 0
@@ -252,7 +256,7 @@ class RatingReviewCard extends StatelessWidget {
     final service = reviewData['service'] as ServiceModel?;
     final handymanUser = reviewData['handymanUser'] as UserModel?;
     final customerUser = reviewData['customerUser'] as UserModel?;
-    
+
     final rating = review.ratingNum;
     final serviceName = service?.serviceName ?? 'Unknown Service';
     final handymanName = handymanUser?.userName ?? 'Not Assigned';
@@ -309,22 +313,27 @@ class RatingReviewCard extends StatelessWidget {
                   ),
                 ],
               ),
-              
+
               const SizedBox(height: 16),
-              
+
               // Details Grid
               Row(
                 children: [
                   Expanded(
-                    child: _buildDetailItem(
-                      'Customer',
-                      capitalizeFirst(customerName),
-                    ),
+                    child: buildDetailItem('Customer Name', customerName),
                   ),
                   Expanded(
-                    child: _buildDetailItem(
-                      'Handyman',
-                      capitalizeFirst(handymanName),
+                    child: buildDetailItem('Handyman Assigned', handymanName),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: buildDetailItem(
+                      'Service Date & Time',
+                      Formatter.formatDateTime(request.scheduledDateTime),
                     ),
                   ),
                 ],
@@ -333,39 +342,37 @@ class RatingReviewCard extends StatelessWidget {
               Row(
                 children: [
                   Expanded(
-                    child: _buildDetailItem(
-                      'Service Date',
-                      dateFormat.format(request.scheduledDateTime),
+                    child: buildDetailItem(
+                      'Review Date & Time',
+                      Formatter.formatDateTime(review.ratingCreatedAt),
                     ),
                   ),
                   Expanded(
-                    child: _buildDetailItem(
-                      'Service Time',
-                      timeFormat.format(request.scheduledDateTime),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildDetailItem(
-                      'Review Date',
-                      dateFormat.format(review.ratingCreatedAt),
-                    ),
-                  ),
-                  Expanded(
-                    child: _buildDetailItem(
+                    child: buildDetailItem(
                       'Service Status',
                       capitalizeFirst(request.reqStatus),
+                      valueColor: getStatusColor(request.reqStatus),
                     ),
                   ),
                 ],
               ),
-              
+
               // Review Preview (only if has text)
+              Expanded(
+                child: buildDetailItem(
+                  'Service Status',
+                  capitalizeFirst(request.reqStatus),
+                  valueColor: getStatusColor(request.reqStatus),
+                ),
+              ),
+
               if (review.ratingText.isNotEmpty) ...[
+                Text(
+                  "Review Text",
+                  style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
                 const SizedBox(height: 12),
                 Text(
                   review.ratingText,
@@ -385,23 +392,18 @@ class RatingReviewCard extends StatelessWidget {
     );
   }
 
-  Widget _buildDetailItem(String label, String value) {
+  Widget buildDetailItem(String label, String value, {Color? valueColor}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 11,
-            color: Colors.grey[600],
-          ),
-        ),
+        Text(label, style: TextStyle(fontSize: 11, color: Colors.grey[600])),
         const SizedBox(height: 2),
         Text(
           value,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w500,
+            color: valueColor,
           ),
         ),
       ],

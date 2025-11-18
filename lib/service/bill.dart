@@ -9,6 +9,8 @@ class BillService {
   final UserService userService = UserService();
   final PaymentService paymentService = PaymentService();
 
+  static const double FIXED_OUTSTATION_FEE = 15.00;
+
   // Customer side
   Future<List<BillingModel>> getBills() async {
     try {
@@ -69,7 +71,7 @@ class BillService {
       if (!serviceDoc.exists) throw Exception("Service not found");
       final service = ServiceModel.fromMap(serviceDoc.data()!);
 
-      // Get Customer User Details
+      // Get Customer Details
       final customerDoc = await db
           .collection('Customer')
           .doc(request.custID)
@@ -84,7 +86,7 @@ class BillService {
       if (!customerUserDoc.exists) throw Exception("Customer User not found");
       final customerUser = UserModel.fromMap(customerUserDoc.data()!);
 
-      // Get Handyman User Details
+      // Get Handyman Details
       final handymanDoc = await db
           .collection('Handyman')
           .doc(request.handymanID)
@@ -106,33 +108,24 @@ class BillService {
       if (!handymanUserDoc.exists) throw Exception("Handyman User not found");
       final handymanUser = UserModel.fromMap(handymanUserDoc.data()!);
 
-      // Get Payment (if it exists)
+      // Get Payment 
       final payment = await paymentService.getPaymentForBill(bill.billingID);
-      const double FIXED_OUTSTATION_FEE = 15.00;
-      double billServicePrice;
-      double billOutstationFee;
 
-      if (bill.billAmt == 0) {
-        // Add
-        billServicePrice = service.servicePrice ?? 0.0;
-        billOutstationFee = FIXED_OUTSTATION_FEE;
-      } else {
-        // Edit
-        billOutstationFee = FIXED_OUTSTATION_FEE;
-        billServicePrice = bill.billAmt - FIXED_OUTSTATION_FEE;
-
-        if (billServicePrice < 0) {
-          billServicePrice = 0;
-        }
-      }
+      // Calculate billing amounts
+      double billServicePrice = service.servicePrice ?? 0.0;
+      print("service price at service file is $billServicePrice");
+      double billOutstationFee = FIXED_OUTSTATION_FEE;
+      double totalPrice = bill.billAmt > 0 
+          ? bill.billAmt 
+          : billServicePrice + billOutstationFee;
 
       return BillDetailViewModel(
-        totalPrice: bill.billAmt,
+        totalPrice: totalPrice,
         billStatus: bill.billStatus,
         billingID: bill.billingID,
         customerAddress: request.reqAddress,
         bookingTimestamp: request.scheduledDateTime,
-        serviceCompleteTimestamp: request.reqCompleteTime!,
+        serviceCompleteTimestamp: request.reqCompleteTime ?? DateTime.now(),
         customerName: customerUser.userName,
         customerContact: customerUser.userContact,
         serviceName: service.serviceName,
@@ -314,7 +307,6 @@ class BillService {
       }
 
       // Calculate total amount
-      const double FIXED_OUTSTATION_FEE = 15.00;
       final double servicePrice = service.servicePrice ?? 0.0;
       final double totalAmount = servicePrice + FIXED_OUTSTATION_FEE;
 

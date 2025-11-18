@@ -11,6 +11,8 @@ class BillController with ChangeNotifier {
   final UserService userService = UserService();
   late BillingModel selectedBillingModel;
 
+  static const double FIXED_OUTSTATION_FEE = 15.00;
+
   // List State
   bool isLoading = true;
   bool isFiltering = false;
@@ -179,6 +181,8 @@ class BillController with ChangeNotifier {
       createdAtController.text = DateFormat(
         'yyyy-MM-dd HH:mm:ss',
       ).format(DateTime.now());
+
+      outstationFeeController.text = FIXED_OUTSTATION_FEE.toStringAsFixed(2);
     } catch (e) {
       print("Error initializing Add Bill Page: $e");
     }
@@ -200,13 +204,15 @@ class BillController with ChangeNotifier {
       selectedBillStatus = bill.billStatus;
 
       final details = await billService.getBillDetails(bill);
+      print("bill at controller file is $details");
 
-      servicePriceController.text = details.serviceBasePrice!.toStringAsFixed(
-        2,
-      );
-      outstationFeeController.text = (details.outstationFee)
-          .toStringAsFixed(2);
+      // Service price from Service table
+      servicePriceController.text = (details.serviceBasePrice)!.toStringAsFixed(2);
+      print("service price at controller get is ${details.serviceBasePrice}");
+      print("service price at controller file is ${servicePriceController.text}");
+      outstationFeeController.text = FIXED_OUTSTATION_FEE.toStringAsFixed(2);
       totalPriceController.text = bill.billAmt.toStringAsFixed(2);
+      
       servicePriceController.addListener(calculateTotalPrice);
       outstationFeeController.addListener(calculateTotalPrice);
     } catch (e) {
@@ -244,31 +250,25 @@ class BillController with ChangeNotifier {
       providerID: '',
       adminRemark: '',
     );
+    
     billService
         .getBillDetails(tempBill)
         .then((details) {
-          if (details.serviceBasePrice != null &&
-              details.serviceBasePrice! > 0) {
-            servicePriceController.text = details.serviceBasePrice!
-                .toStringAsFixed(2);
-          } else {
-            servicePriceController.text = "";
-          }
-
-          if (details.outstationFee > 0) {
-            outstationFeeController.text = (details.outstationFee)
-                .toStringAsFixed(2);
-          } else {
-            outstationFeeController.text = "";
-          }
+          double servicePrice = details.serviceBasePrice ?? 0.0;
+          double outstationFee = FIXED_OUTSTATION_FEE;
+          servicePriceController.text = servicePrice.toStringAsFixed(2);
+          outstationFeeController.text = outstationFee.toStringAsFixed(2);
+          
+          calculateTotalPrice();
+          notifyListeners();
         })
         .catchError((e) {
           print("Error fetching details for $reqID: $e");
           servicePriceController.text = "0.00";
-          outstationFeeController.text = "0.00";
+          outstationFeeController.text = FIXED_OUTSTATION_FEE.toStringAsFixed(2);
+          calculateTotalPrice();
+          notifyListeners();
         });
-
-    notifyListeners();
   }
 
   void calculateTotalPrice() {

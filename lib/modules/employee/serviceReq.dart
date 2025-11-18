@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../controller/serviceRequest.dart';
 import '../../shared/empNavigatorBase.dart';
@@ -158,8 +157,7 @@ class EmpRequestScreenState extends State<EmpRequestScreen> {
                         hasFilter: hasFilter,
                         numberOfFilters: numberOfFilters,
                       ),
-
-                      FilterChipsDisplay(controller: controller),
+                      // FilterChipsDisplay(controller: controller),
                       const SizedBox(height: 8),
                       buildPrimaryTabBar(
                         context: context,
@@ -225,7 +223,7 @@ class EmpRequestScreenState extends State<EmpRequestScreen> {
           ),
           MapEntry('Location', requestViewModel.requestModel.reqAddress),
           MapEntry('Handyman Name', requestViewModel.handymanName),
-          MapEntry('Status', requestViewModel.reqStatus),
+          MapEntry('Request Status', requestViewModel.reqStatus),
         ];
 
         final now = DateTime.now();
@@ -359,7 +357,7 @@ class EmpRequestScreenState extends State<EmpRequestScreen> {
           ),
           MapEntry('Location', requestViewModel.requestModel.reqAddress),
           MapEntry('Handyman Name', requestViewModel.handymanName),
-          MapEntry('Status', requestViewModel.reqStatus),
+          MapEntry('Request Status', requestViewModel.reqStatus),
         ];
 
         final now = DateTime.now();
@@ -494,7 +492,7 @@ class EmpRequestScreenState extends State<EmpRequestScreen> {
           ),
           MapEntry('Location', requestViewModel.requestModel.reqAddress),
           MapEntry('Handyman Name', requestViewModel.handymanName),
-          MapEntry('Status', requestViewModel.reqStatus),
+          MapEntry('Request Status', requestViewModel.reqStatus),
         ];
 
         if (requestViewModel.paymentStatus != null) {

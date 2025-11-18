@@ -95,8 +95,8 @@ class EmpPaymentDetailScreenState extends State<EmpPaymentDetailScreen> {
     PaymentDetailViewModel vm,
     PaymentModel payment,
   ) {
-    final icon = ServiceHelper.getIconForService(vm.serviceName ?? 'Unknown');
-    final bgColor = ServiceHelper.getColorForService(vm.serviceName ?? 'Unknown');
+    final icon = ServiceHelper.getIconForService(vm.serviceName);
+    final bgColor = ServiceHelper.getColorForService(vm.serviceName);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -181,7 +181,7 @@ class EmpPaymentDetailScreenState extends State<EmpPaymentDetailScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  vm.serviceName ?? 'Unknown Service',
+                  vm.serviceName,
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -272,11 +272,11 @@ class EmpPaymentDetailScreenState extends State<EmpPaymentDetailScreen> {
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 16),
-          buildInfoRow(Icons.person, 'Name', vm.customerName ?? 'Unknown'),
+          buildInfoRow(Icons.person, 'Name', vm.customerName),
           const SizedBox(height: 12),
-          buildInfoRow(Icons.phone, 'Contact', vm.customerContact ?? 'N/A'),
+          buildInfoRow(Icons.phone, 'Contact', vm.customerContact),
           const SizedBox(height: 12),
-          buildInfoRow(Icons.location_on, 'Address', vm.customerAddress ?? 'N/A'),
+          buildInfoRow(Icons.location_on, 'Address', vm.customerAddress),
         ],
       ),
     );

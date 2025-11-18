@@ -808,7 +808,6 @@ class ServiceRequestController extends ChangeNotifier {
     final rangeMatch = rangePattern.firstMatch(cleaned);
 
     if (rangeMatch != null) {
-      final min = double.parse(rangeMatch.group(1)!);
       final max = double.parse(rangeMatch.group(2)!);
       return max;
     }

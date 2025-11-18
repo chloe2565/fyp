@@ -1,15 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../controller/serviceRequest.dart';
 import '../../controller/user.dart';
+import '../../model/billDetailViewModel.dart';
 import '../../model/databaseModel.dart';
 import '../../model/serviceRequestViewModel.dart';
 import '../../shared/fullScreenImage.dart';
 import '../../shared/helper.dart';
 import '../../service/image_service.dart';
 import '../../service/nlp_service.dart';
+import '../../service/bill.dart';
 import 'handymanServiceReqMap.dart';
 import 'providerServiceReqMap.dart';
+import 'addNewBill.dart';
+import 'addNewPayment.dart';
+import 'editBill.dart';
+import 'editPayment.dart';
 
 class EmpRequestDetailScreen extends StatefulWidget {
   final String reqID;
@@ -26,11 +33,24 @@ class EmpRequestDetailScreen extends StatefulWidget {
 }
 
 class EmpRequestDetailScreenState extends State<EmpRequestDetailScreen> {
+  static final currencyFormat = NumberFormat("#,##0.00", "en_MY");
+  static final dateTimeFormat = DateFormat('MMMM dd, yyyy hh:mm a');
+  static final dateFormat = DateFormat('MMMM dd, yyyy');
+
   ComprehensiveAnalysis? nlpAnalysis;
   bool isLoadingAnalysis = false;
   String? customerName;
   bool isLoadingCustomerName = false;
   UserController? userController;
+  final BillService billService = BillService();
+  final FirebaseFirestore _db = FirebaseFirestore.instance;
+
+  // Billing & Payment data
+  BillingModel? billingData;
+  BillDetailViewModel? billDetailViewModel;
+  PaymentModel? paymentData;
+  bool isLoadingBilling = false;
+  bool isLoadingPayment = false;
 
   @override
   void initState() {
@@ -40,6 +60,57 @@ class EmpRequestDetailScreenState extends State<EmpRequestDetailScreen> {
     );
     loadNLPAnalysis();
     loadCustomerName();
+    loadBillingAndPayment();
+  }
+
+  Future<void> loadBillingAndPayment() async {
+    setState(() {
+      isLoadingBilling = true;
+      isLoadingPayment = true;
+    });
+
+    try {
+      // Load billing
+      final billingQuery = await _db
+          .collection('Billing')
+          .where('reqID', isEqualTo: widget.reqID)
+          .limit(1)
+          .get();
+
+      if (billingQuery.docs.isNotEmpty) {
+        final billingModel = BillingModel.fromMap(
+          billingQuery.docs.first.data(),
+        );
+        billingData = billingModel;
+
+        try {
+          billDetailViewModel = await billService.getBillDetails(billingModel);
+        } catch (e) {
+          print('Error loading BillDetailViewModel: $e');
+          billDetailViewModel = null;
+        }
+
+        // Load payment if billing exists
+        final paymentQuery = await _db
+            .collection('Payment')
+            .where('billingID', isEqualTo: billingData!.billingID)
+            .limit(1)
+            .get();
+
+        if (paymentQuery.docs.isNotEmpty) {
+          paymentData = PaymentModel.fromMap(paymentQuery.docs.first.data());
+        }
+      }
+    } catch (e) {
+      print('Error loading billing/payment: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          isLoadingBilling = false;
+          isLoadingPayment = false;
+        });
+      }
+    }
   }
 
   Future<void> loadNLPAnalysis() async {
@@ -69,15 +140,9 @@ class EmpRequestDetailScreenState extends State<EmpRequestDetailScreen> {
     try {
       final viewModel = widget.controller.getRequestById(widget.reqID);
       if (viewModel != null && userController != null) {
-        print(
-          'Loading customer name for custID: ${viewModel.requestModel.custID}',
-        );
-
         final name = await userController!.getCustomerNameByCustID(
           viewModel.requestModel.custID,
         );
-
-        print('Customer name loaded: $name');
 
         if (!mounted) return;
         setState(() {
@@ -85,7 +150,6 @@ class EmpRequestDetailScreenState extends State<EmpRequestDetailScreen> {
           isLoadingCustomerName = false;
         });
       } else {
-        print('viewModel or userController is null');
         if (!mounted) return;
         setState(() => isLoadingCustomerName = false);
       }
@@ -139,6 +203,7 @@ class EmpRequestDetailScreenState extends State<EmpRequestDetailScreen> {
     final model = viewModel.requestModel;
     final icon = ServiceHelper.getIconForService(viewModel.title);
     final bgColor = ServiceHelper.getColorForService(viewModel.title);
+    final isAdmin = widget.controller.currentEmployeeType == 'admin';
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -202,6 +267,20 @@ class EmpRequestDetailScreenState extends State<EmpRequestDetailScreen> {
           if (nlpAnalysis != null) buildNLPInsightsCard(),
           if (nlpAnalysis != null) const SizedBox(height: 12),
 
+          // Billing Section (only show if completed or if admin)
+          if (viewModel.reqStatus.toLowerCase() == 'completed' || isAdmin)
+            buildBillingSection(context, viewModel, isAdmin),
+          if (viewModel.reqStatus.toLowerCase() == 'completed' || isAdmin)
+            const SizedBox(height: 12),
+
+          // Payment Section (only show if billing exists or if admin)
+          if ((billingData != null || isAdmin) &&
+              (viewModel.reqStatus.toLowerCase() == 'completed' || isAdmin))
+            buildPaymentSection(context, viewModel, isAdmin),
+          if ((billingData != null || isAdmin) &&
+              (viewModel.reqStatus.toLowerCase() == 'completed' || isAdmin))
+            const SizedBox(height: 12),
+
           // Cancellation Info (if cancelled)
           if (viewModel.reqStatus.toLowerCase() == 'cancelled' &&
               model.reqCustomCancel != null &&
@@ -215,6 +294,428 @@ class EmpRequestDetailScreenState extends State<EmpRequestDetailScreen> {
           // Action Buttons
           ...buildBottomActions(context, viewModel, widget.controller),
           const SizedBox(height: 20),
+        ],
+      ),
+    );
+  }
+
+  Widget buildBillingSection(
+    BuildContext context,
+    RequestViewModel viewModel,
+    bool isAdmin,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.receipt_long, color: Colors.blue[700], size: 24),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'Billing Information',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+              if (isAdmin && billingData != null)
+                IconButton(
+                  icon: const Icon(Icons.edit, size: 20),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => EmpEditBillScreen(
+                          bill: billingData!,
+                          onBillUpdated: loadBillingAndPayment,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          if (isLoadingBilling)
+            const Center(child: CircularProgressIndicator())
+          else if (billingData == null) ...[
+            Text(
+              'No billing record found for this service request.',
+              style: TextStyle(color: Colors.grey[600], fontSize: 14),
+            ),
+            if (isAdmin &&
+                viewModel.reqStatus.toLowerCase() == 'completed') ...[
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.add, size: 18),
+                  label: const Text('Create Bill'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue[700],
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => EmpAddBillScreen(
+                          onBillAdded: loadBillingAndPayment,
+                          serviceRequestID: viewModel.reqID,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ] else if (isAdmin &&
+                viewModel.reqStatus.toLowerCase() != 'completed') ...[
+              const SizedBox(height: 12),
+              Text(
+                'A bill can only be created after the service request is marked as "Completed".',
+                style: TextStyle(
+                  color: Colors.grey[600],
+                  fontSize: 13,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ],
+          ] else ...[
+            if (billDetailViewModel != null) ...[
+              buildInfoRow(
+                Icons.info_outline,
+                'Bill Status',
+                capitalizeFirst(billDetailViewModel!.billStatus),
+                valueColor: getStatusColor(billDetailViewModel!.billStatus),
+              ),
+              const SizedBox(height: 12),
+              buildInfoRow(
+                Icons.calendar_today,
+                'Due Date',
+                dateFormat.format(billingData!.billDueDate),
+              ),
+              if (billDetailViewModel!.adminRemark != null &&
+                  billDetailViewModel!.adminRemark!.trim().isNotEmpty) ...[
+                const SizedBox(height: 16),
+                buildAdminRemarksCard(
+                  context,
+                  billDetailViewModel!.adminRemark!,
+                ),
+              ],
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Service Price',
+                    style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+                  ),
+                  Text(
+                    'RM ${currencyFormat.format(billDetailViewModel!.serviceBasePrice ?? 0.0)}',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Outstation Fee',
+                    style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+                  ),
+                  Text(
+                    'RM ${currencyFormat.format(billDetailViewModel!.outstationFee)}',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+              const Divider(height: 24),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Total Amount:',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                  Text(
+                    'RM ${currencyFormat.format(billDetailViewModel!.totalPrice)}',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.green[700],
+                    ),
+                  ),
+                ],
+              ),
+            ] else if (billingData != null) ...[
+              buildInfoRow(
+                Icons.info_outline,
+                'Bill Status',
+                capitalizeFirst(billingData!.billStatus),
+              ),
+              const Divider(height: 24),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Total Amount:',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                  Text(
+                    'RM ${currencyFormat.format(billingData!.billAmt)}',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.green[700],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              buildInfoRow(
+                Icons.calendar_today,
+                'Due Date',
+                dateFormat.format(billingData!.billDueDate),
+              ),
+              const SizedBox(height: 12),
+              buildInfoRow(
+                Icons.access_time,
+                'Created At',
+                dateTimeFormat.format(billingData!.billCreatedAt),
+              ),
+            ] else ...[
+              const Text('Error displaying bill details.'),
+            ],
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget buildPaymentSection(
+    BuildContext context,
+    RequestViewModel viewModel,
+    bool isAdmin,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.payment, color: Colors.green[700], size: 24),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'Payment Information',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+              if (isAdmin && paymentData != null)
+                IconButton(
+                  icon: const Icon(Icons.edit, size: 20),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => EmpEditPaymentScreen(
+                          payment: paymentData!,
+                          onPaymentUpdated: loadBillingAndPayment,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          if (isLoadingPayment)
+            const Center(child: CircularProgressIndicator())
+          else if (paymentData == null) ...[
+            Text(
+              billingData == null
+                  ? 'Create a billing record first to add payment.'
+                  : 'No payment record found for this bill.',
+              style: TextStyle(color: Colors.grey[600], fontSize: 14),
+            ),
+            if (isAdmin && billingData != null) ...[
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.add, size: 18),
+                  label: const Text('Add Payment'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green[700],
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => EmpAddPaymentScreen(
+                          onPaymentAdded: loadBillingAndPayment,
+                          billingID: billingData!.billingID,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ] else ...[
+            buildInfoRow(
+              Icons.info_outline,
+              'Payment Status',
+              capitalizeFirst(paymentData!.payStatus),
+              valueColor: getStatusColor(paymentData!.payStatus),
+            ),
+            const SizedBox(height: 12),
+            buildInfoRow(
+              Icons.payment,
+              'Payment Method',
+              paymentData!.payMethod,
+            ),
+            const SizedBox(height: 12),
+            buildInfoRow(
+              Icons.access_time,
+              'Payment Date',
+              dateTimeFormat.format(paymentData!.payCreatedAt),
+            ),
+            if (paymentData!.payMediaProof.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              const Text(
+                'Payment Media Proof:',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 8),
+              GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => FullScreenGalleryViewer(
+                        imagePaths: [paymentData!.payMediaProof],
+                        initialIndex: 0,
+                      ),
+                    ),
+                  );
+                },
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: paymentData!.payMediaProof.toNetworkImage(
+                    width: double.infinity,
+                    height: 150,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              ),
+            ],
+            const Divider(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Amount Paid:',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                Text(
+                  'RM ${currencyFormat.format(paymentData!.payAmt)}',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.green[700],
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget buildAdminRemarksCard(BuildContext context, String remark) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.amber[50],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.amber[200]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.note_alt, color: Colors.amber[700], size: 24),
+              const SizedBox(width: 8),
+              Text(
+                'Admin Remark',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.amber[900],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            remark,
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.amber[900],
+              height: 1.4,
+            ),
+          ),
         ],
       ),
     );
@@ -250,8 +751,6 @@ class EmpRequestDetailScreenState extends State<EmpRequestDetailScreen> {
             ],
           ),
           const SizedBox(height: 16),
-
-          // Urgency Badge
           Row(
             children: [
               const Text(
@@ -279,8 +778,6 @@ class EmpRequestDetailScreenState extends State<EmpRequestDetailScreen> {
             ],
           ),
           const SizedBox(height: 12),
-
-          // Complexity
           if (nlpAnalysis!.insights['complexity'] != null) ...[
             Row(
               children: [
@@ -302,8 +799,6 @@ class EmpRequestDetailScreenState extends State<EmpRequestDetailScreen> {
             ),
           ],
           const SizedBox(height: 12),
-
-          // Recommendations
           if (nlpAnalysis!.recommendations.isNotEmpty) ...[
             const Text(
               'Recommended Tools & Parts:',
@@ -447,7 +942,7 @@ class EmpRequestDetailScreenState extends State<EmpRequestDetailScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Service Request Booking Information',
+            'Service Request Information',
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 16),
@@ -522,7 +1017,7 @@ class EmpRequestDetailScreenState extends State<EmpRequestDetailScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'Service Location',
+                  'Service Request Location',
                   style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 4),
@@ -719,7 +1214,12 @@ class EmpRequestDetailScreenState extends State<EmpRequestDetailScreen> {
     );
   }
 
-  Widget buildInfoRow(IconData icon, String label, String value) {
+  Widget buildInfoRow(
+    IconData icon,
+    String label,
+    String value, {
+    Color? valueColor,
+  }) {
     return Row(
       children: [
         Icon(icon, size: 20, color: Colors.grey[600]),
@@ -735,9 +1235,10 @@ class EmpRequestDetailScreenState extends State<EmpRequestDetailScreen> {
               const SizedBox(height: 2),
               Text(
                 value,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
+                  color: valueColor,
                 ),
               ),
             ],
@@ -783,23 +1284,21 @@ class EmpRequestDetailScreenState extends State<EmpRequestDetailScreen> {
                       'departed',
                     );
                     if (context.mounted) {
-                      Navigator.of(context).pop(); // Close loading dialog
+                      Navigator.of(context).pop();
                       showSuccessDialog(
                         context,
                         title: 'Success!',
                         message: 'Status updated to Departed',
                         primaryButtonText: 'OK',
                         onPrimary: () {
-                          Navigator.of(context).pop(); // Close success dialog
-                          Navigator.of(
-                            context,
-                          ).pop(); // Go back to previous screen
+                          Navigator.of(context).pop();
+                          Navigator.of(context).pop();
                         },
                       );
                     }
                   } catch (e) {
                     if (context.mounted) {
-                      Navigator.of(context).pop(); // Close loading dialog
+                      Navigator.of(context).pop();
                       showErrorDialog(
                         context,
                         title: 'Error',
@@ -894,23 +1393,21 @@ class EmpRequestDetailScreenState extends State<EmpRequestDetailScreen> {
                         'completed',
                       );
                       if (context.mounted) {
-                        Navigator.of(context).pop(); // Close loading dialog
+                        Navigator.of(context).pop();
                         showSuccessDialog(
                           context,
                           title: 'Success!',
                           message: 'Service completed successfully!',
                           primaryButtonText: 'OK',
                           onPrimary: () {
-                            Navigator.of(context).pop(); // Close success dialog
-                            Navigator.of(
-                              context,
-                            ).pop(); // Go back to previous screen
+                            Navigator.of(context).pop();
+                            Navigator.of(context).pop();
                           },
                         );
                       }
                     } catch (e) {
                       if (context.mounted) {
-                        Navigator.of(context).pop(); // Close loading dialog
+                        Navigator.of(context).pop();
                         showErrorDialog(
                           context,
                           title: 'Error',

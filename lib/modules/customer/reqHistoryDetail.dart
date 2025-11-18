@@ -223,19 +223,19 @@ class RequestHistoryDetailScreen extends StatelessWidget {
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 16),
-          _buildInfoRow(
+          buildInfoRow(
             Icons.calendar_today,
             'Service Request Scheduled Date',
             DateFormat('MMMM dd, yyyy').format(viewModel.scheduledDateTime),
           ),
           const SizedBox(height: 12),
-          _buildInfoRow(
+          buildInfoRow(
             Icons.access_time,
             'Service Request Scheduled Time',
             DateFormat('hh:mm a').format(viewModel.scheduledDateTime),
           ),
           const SizedBox(height: 12),
-          _buildInfoRow(
+          buildInfoRow(
             Icons.person_outline,
             'Handyman Assigned',
             viewModel.handymanName.isNotEmpty
@@ -243,7 +243,7 @@ class RequestHistoryDetailScreen extends StatelessWidget {
                 : 'Not Assigned',
           ),
           const SizedBox(height: 12),
-          _buildInfoRow(
+          buildInfoRow(
             Icons.schedule,
             'Service Request Created At',
             DateFormat('MMM dd, yyyy hh:mm a').format(model.reqDateTime),
@@ -277,7 +277,7 @@ class RequestHistoryDetailScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'Service Location',
+                  'Service Request Location',
                   style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 4),
@@ -471,14 +471,14 @@ class RequestHistoryDetailScreen extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
-          _buildInfoRow(
+          buildInfoRow(
             Icons.payments_outlined,
             'Amount',
             viewModel.amountToPay ?? 'N/A',
           ),
           const SizedBox(height: 12),
           if (viewModel.payDueDate != null)
-            _buildInfoRow(
+            buildInfoRow(
               Icons.event_outlined,
               isPaid ? 'Paid On' : 'Due Date',
               isPaid
@@ -491,7 +491,7 @@ class RequestHistoryDetailScreen extends StatelessWidget {
             child: ElevatedButton.icon(
               onPressed: () async {
                 // Fetch the billing model and navigate to bill detail
-                final billingModel = await _fetchBillingModel(viewModel.reqID);
+                final billingModel = await fetchBillingModel(viewModel.reqID);
                 if (billingModel != null && context.mounted) {
                   Navigator.push(
                     context,
@@ -520,11 +520,10 @@ class RequestHistoryDetailScreen extends StatelessWidget {
     );
   }
 
-  Future<BillingModel?> _fetchBillingModel(String reqID) async {
+  Future<BillingModel?> fetchBillingModel(String reqID) async {
     try {
-      final billingMap = await controller.serviceRequest.fetchBillingInfo([
-        reqID,
-      ]);
+      final billingMap = await controller.serviceRequest
+          .fetchBillingInfo([reqID]);
       return billingMap[reqID];
     } catch (e) {
       print('Error fetching billing model: $e');
@@ -532,7 +531,7 @@ class RequestHistoryDetailScreen extends StatelessWidget {
     }
   }
 
-  Widget _buildInfoRow(IconData icon, String label, String value) {
+  Widget buildInfoRow(IconData icon, String label, String value) {
     return Row(
       children: [
         Icon(icon, size: 20, color: Colors.grey[600]),

@@ -7,8 +7,13 @@ import '../../shared/helper.dart';
 
 class EmpAddPaymentScreen extends StatefulWidget {
   final VoidCallback onPaymentAdded;
+  final String? billingID;
 
-  const EmpAddPaymentScreen({super.key, required this.onPaymentAdded});
+  const EmpAddPaymentScreen({
+    super.key,
+    required this.onPaymentAdded,
+    this.billingID,
+  });
 
   @override
   State<EmpAddPaymentScreen> createState() => EmpAddPaymentScreenState();
@@ -18,6 +23,7 @@ class EmpAddPaymentScreenState extends State<EmpAddPaymentScreen> {
   final formKey = GlobalKey<FormState>();
   late PaymentController controller;
   bool isLoading = false;
+  bool pressSelect = false;
 
   @override
   void initState() {
@@ -93,6 +99,18 @@ class EmpAddPaymentScreenState extends State<EmpAddPaymentScreen> {
               return const Center(child: CircularProgressIndicator());
             }
 
+            if (widget.billingID != null && !pressSelect) {
+              pressSelect = true;
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted &&
+                    controller.pendingBillsDropdown.containsKey(
+                      widget.billingID,
+                    )) {
+                  controller.onBillingIDSelected(widget.billingID);
+                }
+              });
+            }
+
             return Form(
               key: formKey,
               child: SingleChildScrollView(
@@ -115,7 +133,9 @@ class EmpAddPaymentScreenState extends State<EmpAddPaymentScreen> {
                       items: controller.pendingBillsDropdown.keys.toList(),
                       hint: 'Select a pending bill',
                       onChanged: (value) {
-                        controller.onBillingIDSelected(value);
+                        if (widget.billingID == null) {
+                          controller.onBillingIDSelected(value);
+                        }
                       },
                       validator: (value) =>
                           value == null ? 'Please select a bill' : null,

@@ -31,7 +31,7 @@ class EmpRatingReviewDetailScreenState
   bool isAdmin = false;
   bool isLoadingRole = true;
   bool isSubmittingReply = false;
-  
+
   String? customerName;
   bool isLoadingCustomerName = false;
   UserController? userController;
@@ -54,7 +54,7 @@ class EmpRatingReviewDetailScreenState
     service = widget.reviewData['service'] as ServiceModel?;
     handymanUser = widget.reviewData['handymanUser'] as UserModel?;
     imagePaths = review.ratingPicName ?? [];
-    
+
     userController = UserController(
       showErrorSnackBar: (error) => print('Error: $error'),
     );
@@ -179,7 +179,7 @@ class EmpRatingReviewDetailScreenState
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
-                              review.ratingText.isEmpty 
+                              review.ratingText.isEmpty
                                   ? 'No review text provided.'
                                   : review.ratingText,
                               maxLines: 3,
@@ -460,33 +460,33 @@ class EmpRatingReviewDetailScreenState
           // Service Header Card
           buildServiceHeaderCard(serviceName, icon, bgColor),
           const SizedBox(height: 12),
-          
+
           // Rating Card
           buildRatingCard(),
           const SizedBox(height: 12),
-          
+
           // Service Details Card
           buildServiceDetailsCard(),
           const SizedBox(height: 12),
-          
+
           // Location Card
           buildLocationCard(),
           const SizedBox(height: 12),
-          
+
           // Photos Card
           if (imagePaths.isNotEmpty) ...[
             buildPhotosCard(),
             const SizedBox(height: 12),
           ],
-          
+
           // Review Text Card
           buildReviewTextCard(),
           const SizedBox(height: 12),
-          
+
           // Admin Reply Card
           buildAdminReplyCard(reply),
           const SizedBox(height: 24),
-          
+
           // Action Buttons
           buildReplyButton(controller, reply),
           const SizedBox(height: 16),
@@ -495,7 +495,11 @@ class EmpRatingReviewDetailScreenState
     );
   }
 
-  Widget buildServiceHeaderCard(String serviceName, IconData icon, Color bgColor) {
+  Widget buildServiceHeaderCard(
+    String serviceName,
+    IconData icon,
+    Color bgColor,
+  ) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -534,10 +538,7 @@ class EmpRatingReviewDetailScreenState
                 const SizedBox(height: 4),
                 Text(
                   'Customer Review',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey[600],
-                  ),
+                  style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                 ),
               ],
             ),
@@ -566,10 +567,7 @@ class EmpRatingReviewDetailScreenState
         children: [
           const Text(
             'Customer Rating',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 12),
           Row(
@@ -580,8 +578,8 @@ class EmpRatingReviewDetailScreenState
                   index < review.ratingNum.floor()
                       ? Icons.star
                       : (index < review.ratingNum
-                          ? Icons.star_half
-                          : Icons.star_border),
+                            ? Icons.star_half
+                            : Icons.star_border),
                   color: Colors.amber,
                   size: 32,
                 );
@@ -590,22 +588,19 @@ class EmpRatingReviewDetailScreenState
               Text(
                 review.ratingNum.toStringAsFixed(1),
                 style: const TextStyle(
-                  fontSize: 24,
+                  fontSize: 18,
                   fontWeight: FontWeight.bold,
                 ),
               ),
               Text(
                 ' / 5.0',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.grey[600],
-                ),
+                style: TextStyle(fontSize: 16, color: Colors.grey[600]),
               ),
             ],
           ),
           const SizedBox(height: 8),
           Text(
-            'Reviewed on ${dateTimeFormat.format(review.ratingCreatedAt)}',
+            'Reviewed on ${Formatter.formatDateTime(review.ratingCreatedAt)}',
             style: TextStyle(
               fontSize: 12,
               color: Colors.grey[600],
@@ -619,7 +614,7 @@ class EmpRatingReviewDetailScreenState
 
   Widget buildServiceDetailsCard() {
     final handymanName = handymanUser?.userName ?? 'Not Assigned';
-    
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -643,7 +638,7 @@ class EmpRatingReviewDetailScreenState
           const SizedBox(height: 16),
           buildInfoRow(
             Icons.person,
-            'Customer',
+            'Customer Name',
             isLoadingCustomerName
                 ? 'Loading...'
                 : (customerName != null && customerName!.isNotEmpty
@@ -653,28 +648,21 @@ class EmpRatingReviewDetailScreenState
           const SizedBox(height: 12),
           buildInfoRow(
             Icons.handyman,
-            'Handyman',
-            handymanName.isNotEmpty
-                ? capitalizeFirst(handymanName)
-                : 'Not Assigned',
+            'Handyman Assigned',
+            handymanName.isNotEmpty ? handymanName : 'Not Assigned',
           ),
           const SizedBox(height: 12),
           buildInfoRow(
             Icons.calendar_today,
-            'Service Date',
-            dateFormat.format(request.scheduledDateTime),
-          ),
-          const SizedBox(height: 12),
-          buildInfoRow(
-            Icons.access_time,
-            'Service Time',
-            timeFormat.format(request.scheduledDateTime),
+            'Service Date & Time',
+            Formatter.formatDateTime(request.scheduledDateTime),
           ),
           const SizedBox(height: 12),
           buildInfoRow(
             Icons.info_outline,
             'Service Status',
             capitalizeFirst(request.reqStatus),
+            valueColor: getStatusColor(request.reqStatus),
           ),
         ],
       ),
@@ -705,7 +693,7 @@ class EmpRatingReviewDetailScreenState
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'Service Location',
+                  'Service Request Location',
                   style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 4),
@@ -745,41 +733,50 @@ class EmpRatingReviewDetailScreenState
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
               const Spacer(),
-              Text(
-                '${imagePaths.length} photo${imagePaths.length > 1 ? 's' : ''}',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey[600],
+              if (imagePaths.isNotEmpty)
+                Text(
+                  '${imagePaths.length} photo${imagePaths.length > 1 ? 's' : ''}',
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                 ),
-              ),
             ],
           ),
           const SizedBox(height: 12),
-          SizedBox(
-            height: 100,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: imagePaths.length,
-              itemBuilder: (context, index) {
-                final imageUrl = imagePaths[index];
 
-                return Padding(
-                  padding: const EdgeInsets.only(right: 8.0),
-                  child: GestureDetector(
-                    onTap: () => openGallery(context, index),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(8.0),
-                      child: imageUrl.toNetworkImage(
-                        width: 100,
-                        height: 100,
-                        fit: BoxFit.cover,
+          if (imagePaths.isEmpty)
+            Text(
+              "None",
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey[700],
+                fontStyle: FontStyle.italic,
+              ),
+            )
+          else
+            SizedBox(
+              height: 100,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: imagePaths.length,
+                itemBuilder: (context, index) {
+                  final imageUrl = imagePaths[index];
+
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 8.0),
+                    child: GestureDetector(
+                      onTap: () => openGallery(context, index),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8.0),
+                        child: imageUrl.toNetworkImage(
+                          width: 100,
+                          height: 100,
+                          fit: BoxFit.cover,
+                        ),
                       ),
                     ),
-                  ),
-                );
-              },
+                  );
+                },
+              ),
             ),
-          ),
         ],
       ),
     );
@@ -861,7 +858,10 @@ class EmpRatingReviewDetailScreenState
               const Spacer(),
               if (reply != null)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.green[100],
                     borderRadius: BorderRadius.circular(12),
@@ -869,7 +869,11 @@ class EmpRatingReviewDetailScreenState
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.check_circle, size: 14, color: Colors.green[700]),
+                      Icon(
+                        Icons.check_circle,
+                        size: 14,
+                        color: Colors.green[700],
+                      ),
                       const SizedBox(width: 4),
                       Text(
                         'Replied',
@@ -925,7 +929,12 @@ class EmpRatingReviewDetailScreenState
     );
   }
 
-  Widget buildInfoRow(IconData icon, String label, String value) {
+  Widget buildInfoRow(
+    IconData icon,
+    String label,
+    String value, {
+    Color? valueColor,
+  }) {
     return Row(
       children: [
         Icon(icon, size: 20, color: Colors.grey[600]),
@@ -941,9 +950,10 @@ class EmpRatingReviewDetailScreenState
               const SizedBox(height: 2),
               Text(
                 value,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
+                  color: valueColor,
                 ),
               ),
             ],
@@ -965,7 +975,6 @@ class EmpRatingReviewDetailScreenState
       return SizedBox(
         width: double.infinity,
         child: ElevatedButton.icon(
-          icon: const Icon(Icons.reply, size: 20),
           label: const Text('Reply to Review', style: TextStyle(fontSize: 16)),
           style: ElevatedButton.styleFrom(
             backgroundColor: Theme.of(context).colorScheme.primary,

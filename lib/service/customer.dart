@@ -32,8 +32,6 @@ class CustomerService {
     }
   }
 
-  // Add to /service/user.dart
-
   Future<Map<String, Map<String, String>>> fetchUserDetailsByCustomerIDs(
     List<String> custIDs,
   ) async {

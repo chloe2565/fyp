@@ -17,6 +17,8 @@ class RequestViewModel {
   final String handymanName;
   final String customerName; 
   final String customerContact;
+  final BillingModel? billing;
+  final PaymentModel? payment;
 
   RequestViewModel({
     required this.reqID,
@@ -34,5 +36,7 @@ class RequestViewModel {
     required this.handymanName,
     required this.customerName,
     required this.customerContact,
+    this.billing,
+    this.payment,
   });
 }

@@ -2148,7 +2148,7 @@ class EmpInfoCard extends StatelessWidget {
             const SizedBox(height: 12),
 
             ...details.map((e) {
-              final isStatusRow = e.key.toLowerCase() == 'status';
+              final isStatusRow = e.key.toLowerCase().contains('status');
               return Padding(
                 padding: const EdgeInsets.only(bottom: 6),
                 child: Row(
