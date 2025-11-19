@@ -563,7 +563,6 @@ class EmpServiceDetailScreenState extends State<EmpServiceDetailScreen> {
         Expanded(
           child: ElevatedButton.icon(
             onPressed: navigateToModify,
-            icon: const Icon(Icons.edit, size: 20),
             label: const Text('Modify'),
             style: ElevatedButton.styleFrom(
               backgroundColor: Theme.of(context).colorScheme.primary,
@@ -579,7 +578,6 @@ class EmpServiceDetailScreenState extends State<EmpServiceDetailScreen> {
         Expanded(
           child: ElevatedButton.icon(
             onPressed: handleDelete,
-            icon: const Icon(Icons.delete_outline, size: 20),
             label: const Text('Delete'),
             style: ElevatedButton.styleFrom(
               backgroundColor: Theme.of(context).colorScheme.error,

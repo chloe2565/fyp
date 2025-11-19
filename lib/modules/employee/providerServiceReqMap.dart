@@ -12,7 +12,7 @@ class ProviderServiceReqMapScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-      create: (_) => HandymanController(reqID),
+      create: (_) => HandymanController(reqID, userRole: 'admin'),
       child: Consumer<HandymanController>(
         builder: (context, controller, child) {
           switch (controller.state) {

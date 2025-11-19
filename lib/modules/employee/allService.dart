@@ -61,7 +61,9 @@ class EmpAllServicesScreenState extends State<EmpAllServicesScreen> {
     });
 
     try {
-      allServices = await serviceController.empGetAllServices();
+      allServices = await serviceController.loadServicesForEmployeeView(
+        isAdmin,
+      );
       final uniqueNames = <String, String>{};
       for (var service in allServices) {
         uniqueNames[service.serviceName] = service.serviceName;
@@ -332,6 +334,11 @@ class EmpAllServicesScreenState extends State<EmpAllServicesScreen> {
                         itemCount: displayedServices.length,
                         itemBuilder: (context, index) {
                           final service = displayedServices[index];
+                          String? handymanName;
+                          if (isAdmin) {
+                            handymanName = serviceController
+                                .getHandymanNameForService(service.serviceID);
+                          }
                           return Padding(
                             padding: const EdgeInsets.only(bottom: 16.0),
                             child: GestureDetector(
@@ -353,6 +360,7 @@ class EmpAllServicesScreenState extends State<EmpAllServicesScreen> {
                               child: ServiceListItemCard(
                                 title: service.serviceName,
                                 status: service.serviceStatus,
+                                assignedHandyman: handymanName,
                                 icon: ServiceHelper.getIconForService(
                                   service.serviceName,
                                 ),
@@ -599,12 +607,14 @@ class ServiceListItemCard extends StatelessWidget {
   final String status;
   final IconData icon;
   final Color color;
+  final String? assignedHandyman;
 
   const ServiceListItemCard({
     required this.title,
     required this.status,
     required this.icon,
     required this.color,
+    this.assignedHandyman,
     super.key,
   });
 
@@ -649,6 +659,32 @@ class ServiceListItemCard extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
+
+                if (assignedHandyman != null) ...[
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.person_outline,
+                        size: 14,
+                        color: Colors.grey.shade600,
+                      ),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          assignedHandyman!,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey.shade700,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+
                 const SizedBox(height: 6),
                 Container(
                   padding: const EdgeInsets.symmetric(

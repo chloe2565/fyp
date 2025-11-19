@@ -40,6 +40,7 @@ class EditProfileScreenState extends State<EditProfileScreen>
   Gender? genderItem;
   bool isLoading = false;
   bool isEmailVerified = true;
+  bool isSendingVerification = false;
   bool isVerificationEmailSent = false;
   Timer? verificationTimer;
   String? originalEmail;
@@ -122,7 +123,8 @@ class EditProfileScreenState extends State<EditProfileScreen>
     }
 
     setState(() {
-      isLoading = true;
+      isSendingVerification = true;
+      emailError = "Sending verification email...";
     });
 
     try {
@@ -148,7 +150,7 @@ class EditProfileScreenState extends State<EditProfileScreen>
       });
     } finally {
       setState(() {
-        isLoading = false;
+        isSendingVerification = false;
       });
     }
   }
@@ -368,25 +370,29 @@ class EditProfileScreenState extends State<EditProfileScreen>
                       Icons.email_outlined,
                       color: Colors.grey,
                     ),
-                    suffixIcon: isEmailChanged
-                        ? isEmailVerified
-                              ? const Icon(
-                                  Icons.check_circle,
-                                  color: Colors.green,
-                                )
-                              : IconButton(
-                                  tooltip: 'Send verification email',
-                                  icon: Icon(
-                                    isVerificationEmailSent
-                                        ? Icons.hourglass_top
-                                        : Icons.send,
-                                    color: Colors.orange,
-                                  ),
-                                  onPressed: isLoading
-                                      ? null
-                                      : sendVerificationEmail,
-                                )
-                        : const Icon(Icons.check_circle, color: Colors.green),
+                    suffixIcon: !isEmailChanged
+                        ? const Icon(Icons.check_circle, color: Colors.green)
+                        : isEmailVerified
+                        ? const Icon(Icons.check_circle, color: Colors.green)
+                        : isSendingVerification
+                        ? Transform.scale(
+                            scale: 0.5,
+                            child: const CircularProgressIndicator(
+                              strokeWidth: 3,
+                            ),
+                          )
+                        : isVerificationEmailSent
+                        ? const Icon(Icons.hourglass_top, color: Colors.orange)
+                        : IconButton(
+                            tooltip: 'Send verification email',
+                            icon: Icon(
+                              isVerificationEmailSent
+                                  ? Icons.hourglass_top
+                                  : Icons.send,
+                              color: Colors.orange,
+                            ),
+                            onPressed: sendVerificationEmail,
+                          ),
                     errorMaxLines: 3,
                   ),
                   keyboardType: TextInputType.emailAddress,
@@ -399,6 +405,7 @@ class EditProfileScreenState extends State<EditProfileScreen>
                       emailError = null;
                       isEmailVerified = !isChanged;
                       isVerificationEmailSent = false;
+                      isSendingVerification = false;
                       verificationTimer?.cancel();
                       verificationToken = null;
                     });

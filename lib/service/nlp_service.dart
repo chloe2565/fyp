@@ -11,7 +11,7 @@ class NLPService {
   ) async {
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/api/extract-keywords'),
+        Uri.parse('$baseUrl/api/batch-extract'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'reqID': reqID, 'description': description}),
       );
@@ -82,6 +82,7 @@ class KeywordAnalysis {
   final List<String> keywords;
   final String urgency;
   final String suggestedCategory;
+  final String complexity;
   final Map<String, dynamic>? analysis;
 
   KeywordAnalysis({
@@ -89,15 +90,17 @@ class KeywordAnalysis {
     required this.keywords,
     required this.urgency,
     required this.suggestedCategory,
+    this.complexity = 'normal',
     this.analysis,
   });
 
   factory KeywordAnalysis.fromJson(Map<String, dynamic> json) {
     return KeywordAnalysis(
       reqID: json['reqID'] ?? '',
-      keywords: List<String>.from(json['keywords'] ?? []),
+      keywords: [],
       urgency: json['urgency'] ?? 'normal',
       suggestedCategory: json['suggestedCategory'] ?? 'general',
+      complexity: json['complexity'] ?? 'normal',
       analysis: json['analysis'],
     );
   }
@@ -107,6 +110,7 @@ class ComprehensiveAnalysis {
   final List<String> keywords;
   final String urgency;
   final String category;
+  final String complexity;
   final Map<String, dynamic> insights;
   final List<String> recommendations;
 
@@ -114,15 +118,19 @@ class ComprehensiveAnalysis {
     required this.keywords,
     required this.urgency,
     required this.category,
+    required this.complexity,
     required this.insights,
     required this.recommendations,
   });
 
   factory ComprehensiveAnalysis.fromJson(Map<String, dynamic> json) {
+    final insightsMap = json['insights'] ?? {};
+
     return ComprehensiveAnalysis(
       keywords: List<String>.from(json['keywords'] ?? []),
       urgency: json['urgency'] ?? 'normal',
       category: json['category'] ?? 'general',
+      complexity: insightsMap['complexity'] ?? 'medium',
       insights: json['insights'] ?? {},
       recommendations: List<String>.from(json['recommendations'] ?? []),
     );

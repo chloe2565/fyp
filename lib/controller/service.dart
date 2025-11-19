@@ -14,6 +14,7 @@ class ServiceController {
 
   List<ServiceModel> allServicesData = [];
   bool servicesLoaded = false;
+  Map<String, String> serviceHandymanMap = {};
 
   ServiceController() {
     serviceService = ServiceService(
@@ -34,6 +35,35 @@ class ServiceController {
       servicesLoaded = false;
       rethrow;
     }
+  }
+
+  Future<List<ServiceModel>> loadServicesForEmployeeView(bool isAdmin) async {
+    try {
+      final services = await serviceService.empGetAllServices();
+
+      if (isAdmin) {
+        serviceHandymanMap.clear();
+        final futures = services.map((service) async {
+          final names = await serviceService.getAssignedHandymanNames(
+            service.serviceID,
+          );
+          final namesString = names.isEmpty ? 'Unassigned' : names.join(', ');
+          return MapEntry(service.serviceID, namesString);
+        });
+
+        final results = await Future.wait(futures);
+        serviceHandymanMap = Map.fromEntries(results);
+      }
+
+      return services;
+    } catch (e) {
+      print('Error in loadServicesForEmployeeView: $e');
+      rethrow;
+    }
+  }
+
+  String? getHandymanNameForService(String serviceID) {
+    return serviceHandymanMap[serviceID];
   }
 
   List<ServiceModel> get allServices => allServicesData;

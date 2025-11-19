@@ -723,6 +723,7 @@ class EmpRequestDetailScreenState extends State<EmpRequestDetailScreen> {
 
   Widget buildNLPInsightsCard() {
     if (nlpAnalysis == null) return const SizedBox.shrink();
+    String? complexity = nlpAnalysis!.insights['complexity'];
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -778,21 +779,29 @@ class EmpRequestDetailScreenState extends State<EmpRequestDetailScreen> {
             ],
           ),
           const SizedBox(height: 12),
-          if (nlpAnalysis!.insights['complexity'] != null) ...[
+          if (complexity != null) ...[
             Row(
               children: [
                 const Text(
                   'Difficulty: ',
                   style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
                 ),
-                Text(
-                  capitalizeFirst(nlpAnalysis!.insights['complexity']),
-                  style: TextStyle(
-                    color: getComplexityColor(
-                      nlpAnalysis!.insights['complexity'],
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: getComplexityColor(complexity),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    nlpAnalysis!.urgency.toUpperCase(),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
                     ),
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
                   ),
                 ),
               ],
@@ -1334,6 +1343,7 @@ class EmpRequestDetailScreenState extends State<EmpRequestDetailScreen> {
               final String? empType = controller.currentEmployeeType;
 
               if (empType == 'handyman') {
+                print("Navigating to HandymanServiceReqMapScreen");
                 Navigator.push(
                   context,
                   MaterialPageRoute(
@@ -1342,6 +1352,7 @@ class EmpRequestDetailScreenState extends State<EmpRequestDetailScreen> {
                   ),
                 );
               } else if (empType == 'admin') {
+                print("Navigating to ProviderServiceReqMapScreen");
                 Navigator.push(
                   context,
                   MaterialPageRoute(
@@ -1350,6 +1361,7 @@ class EmpRequestDetailScreenState extends State<EmpRequestDetailScreen> {
                   ),
                 );
               } else {
+                print("Unknown employee type: $empType");
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                     content: Text('Error: Could not determine user role.'),

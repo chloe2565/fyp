@@ -632,6 +632,8 @@ class ServiceRequestController extends ChangeNotifier {
         'Service request $reqID confirmed with handyman: $matchedHandymanID',
       );
 
+      final fcmService = FCMService();
+
       final customerQuery = await db
           .collection('Customer')
           .where('custID', isEqualTo: customerID)
@@ -645,7 +647,6 @@ class ServiceRequestController extends ChangeNotifier {
 
         if (customerUserID != null && customerUserID.isNotEmpty) {
           // Send notification to customer
-          final fcmService = FCMService();
           await fcmService.sendNotificationToUser(
             userID: customerUserID,
             title: 'Handyman Found!',
@@ -685,16 +686,26 @@ class ServiceRequestController extends ChangeNotifier {
                 ?.toString();
 
             if (handymanUserID != null && handymanUserID.isNotEmpty) {
-              final fcmService = FCMService();
+              final serviceName = serviceData?['serviceName'] ?? 'service';
               await fcmService.sendNotificationToUser(
                 userID: handymanUserID,
                 title: 'New Service Request',
-                body: 'You have been assigned to a new service request.',
+                body:
+                    'You have been assigned to a new $serviceName service request.',
                 data: {'type': 'new_service_request', 'reqID': reqID},
               );
+              print('Notification sent to handyman: $handymanUserID');
+            } else {
+              print('No userID found for handyman employee: $empID');
             }
+          } else {
+            print('Employee not found with empID: $empID');
           }
+        } else {
+          print('No empID found for handyman: $matchedHandymanID');
         }
+      } else {
+        print('Handyman document not found: $matchedHandymanID');
       }
       await loadRequests();
     } catch (e) {
@@ -843,21 +854,120 @@ class ServiceRequestController extends ChangeNotifier {
     await serviceRequest.rescheduleRequest(reqID);
   }
 
-  Future<void> updateRequestStatus(String reqID, String newStatus) async {
-    try {
-      await serviceRequest.updateRequestStatus(reqID, newStatus);
+  // Updated updateRequestStatus method in ServiceRequestController
+// Add this import at the top of the file:
+// import '../service/fcm_service.dart';
 
-      // Auto-create billing when status changes to completed
-      if (newStatus.toLowerCase() == 'completed') {
-        final billService = BillService();
-        await billService.createBillingForCompletedRequest(reqID);
-        print('Billing auto-created for completed request: $reqID');
-      }
+Future<void> updateRequestStatus(String reqID, String newStatus) async {
+  try {
+    await serviceRequest.updateRequestStatus(reqID, newStatus);
 
-      await loadRequestsForEmployee();
-    } catch (e) {
-      print('Error updating request status: $e');
-      rethrow;
+    // Send notifications for departed and completed status
+    if (newStatus.toLowerCase() == 'departed' || 
+        newStatus.toLowerCase() == 'completed') {
+      await _sendStatusUpdateNotifications(reqID, newStatus);
     }
+
+    // Auto-create billing when status changes to completed
+    if (newStatus.toLowerCase() == 'completed') {
+      final billService = BillService();
+      await billService.createBillingForCompletedRequest(reqID);
+      print('Billing auto-created for completed request: $reqID');
+    }
+
+    await loadRequestsForEmployee();
+  } catch (e) {
+    print('Error updating request status: $e');
+    rethrow;
   }
+}
+
+Future<void> _sendStatusUpdateNotifications(
+  String reqID, 
+  String newStatus
+) async {
+  try {
+    final fcmService = FCMService();
+    
+    // Get service request details
+    final reqDoc = await db.collection('ServiceRequest').doc(reqID).get();
+    if (!reqDoc.exists) {
+      print('Service request not found: $reqID');
+      return;
+    }
+    
+    final reqData = reqDoc.data()!;
+    final custID = reqData['custID']?.toString();
+    final handymanID = reqData['handymanID']?.toString();
+    
+    // Prepare notification content based on status
+    String notificationTitle;
+    String notificationBody;
+    String notificationType;
+    
+    if (newStatus.toLowerCase() == 'departed') {
+      notificationTitle = 'Handyman Departed';
+      notificationBody = 'The handyman has departed and is on the way to your location.';
+      notificationType = 'service_request_departed';
+    } else { // completed
+      notificationTitle = 'Service Completed';
+      notificationBody = 'Your service request has been completed successfully!';
+      notificationType = 'service_request_completed';
+    }
+    
+    // Send notification to customer
+    if (custID != null && custID.isNotEmpty) {
+      final customerQuery = await db
+          .collection('Customer')
+          .where('custID', isEqualTo: custID)
+          .limit(1)
+          .get();
+      
+      if (customerQuery.docs.isNotEmpty) {
+        final customerUserID = customerQuery.docs.first
+            .data()['userID']
+            ?.toString();
+        
+        if (customerUserID != null && customerUserID.isNotEmpty) {
+          await fcmService.sendNotificationToUser(
+            userID: customerUserID,
+            title: notificationTitle,
+            body: notificationBody,
+            data: {
+              'type': notificationType,
+              'reqID': reqID,
+            },
+          );
+          print('Notification sent to customer for status: $newStatus');
+        }
+      }
+    }
+    
+    // Send notification to all active admins
+    final adminSnapshot = await db
+        .collection('Employee')
+        .where('empType', isEqualTo: 'admin')
+        .where('empStatus', isEqualTo: 'active')
+        .get();
+    
+    for (var adminDoc in adminSnapshot.docs) {
+      final adminUserID = adminDoc.data()['userID']?.toString();
+      if (adminUserID != null && adminUserID.isNotEmpty) {
+        await fcmService.sendNotificationToUser(
+          userID: adminUserID,
+          title: 'Service Request Update',
+          body: 'Service request $reqID has been updated to ${newStatus.toLowerCase()}.',
+          data: {
+            'type': notificationType,
+            'reqID': reqID,
+          },
+        );
+      }
+    }
+    print('Notifications sent to admins for status: $newStatus');
+    
+  } catch (e) {
+    print('Error sending status update notifications: $e');
+  }
+}
 }

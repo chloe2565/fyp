@@ -22,9 +22,11 @@ class HandymanController extends ChangeNotifier {
   final HandymanService handyman = HandymanService();
   final MapController mapController = MapController();
   final String reqID;
+  final String? userRole;
 
   StreamSubscription? requestSubscription;
   StreamSubscription<Position>? positionStreamSubscription;
+  StreamSubscription<DocumentSnapshot>? handymanLocationSubscription;
   String? currentHandymanId;
   TrackingState state = TrackingState.loading;
   String message = "Initializing...";
@@ -44,7 +46,11 @@ class HandymanController extends ChangeNotifier {
   bool isRouteLoading = false;
   ServiceRequestModel? currentRequest;
 
-  HandymanController(this.reqID) {
+  HandymanController(this.reqID, {this.userRole}) {
+    print("=== HandymanController initialized ===");
+    print("Request ID: $reqID");
+    print("User Role: $userRole");
+    print("=====================================");
     initialize();
   }
 
@@ -64,14 +70,22 @@ class HandymanController extends ChangeNotifier {
   }
 
   void validateRequestStatus(ServiceRequestModel request) {
+    print("Validating request status...");
+    print("Request Status: ${request.reqStatus}");
+    print("Handyman ID: ${request.handymanID}");
+
     final now = DateTime.now();
     final isToday = DateUtils.isSameDay(request.scheduledDateTime, now);
+    print("Scheduled Date: ${request.scheduledDateTime}");
+    print("Is Today: $isToday");
 
     if (request.reqStatus == 'departed' && isToday) {
       currentHandymanId = request.handymanID;
+      print("Valid departed request - Handyman ID: $currentHandymanId");
       geocodeAddress(request.reqAddress);
     } else {
       positionStreamSubscription?.cancel();
+      handymanLocationSubscription?.cancel();
       currentHandymanId = null;
       setState(
         TrackingState.invalidRequest,
@@ -94,7 +108,13 @@ class HandymanController extends ChangeNotifier {
         destinationAddress = address;
         isGeocoding = false;
 
-        startLiveLocationUpdates();
+        if (userRole == 'admin') {
+          print("Admin detected - using Firestore location tracking");
+          await startFirestoreLocationTracking();
+        } else {
+          print("Handyman detected - using GPS location tracking");
+          await startLiveLocationUpdates();
+        }
       } else {
         throw Exception("Address not found.");
       }
@@ -107,7 +127,93 @@ class HandymanController extends ChangeNotifier {
     }
   }
 
+  Future<void> startFirestoreLocationTracking() async {
+    if (currentHandymanId == null || currentHandymanId!.isEmpty) {
+      setState(TrackingState.error, "No handyman assigned to this request.");
+      return;
+    }
+
+    print("Starting Firestore tracking for handyman: $currentHandymanId");
+    setState(TrackingState.loading, "Tracking handyman location...");
+
+    handymanLocationSubscription = db
+        .collection('Handyman')
+        .doc(currentHandymanId)
+        .snapshots()
+        .listen(
+          (snapshot) {
+            print("Firestore snapshot received: exists=${snapshot.exists}");
+
+            if (snapshot.exists && snapshot.data() != null) {
+              final data = snapshot.data()!;
+              print("Handyman data: $data");
+
+              final GeoPoint geoPoint =
+                  data['currentLocation'] ?? const GeoPoint(0, 0);
+              print(
+                "Handyman GeoPoint: lat=${geoPoint.latitude}, lng=${geoPoint.longitude}",
+              );
+
+              if (geoPoint.latitude == 0 && geoPoint.longitude == 0) {
+                print(
+                  "Warning: Handyman location is at (0,0) - may not have been set yet",
+                );
+              }
+
+              bool isFirstLocation = handymanLocation == null;
+              handymanLocation = LatLng(geoPoint.latitude, geoPoint.longitude);
+              print("Handyman location set to: $handymanLocation");
+
+              fetchRouteAndEta();
+              reverseGeocodeCurrentLocation(handymanLocation!);
+
+              if (isFirstLocation) {
+                Future.delayed(const Duration(milliseconds: 500), () {
+                  fitMapToRoute();
+                });
+              } else {
+                try {
+                  mapController.move(
+                    handymanLocation!,
+                    mapController.camera.zoom,
+                  );
+                } catch (e) {
+                  print("Error moving map: $e");
+                }
+              }
+
+              setState(TrackingState.tracking, "");
+            } else {
+              print("Handyman document not found or has no data");
+              setState(
+                TrackingState.error,
+                "Handyman location not found in database.",
+              );
+            }
+          },
+          onError: (e) {
+            print("Error in Firestore listener: $e");
+            setState(
+              TrackingState.error,
+              "Error tracking handyman: ${e.toString()}",
+            );
+          },
+        );
+  }
+
   Future<void> startLiveLocationUpdates() async {
+    print("=== Starting Live GPS Location Updates ===");
+    print("User Role: $userRole");
+
+    if (userRole == 'admin') {
+      print("ERROR: Admin should not use GPS tracking!");
+      setState(
+        TrackingState.error,
+        "Configuration error: Admin should not use GPS.",
+      );
+      return;
+    }
+
     bool serviceEnabled;
     LocationPermission permission;
 
@@ -133,6 +239,8 @@ class HandymanController extends ChangeNotifier {
       );
       return;
     }
+
+    print("GPS permissions granted - starting position stream");
     positionStreamSubscription =
         Geolocator.getPositionStream(
           locationSettings: const LocationSettings(
@@ -140,6 +248,9 @@ class HandymanController extends ChangeNotifier {
             distanceFilter: 10,
           ),
         ).listen((Position position) {
+          print(
+            "GPS Update: lat=${position.latitude}, lng=${position.longitude}",
+          );
           final newLocation = LatLng(position.latitude, position.longitude);
 
           bool isFirstLocation = handymanLocation == null;
@@ -298,6 +409,7 @@ class HandymanController extends ChangeNotifier {
   void dispose() {
     requestSubscription?.cancel();
     positionStreamSubscription?.cancel();
+    handymanLocationSubscription?.cancel();
     mapController.dispose();
     super.dispose();
   }
