@@ -271,62 +271,55 @@ class ServiceRequestController extends ChangeNotifier {
   }
 
   List<RequestViewModel> transformData(List<Map<String, dynamic>> rawList) {
-    final viewModels = rawList.map((map) {
-      final req = map['request'] as ServiceRequestModel;
-      final service = map['service'] as ServiceModel;
-      final billing = map['billing'] as BillingModel?;
-      final paymentCreatedAt = map['paymentCreatedAt'] as DateTime?;
-      final String locationData = req.reqAddress;
-      final handymanName = map['handymanName'] as String;
-      final customerName = map['customerName'] as String? ?? 'Unknown';
-      final customerContact = map['customerContact'] as String? ?? 'N/A';
-      final reqDateTime = Formatter.formatDateTime(req.reqDateTime);
-      final bookingDateTime = Formatter.formatDateTime(req.scheduledDateTime);
-      String? formattedAmount;
-      String? formattedDueDate;
-      String? formattedBillStatus;
-      String? formattedPaymentCreatedDate;
+  final viewModels = rawList.map((map) {
+    final req = map['request'] as ServiceRequestModel;
+    final service = map['service'] as ServiceModel;
+    final billing = map['billing'] as BillingModel?;
+    final paymentCreatedAt = map['paymentCreatedAt'] as DateTime?;
+    final String locationData = req.reqAddress;
+    final handymanName = map['handymanName'] as String;
+    final customerName = map['customerName'] as String? ?? 'Unknown';
+    final customerContact = map['customerContact'] as String? ?? 'N/A';
+    final reqDateTime = Formatter.formatDateTime(req.reqDateTime);
+    final bookingDateTime = Formatter.formatDateTime(req.scheduledDateTime);
+    String? formattedAmount;
+    String? formattedDueDate;
+    DateTime? rawDueDate;
+    String? formattedBillStatus;
 
-      if (billing != null) {
-        formattedAmount = 'RM ${billing.billAmt.toStringAsFixed(2)}';
-        formattedDueDate = DateFormat(
-          'MMMM dd, yyyy',
-        ).format(billing.billDueDate);
-        formattedBillStatus = capitalizeFirst(billing.billStatus);
+    if (billing != null) {
+      formattedAmount = 'RM ${billing.billAmt.toStringAsFixed(2)}';
+      rawDueDate = billing.billDueDate; 
+      formattedDueDate = DateFormat('MMMM dd, yyyy').format(billing.billDueDate);
+      formattedBillStatus = capitalizeFirst(billing.billStatus);
+    }
 
-        if (billing.billStatus.toLowerCase() == 'paid' &&
-            paymentCreatedAt != null) {
-          formattedPaymentCreatedDate = DateFormat(
-            'MMMM dd, yyyy',
-          ).format(paymentCreatedAt);
-        }
-      }
-
-      return RequestViewModel(
-        reqID: req.reqID,
-        title: service.serviceName,
-        icon: ServiceHelper.getIconForService(service.serviceName),
-        reqStatus: capitalizeFirst(req.reqStatus),
-        reqDateTime: req.reqDateTime,
-        scheduledDateTime: req.scheduledDateTime,
-        details: [
-          MapEntry('Created At', reqDateTime),
-          MapEntry('Booking Date & Time', bookingDateTime),
-          MapEntry('Location', locationData),
-          MapEntry('Handyman Assigned', handymanName),
-        ],
-        amountToPay: formattedAmount,
-        payDueDate: formattedDueDate,
-        paymentStatus: formattedBillStatus,
-        paymentCreatedAt: formattedPaymentCreatedDate,
-        requestModel: req,
-        handymanName: handymanName,
-        customerName: customerName,
-        customerContact: customerContact,
-      );
-    }).toList();
-    return viewModels;
-  }
+    return RequestViewModel(
+      reqID: req.reqID,
+      title: service.serviceName,
+      icon: ServiceHelper.getIconForService(service.serviceName),
+      reqStatus: capitalizeFirst(req.reqStatus),
+      reqDateTime: req.reqDateTime,
+      scheduledDateTime: req.scheduledDateTime,
+      details: [
+        MapEntry('Created At', reqDateTime),
+        MapEntry('Booking Date & Time', bookingDateTime),
+        MapEntry('Location', locationData),
+        MapEntry('Handyman Assigned', handymanName),
+      ],
+      amountToPay: formattedAmount,
+      payDueDate: formattedDueDate,
+      payDueDateRaw: rawDueDate,
+      paymentStatus: formattedBillStatus,
+      paymentCreatedAt: paymentCreatedAt,
+      requestModel: req,
+      handymanName: handymanName,
+      customerName: customerName,
+      customerContact: customerContact,
+    );
+  }).toList();
+  return viewModels;
+}
 
   bool matchesSearch(RequestViewModel vm, String query) {
     if (query.isEmpty) return true;
@@ -855,119 +848,115 @@ class ServiceRequestController extends ChangeNotifier {
   }
 
   // Updated updateRequestStatus method in ServiceRequestController
-// Add this import at the top of the file:
-// import '../service/fcm_service.dart';
+  // Add this import at the top of the file:
+  // import '../service/fcm_service.dart';
 
-Future<void> updateRequestStatus(String reqID, String newStatus) async {
-  try {
-    await serviceRequest.updateRequestStatus(reqID, newStatus);
+  Future<void> updateRequestStatus(String reqID, String newStatus) async {
+    try {
+      await serviceRequest.updateRequestStatus(reqID, newStatus);
 
-    // Send notifications for departed and completed status
-    if (newStatus.toLowerCase() == 'departed' || 
-        newStatus.toLowerCase() == 'completed') {
-      await _sendStatusUpdateNotifications(reqID, newStatus);
+      // Send notifications for departed and completed status
+      if (newStatus.toLowerCase() == 'departed' ||
+          newStatus.toLowerCase() == 'completed') {
+        await _sendStatusUpdateNotifications(reqID, newStatus);
+      }
+
+      // Auto-create billing when status changes to completed
+      if (newStatus.toLowerCase() == 'completed') {
+        final billService = BillService();
+        await billService.createBillingForCompletedRequest(reqID);
+        print('Billing auto-created for completed request: $reqID');
+      }
+
+      await loadRequestsForEmployee();
+    } catch (e) {
+      print('Error updating request status: $e');
+      rethrow;
     }
-
-    // Auto-create billing when status changes to completed
-    if (newStatus.toLowerCase() == 'completed') {
-      final billService = BillService();
-      await billService.createBillingForCompletedRequest(reqID);
-      print('Billing auto-created for completed request: $reqID');
-    }
-
-    await loadRequestsForEmployee();
-  } catch (e) {
-    print('Error updating request status: $e');
-    rethrow;
   }
-}
 
-Future<void> _sendStatusUpdateNotifications(
-  String reqID, 
-  String newStatus
-) async {
-  try {
-    final fcmService = FCMService();
-    
-    // Get service request details
-    final reqDoc = await db.collection('ServiceRequest').doc(reqID).get();
-    if (!reqDoc.exists) {
-      print('Service request not found: $reqID');
-      return;
-    }
-    
-    final reqData = reqDoc.data()!;
-    final custID = reqData['custID']?.toString();
-    final handymanID = reqData['handymanID']?.toString();
-    
-    // Prepare notification content based on status
-    String notificationTitle;
-    String notificationBody;
-    String notificationType;
-    
-    if (newStatus.toLowerCase() == 'departed') {
-      notificationTitle = 'Handyman Departed';
-      notificationBody = 'The handyman has departed and is on the way to your location.';
-      notificationType = 'service_request_departed';
-    } else { // completed
-      notificationTitle = 'Service Completed';
-      notificationBody = 'Your service request has been completed successfully!';
-      notificationType = 'service_request_completed';
-    }
-    
-    // Send notification to customer
-    if (custID != null && custID.isNotEmpty) {
-      final customerQuery = await db
-          .collection('Customer')
-          .where('custID', isEqualTo: custID)
-          .limit(1)
-          .get();
-      
-      if (customerQuery.docs.isNotEmpty) {
-        final customerUserID = customerQuery.docs.first
-            .data()['userID']
-            ?.toString();
-        
-        if (customerUserID != null && customerUserID.isNotEmpty) {
-          await fcmService.sendNotificationToUser(
-            userID: customerUserID,
-            title: notificationTitle,
-            body: notificationBody,
-            data: {
-              'type': notificationType,
-              'reqID': reqID,
-            },
-          );
-          print('Notification sent to customer for status: $newStatus');
+  Future<void> _sendStatusUpdateNotifications(
+    String reqID,
+    String newStatus,
+  ) async {
+    try {
+      final fcmService = FCMService();
+
+      // Get service request details
+      final reqDoc = await db.collection('ServiceRequest').doc(reqID).get();
+      if (!reqDoc.exists) {
+        print('Service request not found: $reqID');
+        return;
+      }
+
+      final reqData = reqDoc.data()!;
+      final custID = reqData['custID']?.toString();
+
+      // Prepare notification content based on status
+      String notificationTitle;
+      String notificationBody;
+      String notificationType;
+
+      if (newStatus.toLowerCase() == 'departed') {
+        notificationTitle = 'Handyman Departed';
+        notificationBody =
+            'The handyman has departed and is on the way to your location.';
+        notificationType = 'service_request_departed';
+      } else {
+        // completed
+        notificationTitle = 'Service Completed';
+        notificationBody =
+            'Your service request has been completed successfully!';
+        notificationType = 'service_request_completed';
+      }
+
+      // Send notification to customer
+      if (custID != null && custID.isNotEmpty) {
+        final customerQuery = await db
+            .collection('Customer')
+            .where('custID', isEqualTo: custID)
+            .limit(1)
+            .get();
+
+        if (customerQuery.docs.isNotEmpty) {
+          final customerUserID = customerQuery.docs.first
+              .data()['userID']
+              ?.toString();
+
+          if (customerUserID != null && customerUserID.isNotEmpty) {
+            await fcmService.sendNotificationToUser(
+              userID: customerUserID,
+              title: notificationTitle,
+              body: notificationBody,
+              data: {'type': notificationType, 'reqID': reqID},
+            );
+            print('Notification sent to customer for status: $newStatus');
+          }
         }
       }
-    }
-    
-    // Send notification to all active admins
-    final adminSnapshot = await db
-        .collection('Employee')
-        .where('empType', isEqualTo: 'admin')
-        .where('empStatus', isEqualTo: 'active')
-        .get();
-    
-    for (var adminDoc in adminSnapshot.docs) {
-      final adminUserID = adminDoc.data()['userID']?.toString();
-      if (adminUserID != null && adminUserID.isNotEmpty) {
-        await fcmService.sendNotificationToUser(
-          userID: adminUserID,
-          title: 'Service Request Update',
-          body: 'Service request $reqID has been updated to ${newStatus.toLowerCase()}.',
-          data: {
-            'type': notificationType,
-            'reqID': reqID,
-          },
-        );
+
+      // Send notification to all active admins
+      final adminSnapshot = await db
+          .collection('Employee')
+          .where('empType', isEqualTo: 'admin')
+          .where('empStatus', isEqualTo: 'active')
+          .get();
+
+      for (var adminDoc in adminSnapshot.docs) {
+        final adminUserID = adminDoc.data()['userID']?.toString();
+        if (adminUserID != null && adminUserID.isNotEmpty) {
+          await fcmService.sendNotificationToUser(
+            userID: adminUserID,
+            title: 'Service Request Update',
+            body:
+                'Service request $reqID has been updated to ${newStatus.toLowerCase()}.',
+            data: {'type': notificationType, 'reqID': reqID},
+          );
+        }
       }
+      print('Notifications sent to admins for status: $newStatus');
+    } catch (e) {
+      print('Error sending status update notifications: $e');
     }
-    print('Notifications sent to admins for status: $newStatus');
-    
-  } catch (e) {
-    print('Error sending status update notifications: $e');
   }
-}
 }

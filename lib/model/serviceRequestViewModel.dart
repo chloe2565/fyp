@@ -11,8 +11,9 @@ class RequestViewModel {
   final DateTime scheduledDateTime;
   final String? amountToPay;
   final String? payDueDate;
+  final DateTime? payDueDateRaw;
   final String? paymentStatus;
-  final String? paymentCreatedAt;
+  final DateTime? paymentCreatedAt;
   final ServiceRequestModel requestModel; 
   final String handymanName;
   final String customerName; 
@@ -30,6 +31,7 @@ class RequestViewModel {
     required this.scheduledDateTime,
     this.amountToPay,
     this.payDueDate,
+    this.payDueDateRaw, 
     this.paymentStatus,
     this.paymentCreatedAt,
     required this.requestModel,

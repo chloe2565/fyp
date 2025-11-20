@@ -337,7 +337,7 @@ class Formatter {
 
   static String formatDateTime(DateTime? dt) {
     if (dt == null) return 'N/A';
-    
+
     final format = DateFormat('dd MMM yyyy hh:mm a');
     return format.format(dt);
   }
@@ -1037,8 +1037,7 @@ class InfoCard extends StatelessWidget {
 
   Widget buildDetailRow(BuildContext context, String title, String value) {
     final String lowerTitle = title.toLowerCase();
-    final bool isStatusRow =
-        lowerTitle == 'status' || lowerTitle == 'payment status';
+    final bool isStatusRow = lowerTitle.contains('status');
     final bool isAmountRow = lowerTitle == 'amount to pay';
 
     TextStyle amountStyle =
@@ -1070,11 +1069,29 @@ class InfoCard extends StatelessWidget {
           ),
           Expanded(
             flex: 2,
-            child: Text(
-              value,
-              textAlign: TextAlign.right,
-              style: isAmountRow ? amountStyle : defaultStyle,
-            ),
+            child: isStatusRow
+                ? Align(
+                    alignment: Alignment.centerRight,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
+                      child: Text(
+                        value,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: getStatusColor(value),
+                        ),
+                      ),
+                    ),
+                  )
+                : Text(
+                    value,
+                    textAlign: TextAlign.right,
+                    style: isAmountRow ? amountStyle : defaultStyle,
+                  ),
           ),
         ],
       ),
@@ -2346,8 +2363,3 @@ IconData getReportIcon(String type) {
       return Icons.description;
   }
 }
-
-
-
-
-

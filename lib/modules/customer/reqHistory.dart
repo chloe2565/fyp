@@ -215,7 +215,9 @@ class RequestHistoryScreenState extends State<RequestHistoryScreen> {
       itemBuilder: (context, index) {
         final requestViewModel = viewModels[index];
         final upcomingDetails = List.of(requestViewModel.details);
-        upcomingDetails.add(MapEntry('Request Status', requestViewModel.reqStatus));
+        upcomingDetails.add(
+          MapEntry('Request Status', requestViewModel.reqStatus),
+        );
         final List<Widget> upcomingActions = [];
         final now = DateTime.now();
         final scheduledDateTime = requestViewModel.scheduledDateTime;
@@ -317,7 +319,9 @@ class RequestHistoryScreenState extends State<RequestHistoryScreen> {
       itemBuilder: (context, index) {
         final requestViewModel = viewModels[index];
         final historyDetails = List.of(requestViewModel.details);
-        historyDetails.add(MapEntry('Request Status', requestViewModel.reqStatus));
+        historyDetails.add(
+          MapEntry('Request Status', requestViewModel.reqStatus),
+        );
 
         if (requestViewModel.amountToPay != null) {
           historyDetails.add(
@@ -327,7 +331,10 @@ class RequestHistoryScreenState extends State<RequestHistoryScreen> {
         if (requestViewModel.payDueDate != null &&
             requestViewModel.paymentStatus?.toLowerCase() != 'paid') {
           historyDetails.add(
-            MapEntry('Pay Due Date', requestViewModel.payDueDate!),
+            MapEntry(
+              'Pay Due Date',
+              Formatter.formatDateTime(requestViewModel.payDueDateRaw!),
+            ),
           );
         }
         if (requestViewModel.paymentStatus != null) {
@@ -340,7 +347,7 @@ class RequestHistoryScreenState extends State<RequestHistoryScreen> {
           historyDetails.add(
             MapEntry(
               'Payment Created Date',
-              requestViewModel.paymentCreatedAt!,
+              Formatter.formatDateTime(requestViewModel.paymentCreatedAt!),
             ),
           );
         }

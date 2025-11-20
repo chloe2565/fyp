@@ -481,9 +481,13 @@ class RequestHistoryDetailScreen extends StatelessWidget {
             buildInfoRow(
               Icons.event_outlined,
               isPaid ? 'Paid On' : 'Due Date',
-              isPaid
-                  ? (viewModel.paymentCreatedAt ?? viewModel.payDueDate!)
-                  : viewModel.payDueDate!,
+              Formatter.formatDateTime(
+                isPaid
+                    ? (viewModel.paymentCreatedAt ??
+                          viewModel.payDueDateRaw ??
+                          DateTime.now())
+                    : (viewModel.payDueDateRaw ?? DateTime.now()),
+              ),
             ),
           const SizedBox(height: 16),
           SizedBox(
@@ -522,8 +526,9 @@ class RequestHistoryDetailScreen extends StatelessWidget {
 
   Future<BillingModel?> fetchBillingModel(String reqID) async {
     try {
-      final billingMap = await controller.serviceRequest
-          .fetchBillingInfo([reqID]);
+      final billingMap = await controller.serviceRequest.fetchBillingInfo([
+        reqID,
+      ]);
       return billingMap[reqID];
     } catch (e) {
       print('Error fetching billing model: $e');
