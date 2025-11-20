@@ -4,7 +4,6 @@ import 'package:fyp/modules/customer/billPaymentHistory.dart';
 import 'package:fyp/modules/employee/allService.dart';
 import 'package:fyp/modules/employee/homepage.dart';
 import 'package:fyp/modules/employee/serviceReq.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'modules/customer/favoriteHandyman.dart';
@@ -25,16 +24,12 @@ import 'login.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  const supabaseUrl = 'https://aaytrvrlwimcvguqrogw.supabase.co';
-  const supabaseKey = String.fromEnvironment('SUPABASE_KEY');
   const stripePublishableKey = String.fromEnvironment('STRIPE_PUBLISHABLE_KEY');
 
-  await Supabase.initialize(url: supabaseUrl, anonKey: supabaseKey);
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   Stripe.publishableKey = stripePublishableKey;
   await Stripe.instance.applySettings();
 
-  await Firebase.initializeApp();
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
   await NotificationService().initialize();
   runApp(const MyApp());

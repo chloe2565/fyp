@@ -145,11 +145,6 @@ class RequestHistoryDetailScreen extends StatelessWidget {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  'Request ID: ${viewModel.reqID}',
-                  style: TextStyle(fontSize: 13, color: Colors.grey[600]),
-                ),
               ],
             ),
           ),
@@ -450,27 +445,16 @@ class RequestHistoryDetailScreen extends StatelessWidget {
                 'Billing Information',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: isPaid ? Colors.green[50] : Colors.orange[50],
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  viewModel.paymentStatus ?? 'Pending',
-                  style: TextStyle(
-                    color: isPaid ? Colors.green[700] : Colors.orange[700],
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
             ],
           ),
           const SizedBox(height: 16),
+          buildInfoRow(
+            Icons.info_outline,
+            'Payment Status',
+            viewModel.paymentStatus ?? 'Pending',
+            valueColor: getStatusColor(viewModel.paymentStatus ?? 'Pending'),
+          ),
+          const SizedBox(height: 12),
           buildInfoRow(
             Icons.payments_outlined,
             'Amount',
@@ -536,7 +520,12 @@ class RequestHistoryDetailScreen extends StatelessWidget {
     }
   }
 
-  Widget buildInfoRow(IconData icon, String label, String value) {
+  Widget buildInfoRow(
+    IconData icon,
+    String label,
+    String value, {
+    Color? valueColor,
+  }) {
     return Row(
       children: [
         Icon(icon, size: 20, color: Colors.grey[600]),
@@ -552,7 +541,8 @@ class RequestHistoryDetailScreen extends StatelessWidget {
               const SizedBox(height: 2),
               Text(
                 value,
-                style: const TextStyle(
+                style: TextStyle(
+                  color: valueColor ?? Colors.black,
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
                 ),

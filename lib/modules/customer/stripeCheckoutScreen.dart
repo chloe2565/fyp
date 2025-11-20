@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:cloud_functions/cloud_functions.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // Add this import
 import '../../model/billDetailViewModel.dart';
 import '../../model/databaseModel.dart';
 import '../../shared/helper.dart';
@@ -26,11 +27,17 @@ class StripeCheckoutScreen extends StatefulWidget {
 }
 
 class StripeCheckoutScreenState extends State<StripeCheckoutScreen> {
-  final supabase = Supabase.instance.client;
+  late final FirebaseFunctions functions;
 
   @override
   void initState() {
     super.initState();
+    // Initialize FirebaseFunctions with your region (default is us-central1)
+    functions = FirebaseFunctions.instance;
+    
+    // If you're using emulator, uncomment this:
+    // functions.useFunctionsEmulator('localhost', 5001);
+    
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         initiatePayment();
@@ -42,30 +49,47 @@ class StripeCheckoutScreenState extends State<StripeCheckoutScreen> {
     showLoadingDialog(context, "Connecting to payment gateway...");
 
     try {
-      final String userId = widget.firebaseAuthId;
-      final int amountInCents = (widget.billingModel.billAmt * 100).toInt();
-
-      final response = await supabase.functions.invoke(
-        'create-payment-intent',
-        body: {
-          'amount': amountInCents,
-          'currency': 'myr',
-          'userId': userId,
-          'paymentMethodType': widget.paymentMethodType,
-          'billingID': widget.billingModel.billingID,
-        },
-      );
-
-      // Pop loading dialog before show any error
-      if (mounted) Navigator.pop(context);
-
-      if (response.status != 200) {
-        final errorMessage =
-            response.data['error'] as String? ?? "Unknown function error";
-        throw Exception("Failed to create payment: $errorMessage");
+      // Verify user is authenticated
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) {
+        throw Exception("User not authenticated");
       }
 
-      final String clientSecret = response.data['clientSecret'];
+      print("DEBUG: Current user: ${currentUser.uid}");
+      print("DEBUG: Getting ID token...");
+      
+      // Force refresh the ID token to ensure it's valid
+      await currentUser.getIdToken(true);
+      print("DEBUG: ID token refreshed");
+
+      final int amountInCents = (widget.billingModel.billAmt * 100).toInt();
+
+      print("DEBUG: Calling createPaymentIntent...");
+      print("DEBUG: Amount: $amountInCents");
+      print("DEBUG: BillingID: ${widget.billingModel.billingID}");
+      print("DEBUG: Payment Method: ${widget.paymentMethodType}");
+
+      // Call Firebase Cloud Function
+      final callable = functions.httpsCallable('createPaymentIntent');
+      final response = await callable.call<Map<String, dynamic>>({
+        'amount': amountInCents,
+        'currency': 'myr',
+        'paymentMethodType': widget.paymentMethodType,
+        'billingID': widget.billingModel.billingID,
+      });
+
+      print("DEBUG: Cloud function response received");
+
+      // Pop loading dialog before showing any error
+      if (mounted) Navigator.pop(context);
+
+      final data = response.data;
+      if (data == null || !data.containsKey('clientSecret')) {
+        throw Exception("Failed to create payment: Invalid response");
+      }
+
+      final String clientSecret = data['clientSecret'];
+      print("DEBUG: Client secret obtained");
 
       await Stripe.instance.initPaymentSheet(
         paymentSheetParameters: SetupPaymentSheetParameters(
@@ -74,10 +98,11 @@ class StripeCheckoutScreenState extends State<StripeCheckoutScreen> {
         ),
       );
 
-      await Stripe.instance.presentPaymentSheet();
-      print("DEBUG: Stripe payment sheet presented and completed/closed.");
+      print("DEBUG: Payment sheet initialized");
 
-      print("DEBUG: Attempting to show success dialog...");
+      await Stripe.instance.presentPaymentSheet();
+      print("DEBUG: Payment sheet completed");
+
       if (mounted) {
         showSuccessDialog(
           context,
@@ -87,22 +112,33 @@ class StripeCheckoutScreenState extends State<StripeCheckoutScreen> {
           primaryButtonText: "Back to Home",
           onPrimary: () {
             Navigator.of(context).pop();
-            print("DEBUG: Success dialog 'Back to Home' clicked.");
             Navigator.pushNamedAndRemoveUntil(
               context,
               '/custHome',
               (route) => false,
             );
-            print("DEBUG: Success dialog shown.");
           },
         );
-      } else {
-        print("DEBUG: Context not mounted when trying to show success dialog.");
+      }
+    } on FirebaseFunctionsException catch (e) {
+      print("DEBUG: FirebaseFunctionsException: ${e.code} - ${e.message}");
+      print("DEBUG: Details: ${e.details}");
+      final isDialogShowing = ModalRoute.of(context)?.isCurrent != true;
+      if (mounted && isDialogShowing) Navigator.pop(context);
+
+      if (mounted) {
+        showErrorDialog(
+          context,
+          title: "Payment Failed",
+          message: e.message ?? "An error occurred with the payment service.",
+          onPressed: () {
+            Navigator.of(context).pop();
+            Navigator.of(context).pop();
+          },
+        );
       }
     } on StripeException catch (e) {
-      print(
-        "DEBUG: Caught StripeException: ${e.error.code} - ${e.error.message}",
-      );
+      print("DEBUG: StripeException: ${e.error.code} - ${e.error.message}");
       final isDialogShowing = ModalRoute.of(context)?.isCurrent != true;
       if (mounted && isDialogShowing) Navigator.pop(context);
 
@@ -113,34 +149,29 @@ class StripeCheckoutScreenState extends State<StripeCheckoutScreen> {
       }
 
       if (mounted) {
-        print("DEBUG: Showing payment failed dialog (StripeException).");
         showErrorDialog(
           context,
           title: "Payment Failed",
-          message:
-              e.error.localizedMessage ?? "An unknown Stripe error occurred.",
+          message: e.error.localizedMessage ?? "An unknown Stripe error occurred.",
           onPressed: () {
-            print("DEBUG: Payment failed dialog OK clicked.");
-            Navigator.of(context).pop(); // Close error dialog
-            Navigator.of(context).pop(); // Go back from checkout screen
+            Navigator.of(context).pop();
+            Navigator.of(context).pop();
           },
         );
       }
     } catch (e) {
-      print("DEBUG: Caught generic Exception: $e");
+      print("DEBUG: Generic Exception: $e");
       final isDialogShowing = ModalRoute.of(context)?.isCurrent != true;
       if (mounted && isDialogShowing) Navigator.pop(context);
 
       if (mounted) {
-        print("DEBUG: Showing generic error dialog.");
         showErrorDialog(
           context,
           title: "Error",
           message: "An error occurred: ${e.toString()}",
           onPressed: () {
-            print("DEBUG: Generic error dialog OK clicked.");
-            Navigator.of(context).pop(); // Close error dialog
-            Navigator.of(context).pop(); // Go back from checkout screen
+            Navigator.of(context).pop();
+            Navigator.of(context).pop();
           },
         );
       }

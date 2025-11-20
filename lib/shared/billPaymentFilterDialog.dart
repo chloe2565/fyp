@@ -63,7 +63,7 @@ class BillPaymentFilterDialogState extends State<BillPaymentFilterDialog> {
   final Map<String, String> availablePaymentMethods = {
     'Online Banking': 'Online Banking',
     'E-Wallet': 'E-Wallet',
-    'Credit Card': 'Credit Card',
+    'Card': 'Credit Card',
   };
 
   @override

@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../../model/billDetailViewModel.dart';
 import '../../model/databaseModel.dart';
+import '../../shared/helper.dart';
 import 'stripeCheckoutScreen.dart';
 
 class PaymentMethodScreen extends StatefulWidget {
@@ -23,6 +24,20 @@ class PaymentMethodScreenState extends State<PaymentMethodScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        showErrorDialog(
+          context,
+          title: "Authentication Required",
+          message: "Please sign in to continue with payment.",
+          onPressed: () {
+            Navigator.pushReplacementNamed(context, '/login');
+          },
+        );
+      });
+    }
+
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
