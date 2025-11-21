@@ -489,12 +489,11 @@ class RequestHistoryDetailScreen extends StatelessWidget {
                   );
                 }
               },
-              icon: const Icon(Icons.receipt_long, size: 20),
               label: const Text('View Bill Details'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: isPaid
                     ? Colors.green[600]
-                    : Colors.orange[600],
+                    : Theme.of(context).primaryColor,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 shape: RoundedRectangleBorder(

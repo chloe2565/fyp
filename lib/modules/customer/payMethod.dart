@@ -4,6 +4,7 @@ import '../../model/billDetailViewModel.dart';
 import '../../model/databaseModel.dart';
 import '../../shared/helper.dart';
 import 'stripeCheckoutScreen.dart';
+import 'billplzCheckoutScreen.dart';
 
 class PaymentMethodScreen extends StatefulWidget {
   final BillingModel billingModel;
@@ -75,8 +76,17 @@ class PaymentMethodScreenState extends State<PaymentMethodScreen> {
 
             buildPaymentOption(
               title: "Credit Card",
+              subtitle: "Pay with Visa, Mastercard, etc.",
               icon: Icons.credit_card,
               value: "Credit Card",
+            ),
+            const SizedBox(height: 12),
+
+            buildPaymentOption(
+              title: "Online Banking",
+              subtitle: "FPX - Pay with Malaysian banks",
+              icon: Icons.account_balance,
+              value: "Online Banking",
             ),
             const SizedBox(height: 12),
 
@@ -100,6 +110,14 @@ class PaymentMethodScreenState extends State<PaymentMethodScreen> {
                         billDetailViewModel: widget.billDetailViewModel,
                         paymentMethodType: 'card',
                         paymentMethodName: 'Credit Card',
+                        firebaseAuthId: firebaseAuthId!,
+                      );
+                      break;
+                    case "Online Banking":
+                      nextPage = BillplzCheckoutScreen(
+                        billingModel: widget.billingModel,
+                        billDetailViewModel: widget.billDetailViewModel,
+                        paymentMethodName: 'Online Banking (FPX)',
                         firebaseAuthId: firebaseAuthId!,
                       );
                       break;
@@ -135,6 +153,7 @@ class PaymentMethodScreenState extends State<PaymentMethodScreen> {
   Widget buildPaymentOption({
     required String title,
     required String value,
+    String? subtitle,
     IconData? icon,
     Widget? iconWidget,
   }) {
@@ -165,18 +184,33 @@ class PaymentMethodScreenState extends State<PaymentMethodScreen> {
             iconWidget ?? Icon(icon, color: iconColor, size: 28),
             const SizedBox(width: 16),
             Expanded(
-              child: Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.black87,
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  if (subtitle != null) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ),
             Icon(
-              isSelected ? Icons.check : Icons.keyboard_arrow_down_rounded,
-              color: isSelected ? selectedBorderColor : Colors.grey.shade500,
+              isSelected ? Icons.check_circle : Icons.radio_button_unchecked,
+              color: isSelected ? selectedBorderColor : Colors.grey.shade400,
             ),
           ],
         ),
