@@ -320,7 +320,7 @@ class EmpRequestScreenState extends State<EmpRequestScreen> {
   }
 
   Widget buildUpcomingList() {
-    if (controller.isLoadingCustomer) {
+    if (controller.isLoadingCustomer || controller.isLoadingUrgency) {
       return const Center(child: CircularProgressIndicator());
     }
 
@@ -340,6 +340,8 @@ class EmpRequestScreenState extends State<EmpRequestScreen> {
       itemCount: viewModels.length,
       itemBuilder: (context, index) {
         final requestViewModel = viewModels[index];
+        final urgencyLevel = controller.getUrgencyLevel(requestViewModel.reqID);
+        final cardColor = getUrgencyBgColor(urgencyLevel);
 
         final upcomingDetails = [
           MapEntry('Customer Name', requestViewModel.customerName),
@@ -358,6 +360,7 @@ class EmpRequestScreenState extends State<EmpRequestScreen> {
           MapEntry('Location', requestViewModel.requestModel.reqAddress),
           MapEntry('Handyman Name', requestViewModel.handymanName),
           MapEntry('Request Status', requestViewModel.reqStatus),
+          MapEntry('Urgency Level', capitalizeFirst(urgencyLevel)),
         ];
 
         final now = DateTime.now();
@@ -434,6 +437,7 @@ class EmpRequestScreenState extends State<EmpRequestScreen> {
             icon: requestViewModel.icon,
             title: requestViewModel.title,
             details: upcomingDetails,
+            backgroundColor: cardColor,
             onViewDetails: () {
               Navigator.push(
                 context,

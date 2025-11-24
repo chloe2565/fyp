@@ -1164,9 +1164,51 @@ Color getUrgencyColor(String urgency) {
       return Colors.red;
     case 'high':
       return Colors.orange;
-    default:
+    case 'medium':
+      return Colors.blue;
+    case 'normal':
       return Colors.green;
+    default:
+      return Colors.white;
   }
+}
+
+Color getUrgencyBgColor(String urgency) {
+  switch (urgency.toLowerCase()) {
+    case 'urgent':
+      return Colors.red.shade50;
+    case 'high':
+      return Colors.orange.shade50;
+    case 'medium':
+      return Colors.blue.shade50;
+    case 'normal':
+      return Colors.green.shade50;
+    default:
+      return Colors.white;
+  }
+}
+
+int getUrgencyPriority(String urgency) {
+  switch (urgency.toLowerCase()) {
+    case 'urgent':
+      return 4;
+    case 'high':
+      return 3;
+    case 'medium':
+      return 2;
+    case 'normal':
+      return 1;
+    default:
+      return 1;
+  }
+}
+
+Color getBorderColor(Color bgColor) {
+  if (bgColor == Colors.red.shade50) return Colors.red.shade200;
+  if (bgColor == Colors.orange.shade50) return Colors.orange.shade200;
+  if (bgColor == Colors.blue.shade50) return Colors.blue.shade200;
+  if (bgColor == Colors.green.shade50) return Colors.green.shade200;
+  return Colors.grey.shade200;
 }
 
 Color getComplexityColor(String complexity) {
@@ -2087,6 +2129,7 @@ class EmpInfoCard extends StatelessWidget {
   final String title;
   final List<MapEntry<String, String>> details;
   final VoidCallback onViewDetails;
+  final Color? backgroundColor;
 
   const EmpInfoCard({
     super.key,
@@ -2094,15 +2137,21 @@ class EmpInfoCard extends StatelessWidget {
     required this.title,
     required this.details,
     required this.onViewDetails,
+    this.backgroundColor,
   });
 
   @override
   Widget build(BuildContext context) {
     return Card(
       elevation: 1.5,
-      color: Colors.white,
+      color: backgroundColor ?? Colors.white,
       shadowColor: Colors.black.withValues(alpha: 0.08),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+        side: backgroundColor != null
+            ? BorderSide(color: getBorderColor(backgroundColor!), width: 2)
+            : BorderSide.none,
+      ),
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
@@ -2161,11 +2210,12 @@ class EmpInfoCard extends StatelessWidget {
             ),
 
             const SizedBox(height: 16),
-            const Divider(height: 1, thickness: 1, color: Color(0xFFEEEEEE)),
+            Divider(height: 1, thickness: 1, color: Colors.grey[500]),
             const SizedBox(height: 12),
 
             ...details.map((e) {
               final isStatusRow = e.key.toLowerCase().contains('status');
+              final isUrgencyRow = e.key.toLowerCase().contains('urgency');
               return Padding(
                 padding: const EdgeInsets.only(bottom: 6),
                 child: Row(
@@ -2189,9 +2239,11 @@ class EmpInfoCard extends StatelessWidget {
                         style: TextStyle(
                           color: isStatusRow
                               ? getStatusColor(e.value)
+                              : isUrgencyRow
+                              ? getUrgencyColor(e.value)
                               : Colors.black87,
                           fontSize: 13,
-                          fontWeight: isStatusRow
+                          fontWeight: (isStatusRow || isUrgencyRow)
                               ? FontWeight.bold
                               : FontWeight.normal,
                         ),

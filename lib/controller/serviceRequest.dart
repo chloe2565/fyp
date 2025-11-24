@@ -1,21 +1,29 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:latlong2/latlong.dart' as l;
+import 'package:latlong2/latlong.dart';
+import 'package:osm_nominatim/osm_nominatim.dart';
 import '../model/filterViewModel.dart';
 import '../service/bill.dart';
 import '../service/fcm_service.dart';
 import '../service/firestore_service.dart';
+import '../service/payment.dart';
 import '../service/rf_handyman_service.dart';
 import '../service/user.dart';
 import '../service/serviceRequest.dart';
+import '../service/nlp_service.dart';
 import '../model/databaseModel.dart';
 import '../../model/serviceRequestViewModel.dart';
 import '../../shared/helper.dart';
+import 'handyman.dart';
 
 FilterOutput performFiltering(FilterInput input) {
   final lowerQuery = input.searchQuery.toLowerCase();
@@ -163,6 +171,8 @@ class ServiceRequestController extends ChangeNotifier {
   // For employee
   List<RequestViewModel> allPendingRequests = [];
   List<RequestViewModel> filteredPendingRequests = [];
+  Map<String, String> requestUrgencyMap = {};
+  bool isLoadingUrgency = false;
 
   // For both customer and employee
   List<RequestViewModel> allUpcomingRequests = [];
@@ -271,55 +281,57 @@ class ServiceRequestController extends ChangeNotifier {
   }
 
   List<RequestViewModel> transformData(List<Map<String, dynamic>> rawList) {
-  final viewModels = rawList.map((map) {
-    final req = map['request'] as ServiceRequestModel;
-    final service = map['service'] as ServiceModel;
-    final billing = map['billing'] as BillingModel?;
-    final paymentCreatedAt = map['paymentCreatedAt'] as DateTime?;
-    final String locationData = req.reqAddress;
-    final handymanName = map['handymanName'] as String;
-    final customerName = map['customerName'] as String? ?? 'Unknown';
-    final customerContact = map['customerContact'] as String? ?? 'N/A';
-    final reqDateTime = Formatter.formatDateTime(req.reqDateTime);
-    final bookingDateTime = Formatter.formatDateTime(req.scheduledDateTime);
-    String? formattedAmount;
-    String? formattedDueDate;
-    DateTime? rawDueDate;
-    String? formattedBillStatus;
+    final viewModels = rawList.map((map) {
+      final req = map['request'] as ServiceRequestModel;
+      final service = map['service'] as ServiceModel;
+      final billing = map['billing'] as BillingModel?;
+      final paymentCreatedAt = map['paymentCreatedAt'] as DateTime?;
+      final String locationData = req.reqAddress;
+      final handymanName = map['handymanName'] as String;
+      final customerName = map['customerName'] as String? ?? 'Unknown';
+      final customerContact = map['customerContact'] as String? ?? 'N/A';
+      final reqDateTime = Formatter.formatDateTime(req.reqDateTime);
+      final bookingDateTime = Formatter.formatDateTime(req.scheduledDateTime);
+      String? formattedAmount;
+      String? formattedDueDate;
+      DateTime? rawDueDate;
+      String? formattedBillStatus;
 
-    if (billing != null) {
-      formattedAmount = 'RM ${billing.billAmt.toStringAsFixed(2)}';
-      rawDueDate = billing.billDueDate; 
-      formattedDueDate = DateFormat('MMMM dd, yyyy').format(billing.billDueDate);
-      formattedBillStatus = capitalizeFirst(billing.billStatus);
-    }
+      if (billing != null) {
+        formattedAmount = 'RM ${billing.billAmt.toStringAsFixed(2)}';
+        rawDueDate = billing.billDueDate;
+        formattedDueDate = DateFormat(
+          'MMMM dd, yyyy',
+        ).format(billing.billDueDate);
+        formattedBillStatus = capitalizeFirst(billing.billStatus);
+      }
 
-    return RequestViewModel(
-      reqID: req.reqID,
-      title: service.serviceName,
-      icon: ServiceHelper.getIconForService(service.serviceName),
-      reqStatus: capitalizeFirst(req.reqStatus),
-      reqDateTime: req.reqDateTime,
-      scheduledDateTime: req.scheduledDateTime,
-      details: [
-        MapEntry('Created At', reqDateTime),
-        MapEntry('Booking Date & Time', bookingDateTime),
-        MapEntry('Location', locationData),
-        MapEntry('Handyman Assigned', handymanName),
-      ],
-      amountToPay: formattedAmount,
-      payDueDate: formattedDueDate,
-      payDueDateRaw: rawDueDate,
-      paymentStatus: formattedBillStatus,
-      paymentCreatedAt: paymentCreatedAt,
-      requestModel: req,
-      handymanName: handymanName,
-      customerName: customerName,
-      customerContact: customerContact,
-    );
-  }).toList();
-  return viewModels;
-}
+      return RequestViewModel(
+        reqID: req.reqID,
+        title: service.serviceName,
+        icon: ServiceHelper.getIconForService(service.serviceName),
+        reqStatus: capitalizeFirst(req.reqStatus),
+        reqDateTime: req.reqDateTime,
+        scheduledDateTime: req.scheduledDateTime,
+        details: [
+          MapEntry('Created At', reqDateTime),
+          MapEntry('Booking Date & Time', bookingDateTime),
+          MapEntry('Location', locationData),
+          MapEntry('Handyman Assigned', handymanName),
+        ],
+        amountToPay: formattedAmount,
+        payDueDate: formattedDueDate,
+        payDueDateRaw: rawDueDate,
+        paymentStatus: formattedBillStatus,
+        paymentCreatedAt: paymentCreatedAt,
+        requestModel: req,
+        handymanName: handymanName,
+        customerName: customerName,
+        customerContact: customerContact,
+      );
+    }).toList();
+    return viewModels;
+  }
 
   bool matchesSearch(RequestViewModel vm, String query) {
     if (query.isEmpty) return true;
@@ -397,7 +409,9 @@ class ServiceRequestController extends ChangeNotifier {
       final FilterOutput output = await compute(performFiltering, input);
 
       filteredPendingRequests = output.filteredPending;
-      filteredUpcomingRequests = output.filteredUpcoming;
+      filteredUpcomingRequests = await sortRequestsByUrgencyAndLocation(
+        output.filteredUpcoming,
+      );
       filteredHistoryRequests = output.filteredHistory;
     } catch (e) {
       print("Error during background filtering: $e");
@@ -847,10 +861,6 @@ class ServiceRequestController extends ChangeNotifier {
     await serviceRequest.rescheduleRequest(reqID);
   }
 
-  // Updated updateRequestStatus method in ServiceRequestController
-  // Add this import at the top of the file:
-  // import '../service/fcm_service.dart';
-
   Future<void> updateRequestStatus(String reqID, String newStatus) async {
     try {
       await serviceRequest.updateRequestStatus(reqID, newStatus);
@@ -858,7 +868,7 @@ class ServiceRequestController extends ChangeNotifier {
       // Send notifications for departed and completed status
       if (newStatus.toLowerCase() == 'departed' ||
           newStatus.toLowerCase() == 'completed') {
-        await _sendStatusUpdateNotifications(reqID, newStatus);
+        await sendStatusUpdateNotifications(reqID, newStatus);
       }
 
       // Auto-create billing when status changes to completed
@@ -875,7 +885,7 @@ class ServiceRequestController extends ChangeNotifier {
     }
   }
 
-  Future<void> _sendStatusUpdateNotifications(
+  Future<void> sendStatusUpdateNotifications(
     String reqID,
     String newStatus,
   ) async {
@@ -957,6 +967,356 @@ class ServiceRequestController extends ChangeNotifier {
       print('Notifications sent to admins for status: $newStatus');
     } catch (e) {
       print('Error sending status update notifications: $e');
+    }
+  }
+
+  Future<void> loadUrgencyLevels(List<RequestViewModel> requests) async {
+    final requestsToAnalyze = requests.where((req) {
+      return req.requestModel.reqDesc.isNotEmpty &&
+          !requestUrgencyMap.containsKey(req.reqID);
+    }).toList();
+
+    if (requestsToAnalyze.isEmpty) return;
+
+    isLoadingUrgency = true;
+    notifyListeners();
+
+    try {
+      // Batch analyze descriptions
+      final analyses = await Future.wait(
+        requestsToAnalyze.map(
+          (req) => NLPService.analyzeDescription(req.requestModel.reqDesc),
+        ),
+      );
+
+      for (int i = 0; i < requestsToAnalyze.length; i++) {
+        final analysis = analyses[i];
+        if (analysis != null) {
+          requestUrgencyMap[requestsToAnalyze[i].reqID] = analysis.urgency;
+        } else {
+          requestUrgencyMap[requestsToAnalyze[i].reqID] = 'normal';
+        }
+      }
+    } catch (e) {
+      print('Error loading urgency levels: $e');
+      // Set default urgency for failed requests
+      for (var req in requestsToAnalyze) {
+        requestUrgencyMap[req.reqID] = 'normal';
+      }
+    } finally {
+      isLoadingUrgency = false;
+      notifyListeners();
+    }
+  }
+
+  double calculateDistance(double lat1, double lon1, double lat2, double lon2) {
+    const double earthRadius = 6371; // km
+    final dLat = toRadians(lat2 - lat1);
+    final dLon = toRadians(lon2 - lon1);
+
+    final a =
+        sin(dLat / 2) * sin(dLat / 2) +
+        cos(toRadians(lat1)) *
+            cos(toRadians(lat2)) *
+            sin(dLon / 2) *
+            sin(dLon / 2);
+
+    final c = 2 * atan2(sqrt(a), sqrt(1 - a));
+    return earthRadius * c;
+  }
+
+  double toRadians(double degree) {
+    return degree * pi / 180;
+  }
+
+  Future<List<RequestViewModel>> sortRequestsByUrgencyAndLocation(
+    List<RequestViewModel> requests,
+  ) async {
+    if (requests.isEmpty) return requests;
+
+    print('\n=== Starting Sort Process ===');
+    print('Total requests to sort: ${requests.length}');
+
+    // Load urgency levels if not already loaded
+    await loadUrgencyLevels(requests);
+
+    // Group requests by date
+    final Map<DateTime, List<RequestViewModel>> requestsByDate = {};
+
+    for (var request in requests) {
+      final dateOnly = DateUtils.dateOnly(request.scheduledDateTime);
+      if (!requestsByDate.containsKey(dateOnly)) {
+        requestsByDate[dateOnly] = [];
+      }
+      requestsByDate[dateOnly]!.add(request);
+    }
+
+    // Sort dates (earliest first)
+    final sortedDates = requestsByDate.keys.toList()..sort();
+
+    print('\nGrouped by dates:');
+    for (var date in sortedDates) {
+      print(
+        '  ${DateFormat('yyyy-MM-dd').format(date)}: ${requestsByDate[date]!.length} requests',
+      );
+    }
+
+    // Process each date group
+    List<RequestViewModel> sortedRequests = [];
+
+    for (var date in sortedDates) {
+      final dateRequests = requestsByDate[date]!;
+      print(
+        '\n--- Processing date: ${DateFormat('yyyy-MM-dd').format(date)} ---',
+      );
+
+      // For each date, sort by urgency and distance
+      final sortedDateRequests = await sortByUrgencyAndDistance(
+        dateRequests,
+        date,
+      );
+      sortedRequests.addAll(sortedDateRequests);
+    }
+
+    print('\n=== Sort Complete ===\n');
+    return sortedRequests;
+  }
+
+  // Sort requests by urgency level and then by distance
+  Future<List<RequestViewModel>> sortByUrgencyAndDistance(
+    List<RequestViewModel> requests,
+    DateTime date,
+  ) async {
+    if (requests.isEmpty) return requests;
+
+    print(
+      '  Sorting ${requests.length} requests for ${DateFormat('yyyy-MM-dd').format(date)}',
+    );
+
+    // Get handyman locations for all unique handymen in these requests
+    final Map<String, GeoPoint?> handymanLocations = {};
+
+    for (var request in requests) {
+      final handymanID = request.requestModel.handymanID;
+      if (handymanID != null &&
+          handymanID.isNotEmpty &&
+          !handymanLocations.containsKey(handymanID)) {
+        final location = await HandymanController.getHandymanLocationById(
+          handymanID,
+        );
+        handymanLocations[handymanID] = location;
+
+        if (location != null) {
+          print(
+            '  Handyman $handymanID location: (${location.latitude}, ${location.longitude})',
+          );
+        } else {
+          print('  Handyman $handymanID: No valid location found');
+        }
+      }
+    }
+
+    // Geocode request addresses to get coordinates
+    final Map<String, Map<String, double>?> requestCoordinates = {};
+
+    for (var request in requests) {
+      final address = request.requestModel.reqAddress;
+      if (!requestCoordinates.containsKey(address)) {
+        final coords = await geocodeAddress(address);
+        requestCoordinates[address] = coords;
+
+        if (coords != null) {
+          print(
+            '  Request ${request.reqID} location: (${coords['lat']}, ${coords['lon']})',
+          );
+        } else {
+          print('  Request ${request.reqID}: Failed to geocode address');
+        }
+      }
+    }
+
+    // Create list with calculated distances for debugging
+    final List<Map<String, dynamic>> requestsWithData = [];
+
+    for (var request in requests) {
+      final urgency = requestUrgencyMap[request.reqID] ?? 'normal';
+      final handymanID = request.requestModel.handymanID;
+      double? distance;
+
+      if (handymanID != null) {
+        final handymanLoc = handymanLocations[handymanID];
+        final coords = requestCoordinates[request.requestModel.reqAddress];
+
+        if (handymanLoc != null && coords != null) {
+          distance = await getRoadDistance(
+            handymanLoc.latitude,
+            handymanLoc.longitude,
+            coords['lat']!,
+            coords['lon']!,
+          );
+
+          // Fallback to Haversine (straight line) if API fails
+          if (distance == null) {
+            print("OSRM failed, using Haversine fallback for ${request.reqID}");
+            distance = calculateDistance(
+              handymanLoc.latitude,
+              handymanLoc.longitude,
+              coords['lat']!,
+              coords['lon']!,
+            );
+          }
+        }
+      }
+
+      requestsWithData.add({
+        'request': request,
+        'urgency': urgency,
+        'distance': distance,
+        'handymanID': handymanID,
+      });
+    }
+
+    // Sort by urgency first, then by distance
+    requestsWithData.sort((a, b) {
+      final requestA = a['request'] as RequestViewModel;
+      final requestB = b['request'] as RequestViewModel;
+      final urgencyA = a['urgency'] as String;
+      final urgencyB = b['urgency'] as String;
+      final distanceA = a['distance'] as double?;
+      final distanceB = b['distance'] as double?;
+
+      //Sort by urgency (highest priority first)
+      final urgencyPriorityA = getUrgencyPriority(urgencyA);
+      final urgencyPriorityB = getUrgencyPriority(urgencyB);
+      final urgencyComparison = urgencyPriorityB.compareTo(urgencyPriorityA);
+
+      if (urgencyComparison != 0) {
+        return urgencyComparison;
+      }
+
+      // If same urgency, sort by distance (nearest first)
+      if (distanceA == null && distanceB == null) {
+        return 0;
+      } else if (distanceA == null) {
+        return 1; // b comes first
+      } else if (distanceB == null) {
+        return -1; // a comes first
+      }
+
+      return distanceA.compareTo(distanceB);
+    });
+
+    // Print sorted order for debugging
+    print('\n  Sorted order:');
+    for (int i = 0; i < requestsWithData.length; i++) {
+      final data = requestsWithData[i];
+      final request = data['request'] as RequestViewModel;
+      final urgency = data['urgency'] as String;
+      final distance = data['distance'] as double?;
+      final distanceStr = distance != null
+          ? '${distance.toStringAsFixed(2)} km'
+          : 'N/A';
+
+      print('  ${i + 1}. ReqID: ${request.reqID}');
+      print(
+        '     Urgency: $urgency (priority: ${getUrgencyPriority(urgency)})',
+      );
+      print('     Distance: $distanceStr');
+      print('     Handyman: ${data['handymanID'] ?? 'N/A'}');
+      print(
+        '     Time: ${DateFormat('HH:mm').format(request.scheduledDateTime)}',
+      );
+    }
+
+    return requestsWithData
+        .map((data) => data['request'] as RequestViewModel)
+        .toList();
+  }
+
+  // Geocode address to get coordinates
+  Future<Map<String, double>?> geocodeAddress(String address) async {
+    try {
+      // Check if address already contains coordinates in "lat,lon" format
+      final parts = address.split(',');
+      if (parts.length >= 2) {
+        final lat = double.tryParse(parts[0].trim());
+        final lon = double.tryParse(parts[1].trim());
+        if (lat != null &&
+            lon != null &&
+            lat >= -90 &&
+            lat <= 90 &&
+            lon >= -180 &&
+            lon <= 180) {
+          return {'lat': lat, 'lon': lon};
+        }
+      }
+
+      // Otherwise, geocode the address using Nominatim
+      final nominatim = Nominatim(userAgent: 'com.example.fyp');
+      final results = await nominatim.searchByName(query: address, limit: 1);
+
+      if (results.isNotEmpty) {
+        return {'lat': results.first.lat, 'lon': results.first.lon};
+      }
+
+      return null;
+    } catch (e) {
+      print('Error geocoding address "$address": $e');
+      return null;
+    }
+  }
+
+  // Calculates driving distance using OSRM API
+  Future<double?> getRoadDistance(
+    double lat1,
+    double lon1,
+    double lat2,
+    double lon2,
+  ) async {
+    try {
+      final url = Uri.parse(
+        'https://router.project-osrm.org/route/v1/driving/$lon1,$lat1;$lon2,$lat2?overview=false',
+      );
+
+      final response = await http.get(url);
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['routes'] != null && data['routes'].isNotEmpty) {
+          // OSRM returns distance in meters, convert to km
+          final distanceInMeters = data['routes'][0]['distance'] as num;
+          return distanceInMeters / 1000.0;
+        }
+      }
+      return null;
+    } catch (e) {
+      print('Error fetching road distance: $e');
+      return null;
+    }
+  }
+
+  String getUrgencyLevel(String reqID) {
+    return requestUrgencyMap[reqID] ?? 'normal';
+  }
+
+  Future<PaymentModel?> getPaymentForRequest(String reqID) async {
+    try {
+      // First get the billing info
+      final billingMap = await serviceRequest.fetchBillingInfo([reqID]);
+      final billing = billingMap[reqID];
+
+      if (billing == null) {
+        print('No billing found for request: $reqID');
+        return null;
+      }
+
+      final paymentService = PaymentService();
+      final payment = await paymentService.getPaymentForBill(billing.billingID);
+
+      return payment;
+    } catch (e) {
+      print('Error fetching payment for request: $e');
+      return null;
     }
   }
 }

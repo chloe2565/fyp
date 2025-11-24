@@ -11,6 +11,7 @@ import '../../shared/helper.dart';
 import '../../service/image_service.dart';
 import '../../service/nlp_service.dart';
 import '../../service/bill.dart';
+import '../../shared/receiptDetail.dart';
 import 'handymanServiceReqMap.dart';
 import 'providerServiceReqMap.dart';
 import 'addNewBill.dart';
@@ -520,167 +521,199 @@ class EmpRequestDetailScreenState extends State<EmpRequestDetailScreen> {
   }
 
   Widget buildPaymentSection(
-    BuildContext context,
-    RequestViewModel viewModel,
-    bool isAdmin,
-  ) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  Icon(Icons.payment, color: Colors.green[700], size: 24),
-                  const SizedBox(width: 8),
-                  const Text(
-                    'Payment Information',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                ],
-              ),
-              if (isAdmin && paymentData != null)
-                IconButton(
-                  icon: const Icon(Icons.edit, size: 20),
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => EmpEditPaymentScreen(
-                          payment: paymentData!,
-                          onPaymentUpdated: loadBillingAndPayment,
-                        ),
-                      ),
-                    );
-                  },
+  BuildContext context,
+  RequestViewModel viewModel,
+  bool isAdmin,
+) {
+  final isPaid = paymentData?.payStatus.toLowerCase() == 'paid';
+  
+  return Container(
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(12),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withValues(alpha: 0.05),
+          blurRadius: 10,
+          offset: const Offset(0, 2),
+        ),
+      ],
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.payment, color: Colors.green[700], size: 24),
+                const SizedBox(width: 8),
+                const Text(
+                  'Payment Information',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
-            ],
-          ),
-          const SizedBox(height: 16),
-
-          if (isLoadingPayment)
-            const Center(child: CircularProgressIndicator())
-          else if (paymentData == null) ...[
-            Text(
-              billingData == null
-                  ? 'Create a billing record first to add payment.'
-                  : 'No payment record found for this bill.',
-              style: TextStyle(color: Colors.grey[600], fontSize: 14),
+              ],
             ),
-            if (isAdmin && billingData != null) ...[
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  icon: const Icon(Icons.add, size: 18),
-                  label: const Text('Add Payment'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green[700],
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => EmpAddPaymentScreen(
-                          onPaymentAdded: loadBillingAndPayment,
-                          billingID: billingData!.billingID,
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ],
-          ] else ...[
-            buildInfoRow(
-              Icons.info_outline,
-              'Payment Status',
-              capitalizeFirst(paymentData!.payStatus),
-              valueColor: getStatusColor(paymentData!.payStatus),
-            ),
-            const SizedBox(height: 12),
-            buildInfoRow(
-              Icons.payment,
-              'Payment Method',
-              paymentData!.payMethod,
-            ),
-            const SizedBox(height: 12),
-            buildInfoRow(
-              Icons.access_time,
-              'Payment Date',
-              dateTimeFormat.format(paymentData!.payCreatedAt),
-            ),
-            if (paymentData!.payMediaProof.isNotEmpty) ...[
-              const SizedBox(height: 16),
-              const Text(
-                'Payment Media Proof:',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 8),
-              GestureDetector(
-                onTap: () {
+            if (isAdmin && paymentData != null)
+              IconButton(
+                icon: const Icon(Icons.edit, size: 20),
+                onPressed: () {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => FullScreenGalleryViewer(
-                        imagePaths: [paymentData!.payMediaProof],
-                        initialIndex: 0,
+                      builder: (context) => EmpEditPaymentScreen(
+                        payment: paymentData!,
+                        onPaymentUpdated: loadBillingAndPayment,
                       ),
                     ),
                   );
                 },
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: paymentData!.payMediaProof.toNetworkImage(
-                    width: double.infinity,
-                    height: 150,
-                    fit: BoxFit.cover,
+              ),
+          ],
+        ),
+        const SizedBox(height: 16),
+
+        if (isLoadingPayment)
+          const Center(child: CircularProgressIndicator())
+        else if (paymentData == null) ...[
+          Text(
+            billingData == null
+                ? 'Create a billing record first to add payment.'
+                : 'No payment record found for this bill.',
+            style: TextStyle(color: Colors.grey[600], fontSize: 14),
+          ),
+          if (isAdmin && billingData != null) ...[
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                icon: const Icon(Icons.add, size: 18),
+                label: const Text('Add Payment'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green[700],
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
                   ),
+                ),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => EmpAddPaymentScreen(
+                        onPaymentAdded: loadBillingAndPayment,
+                        billingID: billingData!.billingID,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ] else ...[
+          buildInfoRow(
+            Icons.info_outline,
+            'Payment Status',
+            capitalizeFirst(paymentData!.payStatus),
+            valueColor: getStatusColor(paymentData!.payStatus),
+          ),
+          const SizedBox(height: 12),
+          buildInfoRow(
+            Icons.payment,
+            'Payment Method',
+            paymentData!.payMethod,
+          ),
+          const SizedBox(height: 12),
+          buildInfoRow(
+            Icons.access_time,
+            'Payment Date',
+            dateTimeFormat.format(paymentData!.payCreatedAt),
+          ),
+          if (paymentData!.payMediaProof.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            const Text(
+              'Payment Media Proof:',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 8),
+            GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => FullScreenGalleryViewer(
+                      imagePaths: [paymentData!.payMediaProof],
+                      initialIndex: 0,
+                    ),
+                  ),
+                );
+              },
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: paymentData!.payMediaProof.toNetworkImage(
+                  width: double.infinity,
+                  height: 150,
+                  fit: BoxFit.cover,
+                ),
+              ),
+            ),
+          ],
+          const Divider(height: 24),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Amount Paid:',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              Text(
+                'RM ${currencyFormat.format(paymentData!.payAmt)}',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.green[700],
                 ),
               ),
             ],
-            const Divider(height: 24),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Amount Paid:',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-                Text(
-                  'RM ${currencyFormat.format(paymentData!.payAmt)}',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.green[700],
+          ),
+          
+          // View Receipt Button (only show if paid)
+          if (isPaid) ...[
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                icon: const Icon(Icons.receipt, size: 18),
+                label: const Text('View Receipt'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green[700],
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
                   ),
                 ),
-              ],
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => ReceiptDetailScreen(
+                        payment: paymentData!,
+                      ),
+                    ),
+                  );
+                },
+              ),
             ),
           ],
         ],
-      ),
-    );
-  }
+      ],
+    ),
+  );
+}
 
   Widget buildAdminRemarksCard(BuildContext context, String remark) {
     return Container(

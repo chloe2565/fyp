@@ -6,6 +6,7 @@ import '../../model/serviceRequestViewModel.dart';
 import '../../model/databaseModel.dart';
 import '../../shared/fullScreenImage.dart';
 import '../../shared/helper.dart';
+import '../../shared/receiptDetail.dart';
 import 'billDetail.dart';
 import 'serviceReqMap.dart';
 
@@ -419,82 +420,141 @@ class RequestHistoryDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget buildBillingCard(BuildContext context, RequestViewModel viewModel) {
-    final isPaid = viewModel.paymentStatus?.toLowerCase() == 'paid';
+Widget buildBillingCard(BuildContext context, RequestViewModel viewModel) {
+  final isPaid = viewModel.paymentStatus?.toLowerCase() == 'paid';
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Billing Information',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
+  return Container(
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(12),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withValues(alpha: 0.05),
+          blurRadius: 10,
+          offset: const Offset(0, 2),
+        ),
+      ],
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'Billing Information',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        buildInfoRow(
+          Icons.info_outline,
+          'Payment Status',
+          viewModel.paymentStatus ?? 'Pending',
+          valueColor: getStatusColor(viewModel.paymentStatus ?? 'Pending'),
+        ),
+        const SizedBox(height: 12),
+        buildInfoRow(
+          Icons.payments_outlined,
+          'Amount',
+          viewModel.amountToPay ?? 'N/A',
+        ),
+        const SizedBox(height: 12),
+        if (viewModel.payDueDate != null)
           buildInfoRow(
-            Icons.info_outline,
-            'Payment Status',
-            viewModel.paymentStatus ?? 'Pending',
-            valueColor: getStatusColor(viewModel.paymentStatus ?? 'Pending'),
+            Icons.event_outlined,
+            isPaid ? 'Paid On' : 'Due Date',
+            Formatter.formatDateTime(
+              isPaid
+                  ? (viewModel.paymentCreatedAt ??
+                        viewModel.payDueDateRaw ??
+                        DateTime.now())
+                  : (viewModel.payDueDateRaw ?? DateTime.now()),
+            ),
           ),
-          const SizedBox(height: 12),
-          buildInfoRow(
-            Icons.payments_outlined,
-            'Amount',
-            viewModel.amountToPay ?? 'N/A',
-          ),
-          const SizedBox(height: 12),
-          if (viewModel.payDueDate != null)
-            buildInfoRow(
-              Icons.event_outlined,
-              isPaid ? 'Paid On' : 'Due Date',
-              Formatter.formatDateTime(
-                isPaid
-                    ? (viewModel.paymentCreatedAt ??
-                          viewModel.payDueDateRaw ??
-                          DateTime.now())
-                    : (viewModel.payDueDateRaw ?? DateTime.now()),
+        const SizedBox(height: 16),
+        
+        // View Bill Details Button
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            onPressed: () async {
+              // Fetch billing via controller
+              final billingModel = await fetchBillingModel(viewModel.reqID);
+              if (billingModel != null && context.mounted) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => BillDetailScreen(billingModel),
+                  ),
+                );
+              }
+            },
+            icon: const Icon(Icons.receipt_long, size: 18),
+            label: const Text('View Bill Details'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: isPaid
+                  ? Colors.green[600]
+                  : Theme.of(context).primaryColor,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
               ),
             ),
-          const SizedBox(height: 16),
+          ),
+        ),
+        
+        // View Receipt Button (only show if paid)
+        if (isPaid) ...[
+          const SizedBox(height: 12),
           SizedBox(
             width: double.infinity,
-            child: ElevatedButton.icon(
+            child: OutlinedButton.icon(
               onPressed: () async {
-                // Fetch the billing model and navigate to bill detail
-                final billingModel = await fetchBillingModel(viewModel.reqID);
-                if (billingModel != null && context.mounted) {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => BillDetailScreen(billingModel),
-                    ),
-                  );
+                // Show loading indicator
+                showDialog(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (context) => const Center(
+                    child: CircularProgressIndicator(),
+                  ),
+                );
+                
+                // Fetch payment via controller
+                final paymentModel = await controller.getPaymentForRequest(
+                  viewModel.reqID,
+                );
+                
+                if (context.mounted) {
+                  Navigator.of(context).pop(); // Close loading
+                  
+                  if (paymentModel != null) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => ReceiptDetailScreen(
+                          payment: paymentModel,
+                        ),
+                      ),
+                    );
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Payment receipt not found'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
                 }
               },
-              label: const Text('View Bill Details'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: isPaid
-                    ? Colors.green[600]
-                    : Theme.of(context).primaryColor,
-                foregroundColor: Colors.white,
+              icon: const Icon(Icons.receipt, size: 18),
+              label: const Text('View Receipt'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.green[700],
+                side: BorderSide(color: Colors.green[700]!, width: 1.5),
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
@@ -503,9 +563,10 @@ class RequestHistoryDetailScreen extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
+      ],
+    ),
+  );
+}
 
   Future<BillingModel?> fetchBillingModel(String reqID) async {
     try {

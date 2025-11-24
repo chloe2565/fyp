@@ -362,6 +362,55 @@ class HandymanController extends ChangeNotifier {
     }
   }
 
+  static Future<GeoPoint?> getHandymanLocationById(String handymanID) async {
+  try {
+    final db = FirestoreService.instance.db;
+    final handymanDoc = await db.collection('Handyman').doc(handymanID).get();
+    
+    if (handymanDoc.exists && handymanDoc.data() != null) {
+      final data = handymanDoc.data()!;
+      final location = data['currentLocation'] as GeoPoint?;
+      
+      // Validate location is not default (0, 0)
+      if (location != null && 
+          (location.latitude != 0 || location.longitude != 0)) {
+        return location;
+      }
+    }
+    return null;
+  } catch (e) {
+    print('Error getting handyman location by ID: $e');
+    return null;
+  }
+}
+
+/// Get handyman location by empID from database
+static Future<GeoPoint?> getHandymanLocationByEmpId(String empID) async {
+  try {
+    final db = FirestoreService.instance.db;
+    final handymanQuery = await db
+        .collection('Handyman')
+        .where('empID', isEqualTo: empID)
+        .limit(1)
+        .get();
+    
+    if (handymanQuery.docs.isNotEmpty) {
+      final data = handymanQuery.docs.first.data();
+      final location = data['currentLocation'] as GeoPoint?;
+      
+      // Validate location is not default (0, 0)
+      if (location != null && 
+          (location.latitude != 0 || location.longitude != 0)) {
+        return location;
+      }
+    }
+    return null;
+  } catch (e) {
+    print('Error getting handyman location by empID: $e');
+    return null;
+  }
+}
+
   void fitMapToRoute() {
     if (handymanLocation == null || userLocation == null) return;
     try {
