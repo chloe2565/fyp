@@ -1367,6 +1367,10 @@ class EmpRequestDetailScreenState extends State<EmpRequestDetailScreen> {
 
     // View map
     if (status == 'departed') {
+      final mapButtonText = isHandyman ? 'Track Route' : 'Track Handyman';
+      final mapNavigationBuilder = isHandyman
+          ? HandymanServiceReqMapScreen(reqID: viewModel.reqID)
+          : ProviderServiceReqMapScreen(reqID: viewModel.reqID);
       actions.add(
         SizedBox(
           width: double.infinity,
@@ -1374,23 +1378,13 @@ class EmpRequestDetailScreenState extends State<EmpRequestDetailScreen> {
             onPressed: () async {
               final String? empType = controller.currentEmployeeType;
 
-              if (empType == 'handyman') {
-                print("Navigating to HandymanServiceReqMapScreen");
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) =>
-                        HandymanServiceReqMapScreen(reqID: viewModel.reqID),
-                  ),
+              if (empType == 'handyman' || empType == 'admin') {
+                print(
+                  "Navigating to ${isHandyman ? 'HandymanServiceReqMapScreen' : 'ProviderServiceReqMapScreen'}",
                 );
-              } else if (empType == 'admin') {
-                print("Navigating to ProviderServiceReqMapScreen");
                 Navigator.push(
                   context,
-                  MaterialPageRoute(
-                    builder: (context) =>
-                        ProviderServiceReqMapScreen(reqID: viewModel.reqID),
-                  ),
+                  MaterialPageRoute(builder: (context) => mapNavigationBuilder),
                 );
               } else {
                 print("Unknown employee type: $empType");
@@ -1401,7 +1395,7 @@ class EmpRequestDetailScreenState extends State<EmpRequestDetailScreen> {
                 );
               }
             },
-            label: const Text('Track Handyman'),
+            label: Text(mapButtonText),
             style: ElevatedButton.styleFrom(
               backgroundColor: Theme.of(context).colorScheme.primary,
               foregroundColor: Colors.white,

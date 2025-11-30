@@ -159,10 +159,11 @@ class ProviderServiceReqMapScreen extends StatelessWidget {
       return Container(
         padding: const EdgeInsets.symmetric(vertical: 5.0),
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisAlignment: MainAxisAlignment.start,
           children: [
+            const SizedBox(width: 20),
             const Icon(Icons.check_circle, color: Colors.green, size: 30),
-            const SizedBox(width: 10),
+            const SizedBox(width: 20),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -175,7 +176,7 @@ class ProviderServiceReqMapScreen extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  "At customer location",
+                  "at customer location",
                   style: TextStyle(fontSize: 14, color: Colors.green.shade700),
                 ),
               ],

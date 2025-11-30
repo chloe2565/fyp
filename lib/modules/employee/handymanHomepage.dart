@@ -21,7 +21,7 @@ class HandymanHomepageScreenState extends State<HandymanHomepageScreen> {
   // Timetable properties
   DateTime selectedWeekStart = DateTime.now();
   int timetableKey = 0;
-  final List<int> timeSlots = List.generate(24, (i) => i);
+  final List<int> timeSlots = List.generate(18, (i) => i + 7); // 7am-11pm
 
   String? handymanID;
   String? handymanName;

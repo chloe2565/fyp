@@ -51,13 +51,13 @@ class EmpNavigationBarState extends State<EmpNavigationBar> {
     ];
 
     if (empType == 'admin') {
-      items.insert(
-        1,
-        const PopupMenuItem(
-          value: 'empBillPayment',
-          child: Text('Bill and Payment'),
-        ),
-      );
+      // items.insert(
+      //   1,
+      //   const PopupMenuItem(
+      //     value: 'empBillPayment',
+      //     child: Text('Bill and Payment'),
+      //   ),
+      // );
       items.insert(
         1,
         const PopupMenuItem(value: 'empAllService', child: Text('Service')),
@@ -89,18 +89,18 @@ class EmpNavigationBarState extends State<EmpNavigationBar> {
       case 'empAllService':
         Navigator.pushNamed(context, '/empAllService');
         break;
-      case 'empBillPayment':
-        Navigator.pushNamed(context, '/empBillPayment');
-        break;
+      // case 'empBillPayment':
+      //   Navigator.pushNamed(context, '/empBillPayment');
+      //   break;
       case 'empReport':
         Navigator.pushNamed(context, '/empReport');
         break;
       case 'empProfile':
         Navigator.pushNamed(context, '/empProfile');
         break;
-      case 'settings':
-        Navigator.pushNamed(context, '/settings');
-        break;
+      // case 'settings':
+      //   Navigator.pushNamed(context, '/settings');
+      //   break;
     }
   }
 

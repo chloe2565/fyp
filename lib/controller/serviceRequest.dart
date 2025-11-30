@@ -283,6 +283,9 @@ class ServiceRequestController extends ChangeNotifier {
     allHistoryRequests = transformData(await rawHistoryData);
     allServiceNames = allServices.map((s) => s.serviceName).toSet().toList();
 
+    // Load urgency levels for upcoming requests before applying filters
+    await loadUrgencyLevels(allUpcomingRequests);
+
     await applyFiltersAndNotify();
     isLoadingCustomer = false;
   }
@@ -416,18 +419,20 @@ class ServiceRequestController extends ChangeNotifier {
       final FilterOutput output = await compute(performFiltering, input);
 
       filteredPendingRequests = output.filteredPending;
-      if (currentEmployeeType == 'handyman' && currentEmployeeType == 'admin') {
+
+      if (currentEmployeeType == 'handyman' || currentEmployeeType == 'admin') {
         filteredUpcomingRequests = await sortRequestsByUrgencyAndLocation(
           output.filteredUpcoming,
         );
       } else {
-        // Sort newest date first
+        // Sort newest date first for customers
         filteredUpcomingRequests = List.from(output.filteredUpcoming);
         filteredUpcomingRequests.sort(
           (a, b) =>
               b.requestModel.reqDateTime.compareTo(a.requestModel.reqDateTime),
         );
       }
+
       filteredHistoryRequests = output.filteredHistory;
     } catch (e) {
       print("Error during background filtering: $e");
