@@ -1,8 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong.dart' as l;
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
@@ -27,10 +26,10 @@ class ServiceRequestLocationScreen extends StatefulWidget {
 class ServiceRequestLocationScreenState
     extends State<ServiceRequestLocationScreen> {
   final TextEditingController searchController = TextEditingController();
-  final MapController mapController = MapController();
+  GoogleMapController? googleMapController;
 
-  l.LatLng? selectedLocation;
-  final l.LatLng initialCenter = l.LatLng(32.522, -116.98);
+  LatLng? selectedLocation;
+  final LatLng initialCenter = const LatLng(5.4164, 100.3327); // GeorgeTown
 
   // Search results dropdown
   Timer? debounce;
@@ -39,13 +38,13 @@ class ServiceRequestLocationScreenState
   @override
   void dispose() {
     searchController.dispose();
-    mapController.dispose();
+    googleMapController?.dispose();
     debounce?.cancel();
     super.dispose();
   }
 
   // Handles map tap events
-  void onMapTapped(TapPosition tapPosition, l.LatLng location) async {
+  void onMapTapped(LatLng location) async {
     setState(() {
       selectedLocation = location;
       searchResults = []; // Hide search results
@@ -61,7 +60,7 @@ class ServiceRequestLocationScreenState
   }
 
   // Converts coordinates into address
-  Future<String> getAddressFromLatLng(l.LatLng location) async {
+  Future<String> getAddressFromLatLng(LatLng location) async {
     final url = Uri.parse(
       'https://nominatim.openstreetmap.org/reverse?format=json&lat=${location.latitude}&lon=${location.longitude}&zoom=18&addressdetails=1',
     );
@@ -127,9 +126,13 @@ class ServiceRequestLocationScreenState
       Position position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
       );
-      l.LatLng currentLatLng = l.LatLng(position.latitude, position.longitude);
+      LatLng currentLatLng = LatLng(position.latitude, position.longitude);
 
-      mapController.move(currentLatLng, 15.0);
+      // Move to current location
+      googleMapController?.animateCamera(
+        CameraUpdate.newLatLngZoom(currentLatLng, 15.0),
+      );
+
       setState(() {
         selectedLocation = currentLatLng;
         searchResults = []; // Hide search results
@@ -164,9 +167,14 @@ class ServiceRequestLocationScreenState
   // Search for a location using Nominatim API
   Future<void> searchLocation(String query) async {
     if (query.isEmpty) return;
+    final encodedQuery = Uri.encodeComponent(query);
 
     final url = Uri.parse(
-      'https://nominatim.openstreetmap.org/search?q=$query&format=json&limit=1',
+      'https://nominatim.openstreetmap.org/search'
+      '?q=$encodedQuery'
+      '&format=json'
+      '&addressdetails=1'
+      '&limit=10',
     );
 
     try {
@@ -207,10 +215,13 @@ class ServiceRequestLocationScreenState
           final result = results[0];
           final lat = double.parse(result['lat']);
           final lon = double.parse(result['lon']);
-          final newLocation = l.LatLng(lat, lon);
+          final newLocation = LatLng(lat, lon);
 
           // Move map and update marker
-          mapController.move(newLocation, 15.0);
+          googleMapController?.animateCamera(
+            CameraUpdate.newLatLngZoom(newLocation, 15.0),
+          );
+
           setState(() {
             selectedLocation = newLocation;
             searchController.text = result['display_name'];
@@ -229,23 +240,19 @@ class ServiceRequestLocationScreenState
     }
   }
 
-  // Build marker on map
-  List<Marker> buildMarkers() {
+  // Build markers for Google Maps
+  Set<Marker> buildMarkers() {
     if (selectedLocation == null) {
-      return [];
+      return {};
     }
-    return [
+    return {
       Marker(
-        width: 40.0,
-        height: 40.0,
-        point: selectedLocation!,
-        child: Icon(
-          Icons.location_on,
-          color: Theme.of(context).primaryColor,
-          size: 40,
-        ),
+        markerId: const MarkerId('selected_location'),
+        position: selectedLocation!,
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+        infoWindow: const InfoWindow(title: 'Selected Location'),
       ),
-    ];
+    };
   }
 
   // Navigates to the details page
@@ -268,7 +275,7 @@ class ServiceRequestLocationScreenState
     }
 
     final String locationText = searchController.text;
-    final l.LatLng locationCoord = selectedLocation!;
+    final LatLng locationCoord = selectedLocation!;
 
     Navigator.push(
       context,
@@ -299,7 +306,7 @@ class ServiceRequestLocationScreenState
         leading: const BackButton(color: Colors.black),
         title: Text(
           '${widget.serviceName} Service Booking',
-          style: TextStyle(
+          style: const TextStyle(
             color: Colors.black,
             fontWeight: FontWeight.bold,
             fontSize: 20,
@@ -313,8 +320,8 @@ class ServiceRequestLocationScreenState
             children: [
               Padding(
                 padding: const EdgeInsets.symmetric(
-                  vertical: 10.0, // top & bottom
-                  horizontal: 16.0, // left & right
+                  vertical: 10.0,
+                  horizontal: 16.0,
                 ),
                 child: Row(
                   children: [
@@ -377,22 +384,22 @@ class ServiceRequestLocationScreenState
                     vertical: 0,
                     horizontal: 17.0,
                   ),
-                  child: FlutterMap(
-                    mapController: mapController,
-                    options: MapOptions(
-                      initialCenter: initialCenter,
-                      initialZoom: 15.0,
-                      onTap: onMapTapped,
-                    ),
-                    children: [
-                      // Actual map
-                      TileLayer(
-                        urlTemplate:
-                            'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                        userAgentPackageName: 'com.example.fyp',
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12.0),
+                    child: GoogleMap(
+                      onMapCreated: (GoogleMapController controller) {
+                        googleMapController = controller;
+                      },
+                      initialCameraPosition: CameraPosition(
+                        target: initialCenter,
+                        zoom: 15.0,
                       ),
-                      MarkerLayer(markers: buildMarkers()),
-                    ],
+                      onTap: onMapTapped,
+                      markers: buildMarkers(),
+                      myLocationEnabled: true,
+                      myLocationButtonEnabled: false,
+                      mapType: MapType.normal,
+                    ),
                   ),
                 ),
               ),
@@ -431,7 +438,7 @@ class ServiceRequestLocationScreenState
           ),
           if (searchResults.isNotEmpty)
             Positioned(
-              top: 70, 
+              top: 70,
               left: 16.0,
               right: 16.0,
               child: Material(
@@ -457,9 +464,12 @@ class ServiceRequestLocationScreenState
                         onTap: () {
                           final lat = double.parse(result['lat']);
                           final lon = double.parse(result['lon']);
-                          final newLocation = l.LatLng(lat, lon);
+                          final newLocation = LatLng(lat, lon);
 
-                          mapController.move(newLocation, 15.0);
+                          googleMapController?.animateCamera(
+                            CameraUpdate.newLatLngZoom(newLocation, 15.0),
+                          );
+
                           setState(() {
                             selectedLocation = newLocation;
                             searchController.text = result['display_name'];

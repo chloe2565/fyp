@@ -82,17 +82,9 @@ class BillplzCheckoutScreenState extends State<BillplzCheckoutScreen> {
       if (currentUser == null) {
         throw Exception("User not authenticated");
       }
-
-      print("DEBUG: Current user: ${currentUser.uid}");
       await currentUser.getIdToken(true);
 
       final int amountInCents = (widget.billingModel.billAmt * 100).toInt();
-
-      print("DEBUG: Calling createBillplzBill...");
-      print("DEBUG: Amount in cents: $amountInCents");
-      print("DEBUG: Amount in RM: ${widget.billingModel.billAmt}");
-      print("DEBUG: BillingID: ${widget.billingModel.billingID}");
-
       final callable = functions.httpsCallable('createBillplzBill');
       final response = await callable.call<Map<String, dynamic>>({
         'amount': amountInCents,
@@ -105,7 +97,7 @@ class BillplzCheckoutScreenState extends State<BillplzCheckoutScreen> {
       if (mounted) Navigator.pop(context);
 
       final data = response.data;
-      if (data == null || !data.containsKey('url')) {
+      if (!data.containsKey('url')) {
         throw Exception("Failed to create Billplz bill: Invalid response");
       }
 
@@ -195,8 +187,6 @@ class BillplzCheckoutScreenState extends State<BillplzCheckoutScreen> {
       const maxAttempts = 5;
 
       while (attempts < maxAttempts) {
-        print("DEBUG: Verification attempt ${attempts + 1} of $maxAttempts");
-
         final billDoc = await FirebaseFirestore.instance
             .collection('Billing')
             .doc(widget.billingModel.billingID)

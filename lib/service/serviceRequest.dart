@@ -505,7 +505,6 @@ class ServiceRequestService {
     try {
       Map<String, dynamic> updateData = {'reqStatus': newStatus};
 
-      // Add completion timestamp if status is completed
       if (newStatus.toLowerCase() == 'completed') {
         updateData['reqCompleteTime'] = Timestamp.now();
       }
@@ -514,6 +513,159 @@ class ServiceRequestService {
       print('Request $reqID status updated to: $newStatus');
     } catch (e) {
       print('Error updating request status: $e');
+      rethrow;
+    }
+  }
+
+  Future<Map<String, dynamic>> checkRescheduleConflicts({
+    required String reqID,
+    required String handymanID,
+    required String serviceID,
+    required DateTime newScheduledDateTime,
+  }) async {
+    try {
+      // Get service duration
+      final serviceDoc = await db.collection('Service').doc(serviceID).get();
+      if (!serviceDoc.exists) {
+        return {'hasConflict': true, 'message': 'Service not found'};
+      }
+
+      final serviceData = serviceDoc.data()!;
+      final serviceDuration =
+          serviceData['serviceDuration'] as String? ?? '1 hour';
+
+      // Parse duration to get end time
+      final durationHours = _parseDuration(serviceDuration);
+      final newEndDateTime = newScheduledDateTime.add(
+        Duration(
+          hours: durationHours.toInt(),
+          minutes: ((durationHours % 1) * 60).toInt(),
+        ),
+      );
+
+      // Check Handyman Availability (unavailability periods)
+      final availabilityQuery = await db
+          .collection('HandymanAvailability')
+          .where('handymanID', isEqualTo: handymanID)
+          .get();
+
+      for (var doc in availabilityQuery.docs) {
+        final data = doc.data();
+        final unavailStart = (data['availabilityStartDateTime'] as Timestamp)
+            .toDate();
+        final unavailEnd = (data['availabilityEndDateTime'] as Timestamp)
+            .toDate();
+
+        // Check if new schedule overlaps with unavailability period
+        if (!(newEndDateTime.isBefore(unavailStart) ||
+            newScheduledDateTime.isAfter(unavailEnd))) {
+          return {
+            'hasConflict': true,
+            'message': 'Handyman is unavailable during this time period',
+          };
+        }
+      }
+
+      // Check Existing Service Requests for this handyman
+      final requestsQuery = await db
+          .collection('ServiceRequest')
+          .where('handymanID', isEqualTo: handymanID)
+          .where('reqStatus', whereIn: ['pending', 'confirmed', 'departed'])
+          .get();
+
+      for (var doc in requestsQuery.docs) {
+        final data = doc.data();
+        final existingReqID = data['reqID'] as String;
+
+        if (existingReqID == reqID) continue;
+
+        final existingScheduledDateTime =
+            (data['scheduledDateTime'] as Timestamp).toDate();
+        final existingServiceID = data['serviceID'] as String;
+
+        // Get existing service duration
+        final existingServiceDoc = await db
+            .collection('Service')
+            .doc(existingServiceID)
+            .get();
+
+        if (existingServiceDoc.exists) {
+          final existingServiceData = existingServiceDoc.data()!;
+          final existingDuration =
+              existingServiceData['serviceDuration'] as String? ?? '1 hour';
+          final existingDurationHours = _parseDuration(existingDuration);
+          final existingEndDateTime = existingScheduledDateTime.add(
+            Duration(
+              hours: existingDurationHours.toInt(),
+              minutes: ((existingDurationHours % 1) * 60).toInt(),
+            ),
+          );
+
+          // Check if schedules overlap
+          if (!(newEndDateTime.isBefore(existingScheduledDateTime) ||
+              newScheduledDateTime.isAfter(existingEndDateTime))) {
+            return {
+              'hasConflict': true,
+              'message':
+                  'Handyman already has a service request during this time',
+            };
+          }
+        }
+      }
+
+      return {'hasConflict': false, 'message': 'No conflicts found'};
+    } catch (e) {
+      print('Error checking reschedule conflicts: $e');
+      return {
+        'hasConflict': true,
+        'message': 'Error checking availability: ${e.toString()}',
+      };
+    }
+  }
+
+  // Parse service duration string to double hours
+  double _parseDuration(String duration) {
+    if (duration.isEmpty) return 1.0;
+
+    final cleaned = duration
+        .toLowerCase()
+        .replaceAll('hours', '')
+        .replaceAll('hour', '')
+        .replaceAll('h', '')
+        .trim();
+
+    // Handle range format
+    final rangePattern = RegExp(r'(\d+\.?\d*)\s*(?:to|-)\s*(\d+\.?\d*)');
+    final rangeMatch = rangePattern.firstMatch(cleaned);
+
+    if (rangeMatch != null) {
+      final max = double.parse(rangeMatch.group(2)!);
+      return max;
+    }
+
+    // Handle single number
+    final singlePattern = RegExp(r'(\d+\.?\d*)');
+    final singleMatch = singlePattern.firstMatch(cleaned);
+
+    if (singleMatch != null) {
+      return double.parse(singleMatch.group(1)!);
+    }
+
+    return 1.0;
+  }
+
+  // Update the scheduled datetime of a service request
+  Future<void> updateScheduledDateTime({
+    required String reqID,
+    required DateTime newScheduledDateTime,
+  }) async {
+    try {
+      await db.collection('ServiceRequest').doc(reqID).update({
+        'scheduledDateTime': Timestamp.fromDate(newScheduledDateTime),
+      });
+      print('Request $reqID rescheduled to: $newScheduledDateTime');
+    } catch (e) {
+      print('Error updating scheduled date/time: $e');
       rethrow;
     }
   }

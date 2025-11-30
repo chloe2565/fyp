@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
@@ -40,6 +41,8 @@ class EmployeeController extends ChangeNotifier {
   // NEW: Timetable properties
   List<Map<String, dynamic>> handymanServiceRequests = [];
   bool isLoadingTimetable = false;
+  StreamSubscription? availabilitySubscription;
+  StreamSubscription? requestsSubscription;
 
   Future<void> loadPageData(UserController userController) async {
     isLoadingRole = true;
@@ -335,28 +338,47 @@ class EmployeeController extends ChangeNotifier {
     notifyListeners();
   }
 
-  // NEW: Load both availability and service requests for timetable view
+  // Load availability and service requests for timetable view
   Future<void> loadHandymanTimetableData(String handymanID) async {
+    await availabilitySubscription?.cancel();
+    await requestsSubscription?.cancel();
+
     isLoadingTimetable = true;
     notifyListeners();
-    print('handymanID in controller file is $handymanID');
 
     try {
-      // Load all availability records (no date filtering)
-      handymanAvailabilities = await empService.getAllHandymanAvailability(
-        handymanID,
-      );
+      availabilitySubscription = empService
+          .streamAllHandymanAvailability(handymanID)
+          .listen(
+            (data) {
+              handymanAvailabilities = data;
+              notifyListeners();
+            },
+            onError: (e) {
+              print('Error: Availability stream error: $e');
+            },
+          );
 
-      // Load all service requests (confirmed, departed, completed)
-      handymanServiceRequests = await empService.getHandymanServiceRequests(
-        handymanID,
-      );
+      requestsSubscription = empService
+          .streamHandymanServiceRequests(handymanID)
+          .listen(
+            (data) {
+              handymanServiceRequests = data;
+              isLoadingTimetable = false;
+
+              notifyListeners();
+            },
+            onError: (e) {
+              print('Error: Request stream error: $e');
+              isLoadingTimetable = false;
+              notifyListeners();
+            },
+          );
     } catch (e) {
-      print('Error loading handyman timetable data: $e');
+      print('Error: General controller error: $e');
+      isLoadingTimetable = false;
+      notifyListeners();
     }
-
-    isLoadingTimetable = false;
-    notifyListeners();
   }
 
   List<HandymanAvailabilityModel> getUnavailabilitiesForDate(DateTime date) {
@@ -369,22 +391,26 @@ class EmployeeController extends ChangeNotifier {
     }).toList();
   }
 
-  // NEW: Get service requests for a specific date
   List<Map<String, dynamic>> getServiceRequestsForDate(DateTime date) {
     final startOfDay = DateTime(date.year, date.month, date.day);
     final endOfDay = startOfDay.add(const Duration(days: 1));
-
-    return handymanServiceRequests.where((data) {
+    final results = handymanServiceRequests.where((data) {
       final request = data['request'] as ServiceRequestModel;
       final scheduledDate = request.scheduledDateTime;
-      return scheduledDate.isAfter(
+
+      final isMatch =
+          scheduledDate.isAfter(
             startOfDay.subtract(const Duration(seconds: 1)),
           ) &&
           scheduledDate.isBefore(endOfDay);
+
+      return isMatch;
     }).toList();
+
+    return results;
   }
 
-  // NEW: Parse service duration string to hours
+  // Parse service duration string to hours
   double parseServiceDuration(String duration) {
     if (duration.isEmpty) return 1.0;
 
@@ -395,7 +421,7 @@ class EmployeeController extends ChangeNotifier {
         .replaceAll('h', '')
         .trim();
 
-    // Handle range format like "2 to 3" or "2-3"
+    // Handle range number
     final rangePattern = RegExp(r'(\d+\.?\d*)\s*(?:to|-)\s*(\d+\.?\d*)');
     final rangeMatch = rangePattern.firstMatch(cleaned);
 
@@ -441,7 +467,7 @@ class EmployeeController extends ChangeNotifier {
     }
   }
 
-  // Helper method to get handymanID from empID
+  // Get handymanID from empID
   Future<String?> getHandymanIDByEmpID(String empID) async {
     try {
       final handyman = await empService.getHandymanByEmpID(empID);
@@ -450,5 +476,12 @@ class EmployeeController extends ChangeNotifier {
       print('Error getting handymanID: $e');
       return null;
     }
+  }
+
+  @override
+  void dispose() {
+    availabilitySubscription?.cancel();
+    requestsSubscription?.cancel();
+    super.dispose();
   }
 }

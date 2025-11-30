@@ -8,8 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
-import 'package:latlong2/latlong.dart' as l;
-import 'package:latlong2/latlong.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:osm_nominatim/osm_nominatim.dart';
 import '../model/filterViewModel.dart';
 import '../service/bill.dart';
@@ -186,6 +185,14 @@ class ServiceRequestController extends ChangeNotifier {
   Map<String, String> selectedStatuses = {};
   DateTime? startDate;
   DateTime? endDate;
+
+  String? _currentRescheduleReqID;
+  String? _currentHandymanID;
+  String? _currentServiceID;
+
+  String? get currentRescheduleReqID => _currentRescheduleReqID;
+  String? get currentHandymanID => _currentHandymanID;
+  String? get currentServiceID => _currentServiceID;
 
   Timer? searchDebounce;
 
@@ -409,9 +416,18 @@ class ServiceRequestController extends ChangeNotifier {
       final FilterOutput output = await compute(performFiltering, input);
 
       filteredPendingRequests = output.filteredPending;
-      filteredUpcomingRequests = await sortRequestsByUrgencyAndLocation(
-        output.filteredUpcoming,
-      );
+      if (currentEmployeeType == 'handyman' && currentEmployeeType == 'admin') {
+        filteredUpcomingRequests = await sortRequestsByUrgencyAndLocation(
+          output.filteredUpcoming,
+        );
+      } else {
+        // Sort newest date first
+        filteredUpcomingRequests = List.from(output.filteredUpcoming);
+        filteredUpcomingRequests.sort(
+          (a, b) =>
+              b.requestModel.reqDateTime.compareTo(a.requestModel.reqDateTime),
+        );
+      }
       filteredHistoryRequests = output.filteredHistory;
     } catch (e) {
       print("Error during background filtering: $e");
@@ -447,7 +463,7 @@ class ServiceRequestController extends ChangeNotifier {
 
   Future<String?> addNewRequestWithAsyncMatching({
     required String locationAddress,
-    required l.LatLng locationCoordinates,
+    required LatLng locationCoordinates,
     required DateTime scheduledDateTime,
     required String description,
     required String serviceID,
@@ -508,7 +524,7 @@ class ServiceRequestController extends ChangeNotifier {
   // Manual matching
   Future<String?> addNewRequestWithManualMatching({
     required String locationAddress,
-    required l.LatLng locationCoordinates,
+    required LatLng locationCoordinates,
     required DateTime scheduledDateTime,
     required String description,
     required String serviceID,
@@ -587,7 +603,7 @@ class ServiceRequestController extends ChangeNotifier {
     required String reqID,
     required String serviceID,
     required DateTime scheduledDateTime,
-    required l.LatLng locationCoordinates,
+    required LatLng locationCoordinates,
     required String customerID,
   }) async {
     try {
@@ -858,7 +874,382 @@ class ServiceRequestController extends ChangeNotifier {
   }
 
   Future<void> rescheduleRequest(String reqID) async {
-    await serviceRequest.rescheduleRequest(reqID);
+    try {
+      final requestViewModel = getRequestById(reqID);
+      if (requestViewModel == null) {
+        throw Exception('Service request not found');
+      }
+
+      final request = requestViewModel.requestModel;
+
+      // Check if reschedule is allowed (2+ days before scheduled date)
+      final now = DateTime.now();
+      final scheduledDate = request.scheduledDateTime;
+      final today = DateUtils.dateOnly(now);
+      final scheduleDay = DateUtils.dateOnly(scheduledDate);
+      final daysUntilScheduled = scheduleDay.difference(today).inDays;
+
+      if (daysUntilScheduled < 2) {
+        throw Exception(
+          'Rescheduling is only allowed 2 or more days before the scheduled date',
+        );
+      }
+
+      if (request.handymanID == null || request.handymanID!.isEmpty) {
+        throw Exception('No handyman assigned to this request');
+      }
+
+      _currentRescheduleReqID = reqID;
+      _currentHandymanID = request.handymanID!;
+      _currentServiceID = request.serviceID;
+
+      notifyListeners();
+    } catch (e) {
+      print('Error in rescheduleRequest controller: $e');
+      rethrow;
+    }
+  }
+
+  void clearRescheduleData() {
+    _currentRescheduleReqID = null;
+    _currentHandymanID = null;
+    _currentServiceID = null;
+    notifyListeners();
+  }
+
+  Future<void> confirmReschedule(DateTime newScheduledDateTime) async {
+    if (_currentRescheduleReqID == null ||
+        _currentHandymanID == null ||
+        _currentServiceID == null) {
+      throw Exception('Reschedule data not initialized');
+    }
+
+    // Check for conflicts
+    final conflictCheck = await serviceRequest.checkRescheduleConflicts(
+      reqID: _currentRescheduleReqID!,
+      handymanID: _currentHandymanID!,
+      serviceID: _currentServiceID!,
+      newScheduledDateTime: newScheduledDateTime,
+    );
+
+    if (conflictCheck['hasConflict'] == true) {
+      throw Exception(conflictCheck['message'] ?? 'Scheduling conflict');
+    }
+
+    // Update the scheduled date/time
+    await serviceRequest.updateScheduledDateTime(
+      reqID: _currentRescheduleReqID!,
+      newScheduledDateTime: newScheduledDateTime,
+    );
+
+    // Clear reschedule data
+    clearRescheduleData();
+
+    // Reload requests
+    if (currentCustomerID != null) {
+      await loadRequests();
+    } else if (currentEmployeeID != null) {
+      await loadRequestsForEmployee();
+    }
+  }
+
+  Future<void> confirmRescheduleWithConflictCheck(
+    DateTime newScheduledDateTime,
+  ) async {
+    if (_currentRescheduleReqID == null ||
+        _currentHandymanID == null ||
+        _currentServiceID == null) {
+      throw Exception('Reschedule data not initialized');
+    }
+
+    try {
+      // Get request details for location
+      final reqDoc = await db
+          .collection('ServiceRequest')
+          .doc(_currentRescheduleReqID!)
+          .get();
+
+      if (!reqDoc.exists) {
+        throw Exception('Service request not found');
+      }
+
+      final reqData = reqDoc.data()!;
+      final oldDateTime = (reqData['scheduledDateTime'] as Timestamp).toDate();
+      final reqAddress = reqData['reqAddress'] as String;
+
+      // Check if current handyman has conflicts with new datetime
+      final conflictCheck = await serviceRequest.checkRescheduleConflicts(
+        reqID: _currentRescheduleReqID!,
+        handymanID: _currentHandymanID!,
+        serviceID: _currentServiceID!,
+        newScheduledDateTime: newScheduledDateTime,
+      );
+
+      String? assignedHandymanID = _currentHandymanID;
+
+      // If current handyman has conflicts, find a new handyman
+      if (conflictCheck['hasConflict'] == true) {
+        print('Current handyman has conflict, finding new handyman...');
+
+        // Parse location coordinates from address
+        final locationCoords = await _parseLocationFromAddress(reqAddress);
+
+        // Get service duration
+        final serviceDoc = await db
+            .collection('Service')
+            .doc(_currentServiceID!)
+            .get();
+
+        if (!serviceDoc.exists) {
+          throw Exception('Service not found');
+        }
+
+        final serviceData = serviceDoc.data()!;
+        final serviceDuration = serviceData['serviceDuration'] ?? '3 hours';
+        final durationHours = parseDuration(serviceDuration.toString());
+
+        // Find best matching handyman for the new datetime
+        final bestMatch = await matchingService.findBestHandyman(
+          serviceID: _currentServiceID!,
+          scheduledDateTime: newScheduledDateTime,
+          customerLocation: {
+            'latitude': locationCoords['latitude']!,
+            'longitude': locationCoords['longitude']!,
+          },
+          serviceDurationHours: durationHours,
+        );
+
+        if (bestMatch == null) {
+          throw Exception(
+            'No available handyman found for the selected date and time. Please try a different time slot.',
+          );
+        }
+
+        assignedHandymanID = bestMatch['handyman_id'] as String;
+        print('New handyman assigned: $assignedHandymanID');
+      }
+
+      // Update the scheduled datetime and handyman (if changed)
+      final Map<String, dynamic> updateData = {
+        'scheduledDateTime': Timestamp.fromDate(newScheduledDateTime),
+      };
+
+      // Only update handymanID if it changed
+      if (assignedHandymanID != _currentHandymanID) {
+        updateData['handymanID'] = assignedHandymanID;
+      }
+
+      await db
+          .collection('ServiceRequest')
+          .doc(_currentRescheduleReqID!)
+          .update(updateData);
+
+      print(
+        'Request ${_currentRescheduleReqID!} rescheduled to: $newScheduledDateTime',
+      );
+      if (assignedHandymanID != _currentHandymanID) {
+        print(
+          'Handyman changed from $_currentHandymanID to $assignedHandymanID',
+        );
+      }
+
+      // Send notifications
+      await _sendRescheduleNotifications(
+        reqID: _currentRescheduleReqID!,
+        newDateTime: newScheduledDateTime,
+        oldDateTime: oldDateTime,
+        oldHandymanID: _currentHandymanID!,
+        newHandymanID: assignedHandymanID!,
+      );
+
+      // Clear reschedule data
+      clearRescheduleData();
+
+      // Reload requests
+      if (currentCustomerID != null) {
+        await loadRequests();
+      } else if (currentEmployeeID != null) {
+        await loadRequestsForEmployee();
+      }
+    } catch (e) {
+      print('Error in confirmRescheduleWithConflictCheck: $e');
+      rethrow;
+    }
+  }
+
+  // Parse location coordinates from address string or geocode it
+  Future<Map<String, double>> _parseLocationFromAddress(String address) async {
+    try {
+      final parts = address.split(',');
+      if (parts.length >= 2) {
+        final lat = double.tryParse(parts[0].trim());
+        final lon = double.tryParse(parts[1].trim());
+        if (lat != null &&
+            lon != null &&
+            lat >= -90 &&
+            lat <= 90 &&
+            lon >= -180 &&
+            lon <= 180) {
+          return {'latitude': lat, 'longitude': lon};
+        }
+      }
+
+      final coords = await geocodeAddress(address);
+      if (coords != null) {
+        return {'latitude': coords['lat']!, 'longitude': coords['lon']!};
+      }
+
+      throw Exception('Could not parse location from address');
+    } catch (e) {
+      print('Error parsing location: $e');
+      rethrow;
+    }
+  }
+
+  // Send notifications for reschedule
+  Future<void> _sendRescheduleNotifications({
+    required String reqID,
+    required DateTime newDateTime,
+    required DateTime oldDateTime,
+    required String oldHandymanID,
+    required String newHandymanID,
+  }) async {
+    try {
+      final fcmService = FCMService();
+
+      // Get request details
+      final reqDoc = await db.collection('ServiceRequest').doc(reqID).get();
+      if (!reqDoc.exists) return;
+
+      final reqData = reqDoc.data()!;
+      final custID = reqData['custID'] as String?;
+      final serviceID = reqData['serviceID'] as String;
+
+      // Get service name
+      final serviceDoc = await db.collection('Service').doc(serviceID).get();
+      final serviceName = serviceDoc.exists
+          ? (serviceDoc.data()?['serviceName'] ?? 'service')
+          : 'service';
+
+      final formattedNewTime = Formatter.formatDateTime(newDateTime);
+      final formattedOldTime = Formatter.formatDateTime(oldDateTime);
+      final String custMsgStandard =
+          'Your service request $serviceName has been rescheduled from $formattedOldTime to $formattedNewTime with a different handyman.';
+      final String custMsgHandymanChanged =
+          'Your service request $serviceName has been rescheduled from $formattedOldTime to $formattedNewTime.';
+      final String baseMessage =
+          'Service request $serviceName has been rescheduled from $formattedOldTime to $formattedNewTime.';
+      final handymanChanged = oldHandymanID != newHandymanID;
+
+      // Notify Customer
+      if (custID != null) {
+        final customerQuery = await db
+            .collection('Customer')
+            .where('custID', isEqualTo: custID)
+            .limit(1)
+            .get();
+        if (customerQuery.docs.isNotEmpty) {
+          final customerUserID = customerQuery.docs.first
+              .data()['userID']
+              ?.toString();
+          if (customerUserID != null) {
+            final String bodyToSend = handymanChanged
+                ? custMsgHandymanChanged
+                : custMsgStandard;
+
+            await fcmService.sendNotificationToUser(
+              userID: customerUserID,
+              title: 'Service Request Rescheduled',
+              body: bodyToSend,
+              data: {'type': 'service_request_rescheduled', 'reqID': reqID},
+            );
+          }
+        }
+      }
+
+      // Notify Handyman
+      if (handymanChanged) {
+        // Handyman Changed, Notify new Handyman
+        await _notifyHandymanUser(
+          fcmService,
+          newHandymanID,
+          'New Service Assignment',
+          'You have been assigned to $serviceName. $baseMessage',
+          reqID,
+        );
+
+        // Notify old Handyman they were removed
+        await _notifyHandymanUser(
+          fcmService,
+          oldHandymanID,
+          'Service Assignment Update',
+          'You have been removed from Request $reqID due to rescheduling.',
+          reqID,
+        );
+      } else {
+        // Same Handyman, Notify time change
+        await _notifyHandymanUser(
+          fcmService,
+          newHandymanID,
+          'Service Rescheduled',
+          baseMessage,
+          reqID,
+        );
+      }
+
+      // Notify Admins
+      final adminSnapshot = await db
+          .collection('Employee')
+          .where('empType', isEqualTo: 'admin')
+          .where('empStatus', isEqualTo: 'active')
+          .get();
+
+      for (var adminDoc in adminSnapshot.docs) {
+        final adminUserID = adminDoc.data()['userID']?.toString();
+        if (adminUserID != null) {
+          await fcmService.sendNotificationToUser(
+            userID: adminUserID,
+            title: 'Service Request Rescheduled',
+            body: baseMessage,
+            data: {'type': 'service_request_rescheduled', 'reqID': reqID},
+          );
+        }
+      }
+    } catch (e) {
+      print('Error sending reschedule notifications: $e');
+    }
+  }
+
+  // Notifying handyman
+  Future<void> _notifyHandymanUser(
+    FCMService fcm,
+    String handymanID,
+    String title,
+    String body,
+    String reqID,
+  ) async {
+    final handymanDoc = await db.collection('Handyman').doc(handymanID).get();
+    if (handymanDoc.exists) {
+      final empID = handymanDoc.data()?['empID']?.toString();
+      if (empID != null) {
+        final empQuery = await db
+            .collection('Employee')
+            .where('empID', isEqualTo: empID)
+            .limit(1)
+            .get();
+        if (empQuery.docs.isNotEmpty) {
+          final userID = empQuery.docs.first.data()['userID']?.toString();
+          if (userID != null) {
+            await fcm.sendNotificationToUser(
+              userID: userID,
+              title: title,
+              body: body,
+              data: {'type': 'new_service_request', 'reqID': reqID},
+            );
+          }
+        }
+      }
+    }
   }
 
   Future<void> updateRequestStatus(String reqID, String newStatus) async {

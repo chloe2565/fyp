@@ -33,8 +33,8 @@ class CustNavigationBarState extends State<CustNavigationBar> {
         offset.dy,
       ),
       items: const [
-        PopupMenuItem(value: 'billPayment', child: Text('Bill and Payment')),
-        PopupMenuItem(value: 'profile', child: Text('Profile')),
+        // PopupMenuItem(value: 'billPayment', child: Text('Bill and Payment')),
+        // PopupMenuItem(value: 'profile', child: Text('Profile')),
         // PopupMenuItem(value: 'settings', child: Text('Settings')),
       ],
     );
@@ -42,15 +42,15 @@ class CustNavigationBarState extends State<CustNavigationBar> {
     if (value == null) return;
 
     switch (value) {
-      case 'profile':
-        Navigator.pushNamed(context, '/profile');
-        break;
-      case 'settings':
-        Navigator.pushNamed(context, '/settings');
-        break;
-      case 'billPayment':
-        Navigator.pushNamed(context, '/billPayment');
-        break;
+      // case 'profile':
+      //   Navigator.pushNamed(context, '/profile');
+      //   break;
+      // case 'settings':
+      //   Navigator.pushNamed(context, '/settings');
+      //   break;
+      // case 'billPayment':
+      //   Navigator.pushNamed(context, '/billPayment');
+      //   break;
     }
   }
 
@@ -82,26 +82,30 @@ class CustNavigationBarState extends State<CustNavigationBar> {
           icon: Icon(Icons.description_outlined),
           label: 'Request',
         ),
-        const BottomNavigationBarItem(
-          icon: Icon(Icons.bookmark_border),
-          label: 'Favorite',
-        ),
+        // const BottomNavigationBarItem(
+        //   icon: Icon(Icons.bookmark_border),
+        //   label: 'Favorite',
+        // ),
         const BottomNavigationBarItem(
           icon: Icon(Icons.thumb_up_alt_outlined),
           label: 'Rating',
         ),
-        BottomNavigationBarItem(
-          icon: Builder(
-            builder: (context) {
-              return SizedBox(
-                key: itemKeys[4],
-                height: 25,
-                child: const Icon(Icons.more_horiz),
-              );
-            },
-          ),
-          label: 'More',
+        const BottomNavigationBarItem(
+          icon: Icon(Icons.people_outline_rounded),
+          label: 'Profile',
         ),
+        // BottomNavigationBarItem(
+        //   icon: Builder(
+        //     builder: (context) {
+        //       return SizedBox(
+        //         key: itemKeys[4],
+        //         height: 25,
+        //         child: const Icon(Icons.more_horiz),
+        //       );
+        //     },
+        //   ),
+        //   label: 'More',
+        // ),
       ],
     );
   }

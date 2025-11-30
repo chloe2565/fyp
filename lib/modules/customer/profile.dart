@@ -3,6 +3,7 @@ import 'package:fyp/modules/customer/editProfile.dart';
 import 'package:fyp/service/image_service.dart';
 import '../../controller/user.dart';
 import '../../model/databaseModel.dart';
+import '../../shared/custNavigatorBase.dart';
 import '../../shared/helper.dart';
 import '../../login.dart';
 
@@ -14,6 +15,7 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class ProfileScreenState extends State<ProfileScreen> {
+  int currentIndex = 3;
   UserModel? userModel;
   bool isLoading = true;
   String? errorMessage;
@@ -32,6 +34,38 @@ class ProfileScreenState extends State<ProfileScreen> {
     );
 
     fetchUserData();
+  }
+
+  void onNavBarTap(int index) async {
+    if (index == currentIndex) {
+      return;
+    }
+
+    String? routeToPush;
+
+    switch (index) {
+      case 0:
+        routeToPush = '/custHome';
+        break;
+      case 1:
+        routeToPush = '/request';
+        break;
+      case 2:
+        routeToPush = '/rating';
+        break;
+      case 3:
+        break;
+    }
+
+    if (routeToPush != null) {
+      await Navigator.pushNamed(context, routeToPush);
+
+      if (mounted) {
+        setState(() {
+          currentIndex = 1;
+        });
+      }
+    }
   }
 
   Future<void> fetchUserData() async {
@@ -96,7 +130,8 @@ class ProfileScreenState extends State<ProfileScreen> {
                     Center(
                       child: CircleAvatar(
                         radius: 55,
-                        backgroundImage: userModel!.userPicName.getImageProvider(),
+                        backgroundImage: userModel!.userPicName
+                            .getImageProvider(),
                       ),
                     ),
                     const SizedBox(height: 50),
@@ -290,6 +325,10 @@ class ProfileScreenState extends State<ProfileScreen> {
                 ),
               ),
             ),
+      bottomNavigationBar: CustNavigationBar(
+        currentIndex: currentIndex,
+        onTap: onNavBarTap,
+      ),
     );
   }
 }

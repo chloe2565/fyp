@@ -18,7 +18,7 @@ class RateReviewHistoryScreen extends StatefulWidget {
 }
 
 class RateReviewHistoryScreenState extends State<RateReviewHistoryScreen> {
-  int currentIndex = 3;
+  int currentIndex = 2;
   bool isInitialized = false;
   late RatingReviewController ratingReviewController;
   final TextEditingController searchController = TextEditingController();
@@ -146,11 +146,10 @@ class RateReviewHistoryScreenState extends State<RateReviewHistoryScreen> {
         routeToPush = '/request';
         break;
       case 2:
-        routeToPush = '/favorite';
         break;
       case 3:
+        routeToPush = '/profile';
         break;
-      // More menu (index 4) is handled in the navigation bar itself
     }
 
     if (routeToPush != null) {

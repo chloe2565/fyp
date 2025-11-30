@@ -6,7 +6,6 @@ import 'package:fyp/modules/employee/homepage.dart';
 import 'package:fyp/modules/employee/serviceReq.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'modules/customer/favoriteHandyman.dart';
 import 'modules/customer/profile.dart';
 import 'modules/customer/rateReviewHistory.dart';
 import 'modules/customer/reqHistory.dart';
@@ -52,7 +51,7 @@ class MyApp extends StatelessWidget {
         '/custHome': (context) => const CustHomepage(),
         '/profile': (context) => const ProfileScreen(),
         '/request': (context) => const RequestHistoryScreen(),
-        '/favorite': (context) => const FavoriteScreen(),
+        // '/favorite': (context) => const FavoriteScreen(),
         '/rating': (context) => const RateReviewHistoryScreen(),
         '/billPayment': (context) => const BillPaymentHistoryScreen(),
         '/empHome': (context) => const EmpHomepage(),

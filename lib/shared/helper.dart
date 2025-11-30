@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:fyp/service/image_service.dart';
 import 'package:intl/intl.dart';
 import '../controller/ratingReview.dart';
+import '../controller/serviceRequest.dart';
 import '../model/databaseModel.dart';
 import '../model/reviewDisplayViewModel.dart';
 
@@ -1463,7 +1464,10 @@ class ErrorDialog extends StatelessWidget {
                   ),
                   padding: const EdgeInsets.symmetric(vertical: 14),
                 ),
-                onPressed: onPressed ?? () => Navigator.of(context).pop(),
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  if (onPressed != null) onPressed!();
+                },
                 child: Text(
                   buttonText,
                   style: const TextStyle(fontSize: 16, color: Colors.white),
@@ -1593,7 +1597,10 @@ class SuccessDialog extends StatelessWidget {
                       ),
                       padding: const EdgeInsets.symmetric(vertical: 14),
                     ),
-                    onPressed: onPrimary ?? () => Navigator.of(context).pop(),
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                      if (onPrimary != null) onPrimary!();
+                    },
                     child: Text(
                       primaryButtonText,
                       style: const TextStyle(fontSize: 16, color: Colors.white),
@@ -1802,7 +1809,10 @@ class ConfirmDialog extends StatelessWidget {
                       ),
                       padding: const EdgeInsets.symmetric(vertical: 14),
                     ),
-                    onPressed: onNegative ?? () => Navigator.of(context).pop(),
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                      onAffirmative();
+                    },
                     child: Text(
                       negativeText,
                       style: const TextStyle(fontSize: 16, color: Colors.white),
@@ -2273,9 +2283,26 @@ void showCancelRequestDialog(
     builder: (BuildContext dialogContext) {
       return AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text(
-          'Cancel Service Request',
-          style: TextStyle(fontWeight: FontWeight.bold),
+        title: Stack(
+          children: [
+            const Center(
+              child: Text(
+                'Cancel Service Request',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black,
+                ),
+              ),
+            ),
+            Positioned(
+              right: 0,
+              top: 0,
+              child: GestureDetector(
+                onTap: () => Navigator.of(dialogContext).pop(),
+                child: const Icon(Icons.close, size: 22, color: Colors.black),
+              ),
+            ),
+          ],
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -2306,71 +2333,71 @@ void showCancelRequestDialog(
           ],
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Back'),
-          ),
           ElevatedButton(
-            onPressed: () {
-              final reason = reasonController.text.trim();
-              if (reason.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Please enter a cancellation reason'),
-                    backgroundColor: Colors.red,
-                    duration: Duration(seconds: 2),
-                  ),
-                );
-                return;
-              }
-              Navigator.of(dialogContext).pop();
+            onPressed: reasonController.text.trim().isEmpty
+                ? null
+                : () async {
+                    final reason = reasonController.text.trim();
+                    if (reason.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Please enter a cancellation reason'),
+                          backgroundColor: Colors.red,
+                          duration: Duration(seconds: 2),
+                        ),
+                      );
+                      return;
+                    }
+                    Navigator.of(dialogContext).pop();
 
-              showConfirmDialog(
-                context,
-                title: 'Confirm Cancellation',
-                message:
-                    'Are you sure you want to cancel this service request? This action cannot be undone.',
-                affirmativeText: 'Confirm Cancel',
-                negativeText: 'Back',
-                onAffirmative: () async {
-                  // Show loading dialog
-                  showLoadingDialog(context, 'Cancelling service request...');
+                    showConfirmDialog(
+                      context,
+                      title: 'Confirm Cancellation',
+                      message:
+                          'Are you sure you want to cancel this service request? This action cannot be undone.',
+                      affirmativeText: 'Confirm Cancel',
+                      negativeText: 'Back',
+                      onAffirmative: () async {
+                        showLoadingDialog(
+                          context,
+                          'Cancelling service request...',
+                        );
 
-                  try {
-                    await onConfirmCancel(reqID, reason);
+                        try {
+                          await onConfirmCancel(reqID, reason);
 
-                    if (context.mounted) {
-                      Navigator.of(context).pop(); // Close loading dialog
+                          if (context.mounted) {
+                            Navigator.of(context).pop(); // Close loading dialog
 
-                      showSuccessDialog(
-                        context,
-                        title: 'Request Cancelled',
-                        message:
-                            'Your service request has been cancelled successfully',
-                        primaryButtonText: 'OK',
-                        onPrimary: () {
-                          Navigator.of(context).pop(); // Close success dialog
-                          if (onSuccess != null) {
-                            onSuccess();
+                            showSuccessDialog(
+                              context,
+                              title: 'Request Cancelled',
+                              message:
+                                  'Your service request has been cancelled successfully',
+                              primaryButtonText: 'OK',
+                              onPrimary: () {
+                                Navigator.of(
+                                  context,
+                                ).pop(); // Close success dialog
+                                onSuccess?.call();
+                              },
+                            );
                           }
-                        },
-                      );
-                    }
-                  } catch (e) {
-                    if (context.mounted) {
-                      Navigator.of(context).pop(); // Close loading dialog
+                        } catch (e) {
+                          if (context.mounted) {
+                            Navigator.of(context).pop(); // Close loading dialog
 
-                      showErrorDialog(
-                        context,
-                        title: 'Cancellation Failed',
-                        message: 'Failed to cancel request: $e',
-                        buttonText: 'OK',
-                      );
-                    }
-                  }
-                },
-              );
-            },
+                            showErrorDialog(
+                              context,
+                              title: 'Cancellation Failed',
+                              message: 'Failed to cancel request: $e',
+                              buttonText: 'OK',
+                            );
+                          }
+                        }
+                      },
+                    );
+                  },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red,
               foregroundColor: Colors.white,
@@ -2413,5 +2440,292 @@ IconData getReportIcon(String type) {
       return Icons.build;
     default:
       return Icons.description;
+  }
+}
+
+// Allow rescheduling if is 2+ days before the scheduled date
+Future<void> showRescheduleDialog(
+  BuildContext context, {
+  required ServiceRequestController controller,
+  required String reqID,
+  required VoidCallback onSuccess,
+}) async {
+  try {
+    await controller.rescheduleRequest(reqID);
+    if (!context.mounted) return;
+
+    // Show the datetime picker dialog
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext dialogContext) =>
+          RescheduleDialog(controller: controller, onSuccess: onSuccess),
+    );
+  } catch (e) {
+    if (!context.mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
+    );
+  }
+}
+
+class RescheduleDialog extends StatefulWidget {
+  final ServiceRequestController controller;
+  final VoidCallback onSuccess;
+
+  const RescheduleDialog({required this.controller, required this.onSuccess});
+
+  @override
+  State<RescheduleDialog> createState() => RescheduleDialogState();
+}
+
+class RescheduleDialogState extends State<RescheduleDialog> {
+  DateTime? selectedDate;
+  TimeOfDay? selectedTime;
+  bool isLoading = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: Stack(
+        children: [
+          const Center(
+            child: Text(
+              'Reschedule Service Request',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.black,
+              ),
+            ),
+          ),
+          Positioned(
+            right: 0,
+            top: 0,
+            child: GestureDetector(
+              onTap: () {
+                widget.controller.clearRescheduleData();
+                Navigator.of(context).pop();
+              },
+              child: const Icon(Icons.close, size: 22, color: Colors.black),
+            ),
+          ),
+        ],
+      ),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Please select a new date and time for your service request.',
+              style: TextStyle(fontSize: 14),
+            ),
+            const SizedBox(height: 16),
+
+            // Date Selection
+            OutlinedButton.icon(
+              onPressed: isLoading ? null : selectDate,
+              icon: const Icon(Icons.calendar_today),
+              label: Text(
+                selectedDate == null
+                    ? 'Select Date'
+                    : DateFormat('MMMM dd, yyyy').format(selectedDate!),
+              ),
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size(double.infinity, 48),
+              ),
+            ),
+
+            const SizedBox(height: 12),
+
+            // Time Selection
+            OutlinedButton.icon(
+              onPressed: isLoading || selectedDate == null ? null : selectTime,
+              icon: const Icon(Icons.access_time),
+              label: Text(
+                selectedTime == null
+                    ? 'Select Time'
+                    : selectedTime!.format(context),
+              ),
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size(double.infinity, 48),
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            // Warning message
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.orange.shade200),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.info_outline,
+                    color: Colors.orange.shade700,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'The new date must be at least 2 days from today. We will check availability and may assign a different handyman if needed.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.orange.shade900,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        ElevatedButton(
+          onPressed: isLoading || selectedDate == null || selectedTime == null
+              ? null
+              : confirmReschedule,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Theme.of(context).primaryColor,
+            foregroundColor: Colors.white,
+          ),
+          child: isLoading
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                )
+              : const Text('Confirm'),
+        ),
+      ],
+    );
+  }
+
+  Future<void> selectDate() async {
+    final now = DateTime.now();
+    // Minimum date is 2 days from today
+    final minDate = now.add(const Duration(days: 2));
+    // Maximum date is 3 months from today
+    final maxDate = now.add(const Duration(days: 90));
+
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: minDate,
+      firstDate: minDate,
+      lastDate: maxDate,
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: ColorScheme.light(
+              primary: Theme.of(context).primaryColor,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null) {
+      setState(() {
+        selectedDate = picked;
+        // Reset time when date changes
+        selectedTime = null;
+      });
+    }
+  }
+
+  Future<void> selectTime() async {
+    final TimeOfDay? picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.now(),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: ColorScheme.light(
+              primary: Theme.of(context).primaryColor,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null) {
+      setState(() {
+        selectedTime = picked;
+      });
+    }
+  }
+
+  Future<void> confirmReschedule() async {
+    if (selectedDate == null || selectedTime == null) return;
+
+    // Combine date and time
+    final newScheduledDateTime = DateTime(
+      selectedDate!.year,
+      selectedDate!.month,
+      selectedDate!.day,
+      selectedTime!.hour,
+      selectedTime!.minute,
+    );
+
+    // Validate that the date/time is at least 2 days from now
+    final now = DateTime.now();
+    final today = DateUtils.dateOnly(now);
+    final scheduleDay = DateUtils.dateOnly(newScheduledDateTime);
+    final daysUntilScheduled = scheduleDay.difference(today).inDays;
+
+    if (daysUntilScheduled < 2) {
+      showErrorDialog(
+        context,
+        title: 'Invalid Date',
+        message: 'The new date must be at least 2 days from today.',
+      );
+      return;
+    }
+
+    setState(() {
+      isLoading = true;
+    });
+
+    try {
+      await widget.controller.confirmRescheduleWithConflictCheck(
+        newScheduledDateTime,
+      );
+
+      if (!mounted) return;
+      Navigator.of(context).pop();
+
+      showSuccessDialog(
+        context,
+        title: 'Reschedule Successful',
+        message:
+            'Service request rescheduled to ${DateFormat('MMM dd, yyyy hh:mm a').format(newScheduledDateTime)}',
+        primaryButtonText: 'OK',
+        onPrimary: widget.onSuccess,
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        isLoading = false;
+      });
+
+      showErrorDialog(
+        context,
+        title: 'Reschedule Failed',
+        message: e.toString(),
+      );
+    }
   }
 }

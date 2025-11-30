@@ -519,7 +519,7 @@ class EmployeeService {
     }
   }
 
-  // Get handyman availability for a date range (OLD METHOD - kept for backward compatibility)
+  // Get handyman availability for a date range (for fallback)
   Future<List<HandymanAvailabilityModel>> getHandymanAvailability(
     String handymanID,
     DateTime startDate,
@@ -551,12 +551,11 @@ class EmployeeService {
     }
   }
 
-  // FIXED: Get ALL handyman availability records (no composite index needed)
+  // Get all handyman availability records
   Future<List<HandymanAvailabilityModel>> getAllHandymanAvailability(
     String handymanID,
   ) async {
     try {
-      // Simple query - only filter by handymanID, sort in Dart
       final snap = await db
           .collection('HandymanAvailability')
           .where('handymanID', isEqualTo: handymanID)
@@ -567,15 +566,10 @@ class EmployeeService {
         return [];
       }
 
-      print(
-        'Found ${snap.docs.length} availability records for handyman: $handymanID',
-      );
-
       final results = snap.docs
           .map((doc) => HandymanAvailabilityModel.fromMap(doc.data()))
           .toList();
 
-      // Sort in Dart instead of Firestore to avoid composite index requirement
       results.sort(
         (a, b) =>
             a.availabilityStartDateTime.compareTo(b.availabilityStartDateTime),
@@ -588,11 +582,85 @@ class EmployeeService {
     }
   }
 
+  Stream<List<HandymanAvailabilityModel>> streamAllHandymanAvailability(
+    String handymanID,
+  ) {
+    return db
+        .collection('HandymanAvailability')
+        .where('handymanID', isEqualTo: handymanID)
+        .snapshots()
+        .map((snap) {
+          final results = snap.docs
+              .map((doc) => HandymanAvailabilityModel.fromMap(doc.data()))
+              .toList();
+
+          results.sort(
+            (a, b) => a.availabilityStartDateTime.compareTo(
+              b.availabilityStartDateTime,
+            ),
+          );
+
+          return results;
+        });
+  }
+
+  Stream<List<Map<String, dynamic>>> streamHandymanServiceRequests(
+    String handymanID,
+  ) {
+    return db
+        .collection('ServiceRequest')
+        .where('handymanID', isEqualTo: handymanID)
+        .snapshots()
+        .asyncMap((snap) async {
+          List<Map<String, dynamic>> result = [];
+
+          for (var doc in snap.docs) {
+            final reqData = ServiceRequestModel.fromMap(doc.data());
+            final status = reqData.reqStatus.toLowerCase();
+
+            // Filter logic
+            if (status != 'confirmed' &&
+                status != 'departed' &&
+                status != 'completed') {
+              continue;
+            }
+
+            // Fetch Service Details
+            String serviceName = 'Unknown Service';
+            String serviceDuration = '1 hour';
+
+            final serviceDoc = await db
+                .collection('Service')
+                .doc(reqData.serviceID)
+                .get();
+
+            if (serviceDoc.exists) {
+              final serviceData = serviceDoc.data();
+              serviceName = serviceData?['serviceName'] ?? 'Unknown Service';
+              serviceDuration = serviceData?['serviceDuration'] ?? '1 hour';
+            }
+
+            result.add({
+              'request': reqData,
+              'serviceName': serviceName,
+              'serviceDuration': serviceDuration,
+            });
+          }
+
+          result.sort((a, b) {
+            final reqA = a['request'] as ServiceRequestModel;
+            final reqB = b['request'] as ServiceRequestModel;
+            return reqA.scheduledDateTime.compareTo(reqB.scheduledDateTime);
+          });
+
+          return result;
+        });
+  }
+
   Future<List<Map<String, dynamic>>> getHandymanServiceRequests(
     String handymanID,
   ) async {
     try {
-      print('handymanID in service file is $handymanID');
       final snap = await db
           .collection('ServiceRequest')
           .where('handymanID', isEqualTo: handymanID)
@@ -639,10 +707,6 @@ class EmployeeService {
           'serviceDuration': serviceDuration,
         });
       }
-
-      print(
-        'Filtered to ${result.length} service requests with status: confirmed/departed/completed',
-      );
 
       result.sort((a, b) {
         final reqA = a['request'] as ServiceRequestModel;

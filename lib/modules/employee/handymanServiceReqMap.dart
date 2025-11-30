@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:provider/provider.dart';
 import '../../controller/handyman.dart';
 
@@ -31,10 +30,14 @@ class HandymanServiceReqMapScreen extends StatelessWidget {
   }
 
   Widget buildMapUI(BuildContext context, HandymanController controller) {
-    final LatLng initialMapCenter =
-        controller.handymanLocation ??
-        controller.userLocation ??
-        const LatLng(5.4164, 100.3327);
+    final LatLng initialMapCenter = LatLng(
+      controller.handymanLocation?.latitude ??
+          controller.userLocation?.latitude ??
+          5.4164,
+      controller.handymanLocation?.longitude ??
+          controller.userLocation?.longitude ??
+          100.3327,
+    );
 
     return Scaffold(
       appBar: AppBar(
@@ -71,58 +74,20 @@ class HandymanServiceReqMapScreen extends StatelessWidget {
       ),
       body: Stack(
         children: [
-          // Map
-          FlutterMap(
-            mapController: controller.mapController,
-            options: MapOptions(
-              initialCenter: initialMapCenter,
-              initialZoom: 15.0,
+          // Google Map
+          GoogleMap(
+            onMapCreated: (GoogleMapController mapController) {
+              controller.setGoogleMapController(mapController);
+            },
+            initialCameraPosition: CameraPosition(
+              target: initialMapCenter,
+              zoom: 15.0,
             ),
-            children: [
-              TileLayer(
-                urlTemplate:
-                    'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-                userAgentPackageName: 'com.example.fyp',
-              ),
-              if (controller.routePoints.isNotEmpty)
-                PolylineLayer(
-                  polylines: [
-                    Polyline(
-                      points: controller.routePoints,
-                      color: Colors.green,
-                      strokeWidth: 6.0,
-                    ),
-                  ],
-                ),
-              MarkerLayer(
-                markers: [
-                  // Customer location
-                  if (controller.userLocation != null)
-                    Marker(
-                      width: 80.0,
-                      height: 80.0,
-                      point: controller.userLocation!,
-                      child: const Icon(
-                        Icons.location_on,
-                        color: Colors.red,
-                        size: 40,
-                      ),
-                    ),
-                  // Handyman current location
-                  if (controller.handymanLocation != null)
-                    Marker(
-                      width: 80.0,
-                      height: 80.0,
-                      point: controller.handymanLocation!,
-                      child: const Icon(
-                        Icons.construction,
-                        color: Colors.orange,
-                        size: 40,
-                      ),
-                    ),
-                ],
-              ),
-            ],
+            myLocationEnabled: true,
+            myLocationButtonEnabled: false,
+            markers: buildMarkers(controller),
+            polylines: buildPolylines(controller),
+            mapType: MapType.normal,
           ),
 
           DraggableScrollableSheet(
@@ -178,10 +143,100 @@ class HandymanServiceReqMapScreen extends StatelessWidget {
     );
   }
 
+  Set<Marker> buildMarkers(HandymanController controller) {
+    final Set<Marker> markers = {};
+
+    // Customer location marker
+    if (controller.userLocation != null) {
+      markers.add(
+        Marker(
+          markerId: const MarkerId('customer_location'),
+          position: LatLng(
+            controller.userLocation!.latitude,
+            controller.userLocation!.longitude,
+          ),
+          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+          infoWindow: const InfoWindow(title: 'Customer Location'),
+        ),
+      );
+    }
+
+    // Handyman current location marker
+    if (controller.handymanLocation != null) {
+      markers.add(
+        Marker(
+          markerId: const MarkerId('handyman_location'),
+          position: LatLng(
+            controller.handymanLocation!.latitude,
+            controller.handymanLocation!.longitude,
+          ),
+          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
+          infoWindow: const InfoWindow(title: 'Handyman Location'),
+        ),
+      );
+    }
+
+    return markers;
+  }
+
+  Set<Polyline> buildPolylines(HandymanController controller) {
+    final Set<Polyline> polylines = {};
+
+    if (controller.routePoints.isNotEmpty) {
+      polylines.add(
+        Polyline(
+          polylineId: const PolylineId('route'),
+          points: controller.routePoints
+              .map((point) => LatLng(point.latitude, point.longitude))
+              .toList(),
+          color: Colors.green,
+          width: 6,
+        ),
+      );
+    }
+
+    return polylines;
+  }
+
   Widget buildEtaCardContent(
     BuildContext context,
     HandymanController controller,
   ) {
+    if (controller.hasArrived) {
+      return Container(
+        padding: const EdgeInsets.symmetric(vertical: 10.0),
+        decoration: BoxDecoration(
+          color: Colors.green.shade50,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.green.shade200)
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.check_circle, color: Colors.green, size: 30),
+            const SizedBox(width: 10),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  "Arrived!",
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.green,
+                  ),
+                ),
+                Text(
+                  "At destination",
+                  style: TextStyle(fontSize: 14, color: Colors.green.shade700),
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+    }
+
     String arrivalTimeText = "Calculating...";
     String etaText = "Calculating ETA...";
     final bool isRouteLoading = controller.isRouteLoading;

@@ -2,8 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:http/http.dart' as http;
 import 'package:osm_nominatim/osm_nominatim.dart';
 import 'package:intl/intl.dart';
@@ -20,7 +19,7 @@ class HandymanController extends ChangeNotifier {
   final FirebaseFirestore db = FirestoreService.instance.db;
   final ServiceRequestService serviceRequest = ServiceRequestService();
   final HandymanService handyman = HandymanService();
-  final MapController mapController = MapController();
+  GoogleMapController? googleMapController;
   final String reqID;
   final String? userRole;
 
@@ -31,13 +30,16 @@ class HandymanController extends ChangeNotifier {
   TrackingState state = TrackingState.loading;
   String message = "Initializing...";
 
-  LatLng? userLocation; // Customer's address location
-  LatLng? handymanLocation; // Handyman's current location
+  LatLng?
+  userLocation; // Service request address location
+  LatLng? handymanLocation; // Handyman's current GPS location
   List<LatLng> routePoints = [];
   double? routeDistance; // in meters
   double? routeDuration; // in seconds
   int? etaInMinutes;
   String arrivalTime = "";
+  bool hasArrived = false; 
+  final double arrivalRadiusMeters = 50.0; // Coverage radius
 
   String currentAddress = "Finding location...";
   String destinationAddress = "Loading destination...";
@@ -52,6 +54,11 @@ class HandymanController extends ChangeNotifier {
     print("User Role: $userRole");
     print("=====================================");
     initialize();
+  }
+
+  void setGoogleMapController(GoogleMapController controller) {
+    googleMapController = controller;
+    print("Google Map Controller set");
   }
 
   void initialize() {
@@ -108,12 +115,17 @@ class HandymanController extends ChangeNotifier {
         destinationAddress = address;
         isGeocoding = false;
 
-        if (userRole == 'admin') {
-          print("Admin detected - using Firestore location tracking");
+        // Admin and Customer use Firestore tracking (track handyman's location)
+        if (userRole == 'admin' || userRole == 'customer') {
+          print("Admin/Customer detected - using Firestore location tracking");
           await startFirestoreLocationTracking();
-        } else {
+        } else if (userRole == 'handyman') {
+          // Handyman uses GPS tracking (their own location)
           print("Handyman detected - using GPS location tracking");
           await startLiveLocationUpdates();
+        } else {
+          print("Unknown role: $userRole - defaulting to Firestore tracking");
+          await startFirestoreLocationTracking();
         }
       } else {
         throw Exception("Address not found.");
@@ -124,6 +136,34 @@ class HandymanController extends ChangeNotifier {
         TrackingState.error,
         "Error: Could not find address. ${e.toString()}",
       );
+    }
+  }
+
+  void checkProximity() {
+    if (handymanLocation == null || userLocation == null) return;
+
+    // Calculate distance in meters between Handyman and Customer
+    double distanceInMeters = Geolocator.distanceBetween(
+      handymanLocation!.latitude,
+      handymanLocation!.longitude,
+      userLocation!.latitude,
+      userLocation!.longitude,
+    );
+
+    print("Distance to destination: ${distanceInMeters.toStringAsFixed(1)} meters");
+
+    // If within coverage radius 
+    if (distanceInMeters <= arrivalRadiusMeters) {
+      if (!hasArrived) {
+        hasArrived = true;
+        notifyListeners();
+      }
+    } else {
+      // Reset if they move away (optional, usually once arrived, stay arrived)
+      if (hasArrived && distanceInMeters > arrivalRadiusMeters + 50) {
+         hasArrived = false;
+         notifyListeners();
+      }
     }
   }
 
@@ -164,7 +204,9 @@ class HandymanController extends ChangeNotifier {
               handymanLocation = LatLng(geoPoint.latitude, geoPoint.longitude);
               print("Handyman location set to: $handymanLocation");
 
-              fetchRouteAndEta();
+              checkProximity();
+            
+            if(!hasArrived) fetchRouteAndEta();
               reverseGeocodeCurrentLocation(handymanLocation!);
 
               if (isFirstLocation) {
@@ -172,14 +214,7 @@ class HandymanController extends ChangeNotifier {
                   fitMapToRoute();
                 });
               } else {
-                try {
-                  mapController.move(
-                    handymanLocation!,
-                    mapController.camera.zoom,
-                  );
-                } catch (e) {
-                  print("Error moving map: $e");
-                }
+                moveCamera(handymanLocation!);
               }
 
               setState(TrackingState.tracking, "");
@@ -205,11 +240,11 @@ class HandymanController extends ChangeNotifier {
     print("=== Starting Live GPS Location Updates ===");
     print("User Role: $userRole");
 
-    if (userRole == 'admin') {
-      print("ERROR: Admin should not use GPS tracking!");
+    if (userRole != 'handyman') {
+      print("ERROR: Only handyman should use GPS tracking!");
       setState(
         TrackingState.error,
-        "Configuration error: Admin should not use GPS.",
+        "Configuration error: Only handyman can use GPS tracking.",
       );
       return;
     }
@@ -256,7 +291,9 @@ class HandymanController extends ChangeNotifier {
           bool isFirstLocation = handymanLocation == null;
           handymanLocation = newLocation;
 
-          fetchRouteAndEta();
+          checkProximity();
+            
+            if(!hasArrived) fetchRouteAndEta();
           reverseGeocodeCurrentLocation(newLocation);
 
           if (currentHandymanId != null) {
@@ -266,7 +303,7 @@ class HandymanController extends ChangeNotifier {
           if (isFirstLocation) {
             fitMapToRoute();
           } else {
-            mapController.move(newLocation, mapController.camera.zoom);
+            moveCamera(newLocation);
           }
 
           setState(TrackingState.tracking, "");
@@ -336,18 +373,35 @@ class HandymanController extends ChangeNotifier {
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final route = data['routes'][0];
-        final duration = route['duration'] as double;
+
+        // Handle both int and double types
+        final duration = (route['duration'] is int)
+            ? (route['duration'] as int).toDouble()
+            : route['duration'] as double;
         routeDuration = duration;
         etaInMinutes = (duration / 60).round();
-        final distance = route['distance'] as double;
+
+        final distance = (route['distance'] is int)
+            ? (route['distance'] as int).toDouble()
+            : route['distance'] as double;
         routeDistance = distance;
+
         final newArrivalTime = DateTime.now().add(
           Duration(minutes: etaInMinutes!),
         );
         arrivalTime = DateFormat('hh:mm a').format(newArrivalTime);
         final geometry = route['geometry']['coordinates'] as List<dynamic>;
         routePoints = geometry
-            .map((coord) => LatLng(coord[1] as double, coord[0] as double))
+            .map(
+              (coord) => LatLng(
+                (coord[1] is int)
+                    ? (coord[1] as int).toDouble()
+                    : coord[1] as double,
+                (coord[0] is int)
+                    ? (coord[0] as int).toDouble()
+                    : coord[0] as double,
+              ),
+            )
             .toList();
       } else {
         print(
@@ -363,56 +417,61 @@ class HandymanController extends ChangeNotifier {
   }
 
   static Future<GeoPoint?> getHandymanLocationById(String handymanID) async {
-  try {
-    final db = FirestoreService.instance.db;
-    final handymanDoc = await db.collection('Handyman').doc(handymanID).get();
-    
-    if (handymanDoc.exists && handymanDoc.data() != null) {
-      final data = handymanDoc.data()!;
-      final location = data['currentLocation'] as GeoPoint?;
-      
-      // Validate location is not default (0, 0)
-      if (location != null && 
-          (location.latitude != 0 || location.longitude != 0)) {
-        return location;
-      }
-    }
-    return null;
-  } catch (e) {
-    print('Error getting handyman location by ID: $e');
-    return null;
-  }
-}
+    try {
+      final db = FirestoreService.instance.db;
+      final handymanDoc = await db.collection('Handyman').doc(handymanID).get();
 
-/// Get handyman location by empID from database
-static Future<GeoPoint?> getHandymanLocationByEmpId(String empID) async {
-  try {
-    final db = FirestoreService.instance.db;
-    final handymanQuery = await db
-        .collection('Handyman')
-        .where('empID', isEqualTo: empID)
-        .limit(1)
-        .get();
-    
-    if (handymanQuery.docs.isNotEmpty) {
-      final data = handymanQuery.docs.first.data();
-      final location = data['currentLocation'] as GeoPoint?;
-      
-      // Validate location is not default (0, 0)
-      if (location != null && 
-          (location.latitude != 0 || location.longitude != 0)) {
-        return location;
+      if (handymanDoc.exists && handymanDoc.data() != null) {
+        final data = handymanDoc.data()!;
+        final location = data['currentLocation'] as GeoPoint?;
+
+        // Validate location is not default (0, 0)
+        if (location != null &&
+            (location.latitude != 0 || location.longitude != 0)) {
+          return location;
+        }
       }
+      return null;
+    } catch (e) {
+      print('Error getting handyman location by ID: $e');
+      return null;
     }
-    return null;
-  } catch (e) {
-    print('Error getting handyman location by empID: $e');
-    return null;
   }
-}
+
+  // Get handyman location by empID from database
+  static Future<GeoPoint?> getHandymanLocationByEmpId(String empID) async {
+    try {
+      final db = FirestoreService.instance.db;
+      final handymanQuery = await db
+          .collection('Handyman')
+          .where('empID', isEqualTo: empID)
+          .limit(1)
+          .get();
+
+      if (handymanQuery.docs.isNotEmpty) {
+        final data = handymanQuery.docs.first.data();
+        final location = data['currentLocation'] as GeoPoint?;
+
+        // Validate location is not default (0, 0)
+        if (location != null &&
+            (location.latitude != 0 || location.longitude != 0)) {
+          return location;
+        }
+      }
+      return null;
+    } catch (e) {
+      print('Error getting handyman location by empID: $e');
+      return null;
+    }
+  }
 
   void fitMapToRoute() {
-    if (handymanLocation == null || userLocation == null) return;
+    if (handymanLocation == null ||
+        userLocation == null ||
+        googleMapController == null) {
+      return;
+    }
+
     try {
       double minLat = handymanLocation!.latitude < userLocation!.latitude
           ? handymanLocation!.latitude
@@ -426,25 +485,45 @@ static Future<GeoPoint?> getHandymanLocationByEmpId(String empID) async {
       double maxLng = handymanLocation!.longitude > userLocation!.longitude
           ? handymanLocation!.longitude
           : userLocation!.longitude;
+
       final latPadding = (maxLat - minLat) * 0.2;
       final lngPadding = (maxLng - minLng) * 0.2;
-      final bounds = LatLngBounds(
-        LatLng(minLat - latPadding, minLng - lngPadding),
-        LatLng(maxLat + latPadding, maxLng + lngPadding),
-      );
-      mapController.fitCamera(
-        CameraFit.bounds(bounds: bounds, padding: const EdgeInsets.all(50.0)),
+
+      final southwest = LatLng(minLat - latPadding, minLng - lngPadding);
+      final northeast = LatLng(maxLat + latPadding, maxLng + lngPadding);
+
+      googleMapController!.animateCamera(
+        CameraUpdate.newLatLngBounds(
+          LatLngBounds(southwest: southwest, northeast: northeast),
+          50.0, // padding
+        ),
       );
     } catch (e) {
       print("Error fitting map to route: $e");
     }
   }
 
+  void moveCamera(LatLng location) {
+    if (googleMapController != null) {
+      try {
+        googleMapController!.animateCamera(CameraUpdate.newLatLng(location));
+      } catch (e) {
+        print("Error moving camera: $e");
+      }
+    }
+  }
+
   void recenterMap() {
+    if (googleMapController == null) return;
+
     if (handymanLocation != null) {
-      mapController.move(handymanLocation!, 15.0);
+      googleMapController!.animateCamera(
+        CameraUpdate.newLatLngZoom(handymanLocation!, 15.0),
+      );
     } else if (userLocation != null) {
-      mapController.move(userLocation!, 15.0);
+      googleMapController!.animateCamera(
+        CameraUpdate.newLatLngZoom(userLocation!, 15.0),
+      );
     }
   }
 
@@ -459,7 +538,7 @@ static Future<GeoPoint?> getHandymanLocationByEmpId(String empID) async {
     requestSubscription?.cancel();
     positionStreamSubscription?.cancel();
     handymanLocationSubscription?.cancel();
-    mapController.dispose();
+    googleMapController?.dispose();
     super.dispose();
   }
 }

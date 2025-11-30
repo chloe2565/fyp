@@ -32,12 +32,7 @@ class StripeCheckoutScreenState extends State<StripeCheckoutScreen> {
   @override
   void initState() {
     super.initState();
-    // Initialize FirebaseFunctions with your region (default is us-central1)
     functions = FirebaseFunctions.instance;
-    
-    // If you're using emulator, uncomment this:
-    // functions.useFunctionsEmulator('localhost', 5001);
-    
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         initiatePayment();
@@ -55,21 +50,9 @@ class StripeCheckoutScreenState extends State<StripeCheckoutScreen> {
         throw Exception("User not authenticated");
       }
 
-      print("DEBUG: Current user: ${currentUser.uid}");
-      print("DEBUG: Getting ID token...");
-      
-      // Force refresh the ID token to ensure it's valid
       await currentUser.getIdToken(true);
-      print("DEBUG: ID token refreshed");
 
       final int amountInCents = (widget.billingModel.billAmt * 100).toInt();
-
-      print("DEBUG: Calling createPaymentIntent...");
-      print("DEBUG: Amount: $amountInCents");
-      print("DEBUG: BillingID: ${widget.billingModel.billingID}");
-      print("DEBUG: Payment Method: ${widget.paymentMethodType}");
-
-      // Call Firebase Cloud Function
       final callable = functions.httpsCallable('createPaymentIntent');
       final response = await callable.call<Map<String, dynamic>>({
         'amount': amountInCents,
@@ -78,18 +61,14 @@ class StripeCheckoutScreenState extends State<StripeCheckoutScreen> {
         'billingID': widget.billingModel.billingID,
       });
 
-      print("DEBUG: Cloud function response received");
-
-      // Pop loading dialog before showing any error
       if (mounted) Navigator.pop(context);
 
       final data = response.data;
-      if (data == null || !data.containsKey('clientSecret')) {
+      if (!data.containsKey('clientSecret')) {
         throw Exception("Failed to create payment: Invalid response");
       }
 
       final String clientSecret = data['clientSecret'];
-      print("DEBUG: Client secret obtained");
 
       await Stripe.instance.initPaymentSheet(
         paymentSheetParameters: SetupPaymentSheetParameters(
@@ -98,10 +77,7 @@ class StripeCheckoutScreenState extends State<StripeCheckoutScreen> {
         ),
       );
 
-      print("DEBUG: Payment sheet initialized");
-
       await Stripe.instance.presentPaymentSheet();
-      print("DEBUG: Payment sheet completed");
 
       if (mounted) {
         showSuccessDialog(
@@ -121,8 +97,6 @@ class StripeCheckoutScreenState extends State<StripeCheckoutScreen> {
         );
       }
     } on FirebaseFunctionsException catch (e) {
-      print("DEBUG: FirebaseFunctionsException: ${e.code} - ${e.message}");
-      print("DEBUG: Details: ${e.details}");
       final isDialogShowing = ModalRoute.of(context)?.isCurrent != true;
       if (mounted && isDialogShowing) Navigator.pop(context);
 
@@ -138,12 +112,10 @@ class StripeCheckoutScreenState extends State<StripeCheckoutScreen> {
         );
       }
     } on StripeException catch (e) {
-      print("DEBUG: StripeException: ${e.error.code} - ${e.error.message}");
       final isDialogShowing = ModalRoute.of(context)?.isCurrent != true;
       if (mounted && isDialogShowing) Navigator.pop(context);
 
       if (e.error.code == FailureCode.Canceled) {
-        print("DEBUG: Payment cancelled by user.");
         if (mounted) Navigator.pop(context);
         return;
       }
@@ -152,7 +124,8 @@ class StripeCheckoutScreenState extends State<StripeCheckoutScreen> {
         showErrorDialog(
           context,
           title: "Payment Failed",
-          message: e.error.localizedMessage ?? "An unknown Stripe error occurred.",
+          message:
+              e.error.localizedMessage ?? "An unknown Stripe error occurred.",
           onPressed: () {
             Navigator.of(context).pop();
             Navigator.of(context).pop();
@@ -160,7 +133,6 @@ class StripeCheckoutScreenState extends State<StripeCheckoutScreen> {
         );
       }
     } catch (e) {
-      print("DEBUG: Generic Exception: $e");
       final isDialogShowing = ModalRoute.of(context)?.isCurrent != true;
       if (mounted && isDialogShowing) Navigator.pop(context);
 

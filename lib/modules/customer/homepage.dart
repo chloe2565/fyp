@@ -79,12 +79,11 @@ class CustHomepageState extends State<CustHomepage> {
         routeToPush = '/request';
         break;
       case 2:
-        routeToPush = '/favorite';
-        break;
-      case 3:
         routeToPush = '/rating';
         break;
-      // More menu (index 4) is handled in the navigation bar itself
+      case 3:
+        routeToPush = '/profile';
+        break;
     }
 
     if (routeToPush != null) {
@@ -434,34 +433,17 @@ class HomepageScreenState extends State<HomepageScreen> {
                 color: Colors.black,
               ),
             ),
-            TextButton(
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const AllServicesScreen(),
-                ),
-              ),
-              child: Text(
-                'View all',
-                style: Theme.of(
-                  context,
-                ).textTheme.displayMedium?.copyWith(color: Colors.orange),
-              ),
-            ),
           ],
         ),
-        const SizedBox(height: 5),
+        const SizedBox(height: 15),
         ...popularServices.map(
           (service) => Padding(
             padding: const EdgeInsets.only(bottom: 16),
             child: ServiceCard(
               title: service.serviceName,
-              provider: 'Service Team',
               price: service.servicePrice != null
                   ? 'RM ${service.servicePrice!.toStringAsFixed(0)} / hour'
                   : 'Price not available',
-              rating: 4.8,
-              reviews: 80,
               imageUrl: 'assets/images/profile.jpg',
             ),
           ),
@@ -519,18 +501,12 @@ class ServiceIcon extends StatelessWidget {
 
 class ServiceCard extends StatelessWidget {
   final String title;
-  final String provider;
   final String price;
-  final double rating;
-  final int reviews;
   final String imageUrl;
 
   const ServiceCard({
     required this.title,
-    required this.provider,
     required this.price,
-    required this.rating,
-    required this.reviews,
     required this.imageUrl,
     super.key,
   });
@@ -577,11 +553,6 @@ class ServiceCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 4),
-                Text(
-                  provider,
-                  style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
-                ),
-                const SizedBox(height: 8),
                 Row(
                   children: [
                     Text(
@@ -589,16 +560,6 @@ class ServiceCard extends StatelessWidget {
                       style: const TextStyle(
                         color: Colors.orange,
                         fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const Spacer(),
-                    const Icon(Icons.star, color: Colors.amber, size: 16),
-                    const SizedBox(width: 4),
-                    Text(
-                      '$rating | $reviews reviews',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey.shade600,
                       ),
                     ),
                   ],

@@ -21,7 +21,7 @@ class HandymanHomepageScreenState extends State<HandymanHomepageScreen> {
   // Timetable properties
   DateTime selectedWeekStart = DateTime.now();
   int timetableKey = 0;
-  final List<int> timeSlots = List.generate(13, (i) => 8 + i);
+  final List<int> timeSlots = List.generate(24, (i) => i);
 
   String? handymanID;
   String? handymanName;
@@ -176,70 +176,47 @@ class HandymanHomepageScreenState extends State<HandymanHomepageScreen> {
   Map<String, dynamic> getCellStatus(DateTime date, int hour) {
     final cellStart = DateTime(date.year, date.month, date.day, hour, 0);
     final cellEnd = cellStart.add(const Duration(hours: 1));
-
-    final unavailabilities = employeeController.getUnavailabilitiesForDate(
-      date,
-    );
-    for (var avail in unavailabilities) {
-      if (avail.availabilityStartDateTime.isBefore(cellEnd) &&
-          avail.availabilityEndDateTime.isAfter(cellStart)) {
-        final startTime = DateFormat(
-          'HH:mm',
-        ).format(avail.availabilityStartDateTime);
-        final endTime = DateFormat(
-          'HH:mm',
-        ).format(avail.availabilityEndDateTime);
-
-        return {
-          'type': 'unavailable',
-          'label': 'Leave/MC',
-          'timeRange': '$startTime-$endTime',
-          'color': Colors.red.shade100,
-          'textColor': Colors.red.shade900,
-          'borderColor': Colors.red.shade300,
-        };
-      }
-    }
-
     final requests = employeeController.getServiceRequestsForDate(date);
+
     for (var reqData in requests) {
       final request = reqData['request'] as ServiceRequestModel;
       final serviceName = reqData['serviceName'] as String;
       final serviceDuration = reqData['serviceDuration'] as String;
-
       final requestStart = request.scheduledDateTime;
       final durationHours = employeeController.parseServiceDuration(
         serviceDuration,
       );
+
+      // Calculate when the request ends
       final requestEnd = requestStart.add(
         Duration(minutes: (durationHours * 60).toInt()),
       );
 
-      if (requestStart.isBefore(cellEnd) && requestEnd.isAfter(cellStart)) {
+      // Check if this specific hour slot overlaps with the request
+      bool overlaps =
+          requestStart.isBefore(cellEnd) && requestEnd.isAfter(cellStart);
+
+      if (overlaps) {
+        print("DEBUG UI: Painting cell $hour:00 for Request ${request.reqID}");
+
         final startTime = DateFormat('HH:mm').format(requestStart);
         final endTime = DateFormat('HH:mm').format(requestEnd);
-        Color bgColor, textColor, borderColor;
+        Color bgColor = Colors.blue.shade100;
+        Color textColor = Colors.blue.shade900;
+        Color borderColor = Colors.blue.shade300;
+
         switch (request.reqStatus.toLowerCase()) {
           case 'confirmed':
             bgColor = Colors.blue.shade100;
-            textColor = Colors.blue.shade900;
-            borderColor = Colors.blue.shade300;
             break;
           case 'departed':
             bgColor = Colors.orange.shade100;
-            textColor = Colors.orange.shade900;
-            borderColor = Colors.orange.shade300;
             break;
           case 'completed':
             bgColor = Colors.green.shade100;
-            textColor = Colors.green.shade900;
-            borderColor = Colors.green.shade300;
             break;
-          default:
-            bgColor = Colors.grey.shade100;
-            textColor = Colors.grey.shade900;
-            borderColor = Colors.grey.shade300;
         }
+
         return {
           'type': 'service',
           'label': serviceName,
@@ -812,5 +789,11 @@ class HandymanHomepageScreenState extends State<HandymanHomepageScreen> {
         onTap: onNavBarTap,
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    employeeController.dispose();
+    super.dispose();
   }
 }

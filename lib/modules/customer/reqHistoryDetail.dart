@@ -215,7 +215,7 @@ class RequestHistoryDetailScreen extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Service Reqeust Booking Information',
+            'Service Request Booking Information',
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 16),
@@ -420,141 +420,85 @@ class RequestHistoryDetailScreen extends StatelessWidget {
     );
   }
 
-Widget buildBillingCard(BuildContext context, RequestViewModel viewModel) {
-  final isPaid = viewModel.paymentStatus?.toLowerCase() == 'paid';
+  Widget buildBillingCard(BuildContext context, RequestViewModel viewModel) {
+    final isPaid = viewModel.paymentStatus?.toLowerCase() == 'paid';
 
-  return Container(
-    padding: const EdgeInsets.all(16),
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(12),
-      boxShadow: [
-        BoxShadow(
-          color: Colors.black.withValues(alpha: 0.05),
-          blurRadius: 10,
-          offset: const Offset(0, 2),
-        ),
-      ],
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text(
-              'Billing Information',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        buildInfoRow(
-          Icons.info_outline,
-          'Payment Status',
-          viewModel.paymentStatus ?? 'Pending',
-          valueColor: getStatusColor(viewModel.paymentStatus ?? 'Pending'),
-        ),
-        const SizedBox(height: 12),
-        buildInfoRow(
-          Icons.payments_outlined,
-          'Amount',
-          viewModel.amountToPay ?? 'N/A',
-        ),
-        const SizedBox(height: 12),
-        if (viewModel.payDueDate != null)
-          buildInfoRow(
-            Icons.event_outlined,
-            isPaid ? 'Paid On' : 'Due Date',
-            Formatter.formatDateTime(
-              isPaid
-                  ? (viewModel.paymentCreatedAt ??
-                        viewModel.payDueDateRaw ??
-                        DateTime.now())
-                  : (viewModel.payDueDateRaw ?? DateTime.now()),
-            ),
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
           ),
-        const SizedBox(height: 16),
-        
-        // View Bill Details Button
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton.icon(
-            onPressed: () async {
-              // Fetch billing via controller
-              final billingModel = await fetchBillingModel(viewModel.reqID);
-              if (billingModel != null && context.mounted) {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => BillDetailScreen(billingModel),
-                  ),
-                );
-              }
-            },
-            icon: const Icon(Icons.receipt_long, size: 18),
-            label: const Text('View Bill Details'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: isPaid
-                  ? Colors.green[600]
-                  : Theme.of(context).primaryColor,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Billing Information',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          buildInfoRow(
+            Icons.info_outline,
+            'Payment Status',
+            viewModel.paymentStatus ?? 'Pending',
+            valueColor: getStatusColor(viewModel.paymentStatus ?? 'Pending'),
+          ),
+          const SizedBox(height: 12),
+          buildInfoRow(
+            Icons.payments_outlined,
+            'Amount',
+            viewModel.amountToPay ?? 'N/A',
+          ),
+          const SizedBox(height: 12),
+          if (viewModel.payDueDate != null)
+            buildInfoRow(
+              Icons.event_outlined,
+              isPaid ? 'Paid On' : 'Due Date',
+              Formatter.formatDateTime(
+                isPaid
+                    ? (viewModel.paymentCreatedAt ??
+                          viewModel.payDueDateRaw ??
+                          DateTime.now())
+                    : (viewModel.payDueDateRaw ?? DateTime.now()),
               ),
             ),
-          ),
-        ),
-        
-        // View Receipt Button (only show if paid)
-        if (isPaid) ...[
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
+
+          // View Bill Details Button
           SizedBox(
             width: double.infinity,
-            child: OutlinedButton.icon(
+            child: ElevatedButton.icon(
               onPressed: () async {
-                // Show loading indicator
-                showDialog(
-                  context: context,
-                  barrierDismissible: false,
-                  builder: (context) => const Center(
-                    child: CircularProgressIndicator(),
-                  ),
-                );
-                
-                // Fetch payment via controller
-                final paymentModel = await controller.getPaymentForRequest(
-                  viewModel.reqID,
-                );
-                
-                if (context.mounted) {
-                  Navigator.of(context).pop(); // Close loading
-                  
-                  if (paymentModel != null) {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => ReceiptDetailScreen(
-                          payment: paymentModel,
-                        ),
-                      ),
-                    );
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Payment receipt not found'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                  }
+                // Fetch billing via controller
+                final billingModel = await fetchBillingModel(viewModel.reqID);
+                if (billingModel != null && context.mounted) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => BillDetailScreen(billingModel),
+                    ),
+                  );
                 }
               },
-              icon: const Icon(Icons.receipt, size: 18),
-              label: const Text('View Receipt'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: Colors.green[700],
-                side: BorderSide(color: Colors.green[700]!, width: 1.5),
+              icon: const Icon(Icons.receipt_long, size: 18),
+              label: const Text('View Bill Details'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: isPaid
+                    ? Colors.green[600]
+                    : Theme.of(context).primaryColor,
+                foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
@@ -562,11 +506,65 @@ Widget buildBillingCard(BuildContext context, RequestViewModel viewModel) {
               ),
             ),
           ),
+
+          // View Receipt Button (only show if paid)
+          if (isPaid) ...[
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () async {
+                  // Show loading indicator
+                  showDialog(
+                    context: context,
+                    barrierDismissible: false,
+                    builder: (context) =>
+                        const Center(child: CircularProgressIndicator()),
+                  );
+
+                  // Fetch payment via controller
+                  final paymentModel = await controller.getPaymentForRequest(
+                    viewModel.reqID,
+                  );
+
+                  if (context.mounted) {
+                    Navigator.of(context).pop(); // Close loading
+
+                    if (paymentModel != null) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              ReceiptDetailScreen(payment: paymentModel),
+                        ),
+                      );
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Payment receipt not found'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  }
+                },
+                icon: const Icon(Icons.receipt, size: 18),
+                label: const Text('View Receipt'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.green[700],
+                  side: BorderSide(color: Colors.green[700]!, width: 1.5),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ],
-      ],
-    ),
-  );
-}
+      ),
+    );
+  }
 
   Future<BillingModel?> fetchBillingModel(String reqID) async {
     try {
@@ -660,13 +658,18 @@ Widget buildBillingCard(BuildContext context, RequestViewModel viewModel) {
 
     // Reschedule and cancel button
     if ((status == 'pending' || status == 'confirmed') &&
-        differenceInDays >= 3) {
+        differenceInDays >= 2) {
       actions.add(
         Row(
           children: [
             Expanded(
               child: OutlinedButton.icon(
-                onPressed: () => controller.rescheduleRequest(viewModel.reqID),
+                onPressed: () => showRescheduleDialog(
+                  context,
+                  controller: controller,
+                  reqID: viewModel.reqID,
+                  onSuccess: () {},
+                ),
                 icon: const Icon(Icons.schedule, size: 18),
                 label: const Text('Reschedule'),
                 style: OutlinedButton.styleFrom(
