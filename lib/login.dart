@@ -57,10 +57,10 @@ class LoginScreenState extends State<LoginScreen> {
       children: [
         Scaffold(
           appBar: AppBar(
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back, color: Colors.black),
-              onPressed: () => Navigator.of(context).pop(),
-            ),
+            // leading: IconButton(
+            //   icon: const Icon(Icons.arrow_back, color: Colors.black),
+            //   onPressed: () => Navigator.of(context).pop(),
+            // ),
             backgroundColor: Theme.of(context).scaffoldBackgroundColor,
             iconTheme: const IconThemeData(color: Colors.black),
           ),
