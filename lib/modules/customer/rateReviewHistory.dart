@@ -345,7 +345,11 @@ class RatingReviewCard extends StatelessWidget {
     final DateTime? dateToShow = isPending
         ? request.reqCompleteTime
         : review?.ratingCreatedAt;
-    final String dateStr = dateFormat.format(dateToShow!);
+    final String dateStr = dateToShow != null
+        ? dateFormat.format(dateToShow)
+        : isPending
+        ? 'N/A'
+        : 'N/A';
     final String serviceName = service?.serviceName ?? 'Unknown Service';
     final String handymanName = handyman?.userName ?? 'Unknown Handyman';
     final IconData icon = ServiceHelper.getIconForService(serviceName);
