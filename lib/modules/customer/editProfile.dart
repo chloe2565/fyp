@@ -239,6 +239,7 @@ class EditProfileScreenState extends State<EditProfileScreen>
 
     if (formKey.currentState!.validate()) {
       showLoadingDialog(context, 'Updating profile...');
+      final loadingDialogContext = context;
 
       try {
         await userController.updateProfile(
@@ -255,7 +256,7 @@ class EditProfileScreenState extends State<EditProfileScreen>
         );
 
         if (!mounted) return;
-        Navigator.of(context).pop(); // Close loading dialog
+        Navigator.of(loadingDialogContext, rootNavigator: true).pop(); // Close loading dialog
 
         if (mounted) {
           showSuccessDialog(
@@ -263,15 +264,16 @@ class EditProfileScreenState extends State<EditProfileScreen>
             title: "Successful",
             message: "Your profile has been updated successfully.",
             onPrimary: () {
-              Navigator.of(context).pop(); // Close loading dialog
               Navigator.of(context).pop(); // Close success dialog
-              Navigator.of(context).pop(); // Close edit screen
+              if (mounted) {
+                Navigator.of(context).pop(); // Close edit profile screen
+              }
             },
           );
         }
       } catch (e) {
         if (!mounted) return;
-        Navigator.of(context).pop(); // Close loading dialog
+        Navigator.of(loadingDialogContext, rootNavigator: true).pop(); // Close loading dialog
 
         if (mounted) {
           showErrorDialog(

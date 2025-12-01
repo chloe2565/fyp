@@ -69,6 +69,7 @@ class ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> fetchUserData() async {
+    if (!mounted) return;
     setState(() {
       isLoading = true;
       errorMessage = null;
@@ -76,11 +77,13 @@ class ProfileScreenState extends State<ProfileScreen> {
 
     try {
       final user = await userController.getCurrentUser();
+      if (!mounted) return;
       setState(() {
         userModel = user;
         isLoading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         errorMessage = 'Failed to load profile: $e';
         isLoading = false;
