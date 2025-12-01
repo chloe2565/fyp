@@ -184,7 +184,7 @@ class RegisterListState extends State<RegisterList> {
                     autovalidateMode: AutovalidateMode.onUserInteraction,
                     validator: (val) => Validator.validateConfirmPassword(
                       val,
-                      controller.confirmPasswordController.text,
+                      controller.newPasswordController.text,
                     ),
                   ),
                   const SizedBox(height: 16),
