@@ -133,8 +133,10 @@ class BillplzCheckoutScreenState extends State<BillplzCheckoutScreen> {
     Uri uri = Uri.parse(url);
     final billId = uri.queryParameters['billplz[id]'];
     final paid = uri.queryParameters['billplz[paid]'];
+    final transactionId = uri.queryParameters['billplz[transaction_id]'];
 
     if (paid == 'false') {
+      manualFailureProcessing(billId!, transactionId);
       if (mounted) {
         showErrorDialog(
           context,
@@ -150,7 +152,6 @@ class BillplzCheckoutScreenState extends State<BillplzCheckoutScreen> {
 
     showLoadingDialog(context, "Verifying Payment...");
 
-    final transactionId = uri.queryParameters['billplz[transaction_id]'];
     final transactionStatus =
         uri.queryParameters['billplz[transaction_status]'];
 
@@ -178,6 +179,55 @@ class BillplzCheckoutScreenState extends State<BillplzCheckoutScreen> {
       print("Manual processing error: $e");
     } finally {
       if (mounted) verifyPaymentStatus();
+    }
+  }
+
+  Future<void> manualFailureProcessing(
+    String billId,
+    String? transactionId,
+  ) async {
+    showLoadingDialog(context, "Processing Payment Failure...");
+
+    try {
+      final callable = FirebaseFunctions.instance.httpsCallable(
+        'logBillplzPaymentFailure',
+      );
+      await callable.call({
+        'billId': billId,
+        'transactionId': transactionId,
+        'billingID': widget.billingModel.billingID,
+      });
+
+      if (mounted) Navigator.of(context).pop(); // Close loading dialog
+
+      if (mounted) {
+        showErrorDialog(
+          context,
+          title: "Payment Failed",
+          message: "The payment was not successful. Please try again.",
+          onPressed: () {
+            Navigator.of(context).pop(); // Close the error dialog
+            Navigator.of(context).pop(); // Close the BillplzCheckoutScreen
+          },
+        );
+      }
+    } catch (e) {
+      print("Manual failure processing error: $e");
+      if (mounted) Navigator.of(context).pop(); // Close loading dialog
+      if (mounted) {
+        showErrorDialog(
+          context,
+          title: "Processing Error",
+          message: "Failed to log payment failure: $e",
+          onPressed: () => Navigator.of(context).pop(),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          isPaymentProcessing = false;
+        });
+      }
     }
   }
 

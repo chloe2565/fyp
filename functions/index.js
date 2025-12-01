@@ -398,15 +398,15 @@ exports.billplzCallback = onRequest(async (req, res) => {
 
   try {
     const incomingSignature = req.headers['x-signature'];
-    const rawBody = req.rawBody.toString(); 
-    
+    const rawBody = req.rawBody.toString();
+
     const generatedSignature = crypto
       .createHmac('sha256', BILLPLZ_X_SIGNATURE_KEY)
       .update(rawBody)
       .digest('hex');
 
     if (process.env.FUNCTIONS_EMULATOR !== "true" && incomingSignature !== generatedSignature) {
-       console.error("Security Alert: X-Signature mismatch.");
+      console.error("Security Alert: X-Signature mismatch.");
     }
 
     const data = req.body;
@@ -437,7 +437,7 @@ exports.billplzCallback = onRequest(async (req, res) => {
 
     const paymentData = {
       payID: newPaymentID,
-      payStatus: isPaid ? "paid" : "failed", 
+      payStatus: isPaid ? "paid" : "failed",
       payAmt: amount,
       payMethod: "Online Banking",
       payCreatedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -465,7 +465,72 @@ exports.billplzCallback = onRequest(async (req, res) => {
 
   } catch (error) {
     console.error("Billplz Webhook Error:", error);
-    
+
     return res.status(200).send("Error handled");
+  }
+});
+
+// Fail payment for billplz
+exports.logBillplzPaymentFailure = onCall(async (request) => {
+  console.log("=== MANUAL BILLPLZ PAYMENT FAILURE LOGGING ===");
+  const auth = request.auth;
+  const data = request.data;
+
+  if (!auth) {
+    throw new HttpsError("unauthenticated", "User must be authenticated");
+  }
+
+  const { billId, transactionId, billingID } = data;
+
+  if (!billId || !billingID) {
+    throw new HttpsError("invalid-argument", "Missing required fields");
+  }
+
+  try {
+    // Check if a record (paid or failed) already exists to prevent duplicates
+    const existingPayment = await db.collection("Payment")
+      .where("billingID", "==", billingID)
+      .limit(1)
+      .get();
+
+    if (!existingPayment.empty) {
+      console.log(`Payment record already processed for billingID: ${billingID}. Skipping failure log.`);
+      return { success: true, message: "Already processed" };
+    }
+
+    // Get billing amount for logging
+    const billingDoc = await db.collection("Billing").doc(billingID).get();
+
+    if (!billingDoc.exists) {
+      throw new HttpsError("not-found", `Billing document ${billingID} not found`);
+    }
+
+    const billingData = billingDoc.data();
+    const amount = billingData.billAmt;
+
+    const newPaymentID = await generateNextPaymentID();
+
+    const newPayment = {
+      payID: newPaymentID,
+      payStatus: "failed",
+      payAmt: amount,
+      payMethod: "Online Banking",
+      payCreatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      adminRemark: "",
+      payMediaProof: "",
+      providerID: "",
+      billingID: billingID,
+    };
+
+    await db.collection("Payment").doc(newPaymentID).set(newPayment);
+
+    console.log(`Successfully logged manual payment failure for billingID: ${billingID}`);
+    return { success: true, paymentID: newPaymentID };
+  } catch (error) {
+    console.error("Manual payment failure logging error:", error);
+    if (error instanceof HttpsError) {
+      throw error;
+    }
+    throw new HttpsError("internal", error.message);
   }
 });
