@@ -172,10 +172,13 @@ class EditRateReviewScreenState extends State<EditRateReviewScreen> {
                                 ),
                                 const SizedBox(width: 16),
                                 Expanded(
-                                  child: OutlinedButton(
+                                  child: ElevatedButton(
                                     onPressed: () =>
                                         Navigator.of(context).pop(),
-                                    style: OutlinedButton.styleFrom(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Theme.of(
+                                        context,
+                                      ).colorScheme.secondary,
                                       padding: const EdgeInsets.symmetric(
                                         vertical: 16,
                                       ),
