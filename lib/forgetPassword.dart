@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../../shared/helper.dart';
+import 'login.dart';
 
 class ForgetPasswordScreen extends StatelessWidget {
   const ForgetPasswordScreen({super.key});
@@ -25,82 +26,71 @@ class ForgetPasswordList extends StatefulWidget {
 }
 
 class ForgetPasswordListState extends State<ForgetPasswordList> {
+  final GlobalKey<FormState> formKey = GlobalKey<FormState>();
   final TextEditingController emailController = TextEditingController();
   bool isLoading = false;
 
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 5),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            // "Getting Started" title
-            Text(
-              'Forget Password',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-            const SizedBox(height: 8),
-            // Subtitle
-            Text(
-              "Enter your email address to reset password",
-              style: Theme.of(context).textTheme.headlineSmall,
-            ),
-            const SizedBox(height: 25),
-
-            // Email input field
-            Focus(
-              child: Builder(
-                builder: (BuildContext context) {
-                  final bool hasFocus = Focus.of(context).hasFocus;
-                  return TextFormField(
-                    controller: emailController,
-                    keyboardType: TextInputType.emailAddress,
-                    decoration: InputDecoration(
-                      labelText: 'Enter your email',
-                      prefixIcon: Icon(
-                        Icons.email_outlined,
-                        color: hasFocus
-                            ? Theme.of(context).colorScheme.primaryContainer
-                            : Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                    style: Theme.of(context).textTheme.bodySmall,
-                  );
-                },
+      child: Form(
+        key: formKey,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 5),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              // "Getting Started" title
+              Text(
+                'Forget Password',
+                style: Theme.of(context).textTheme.headlineMedium,
               ),
-            ),
-            const SizedBox(height: 20),
-
-            // Reset password button
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: isLoading ? null : resetPassword,
-                child: isLoading
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text('Reset Password'),
+              const SizedBox(height: 8),
+              // Subtitle
+              Text(
+                "Enter your email address to reset password",
+                style: Theme.of(context).textTheme.headlineSmall,
               ),
-            ),
-            const SizedBox(height: 20),
-          ],
+              const SizedBox(height: 25),
+
+              // Email input field
+              TextFormField(
+                controller: emailController,
+                keyboardType: TextInputType.emailAddress,
+                validator: Validator.validateEmail,
+                autovalidateMode: AutovalidateMode.onUserInteraction,
+                decoration: InputDecoration(
+                  labelText: 'Enter your email',
+                  prefixIcon: const Icon(Icons.email_outlined),
+                ),
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              const SizedBox(height: 20),
+
+              // Reset password button
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: isLoading ? null : resetPassword,
+                  child: isLoading
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : const Text('Reset Password'),
+                ),
+              ),
+              const SizedBox(height: 20),
+            ],
+          ),
         ),
       ),
     );
   }
 
   Future<void> resetPassword() async {
-    final email = emailController.text.trim();
-    if (email.isEmpty) {
-      showErrorDialog(
-        context,
-        title: 'Error',
-        message: "Please enter your email.",
-      );
+    if (!formKey.currentState!.validate()) {
       return;
     }
 
+    final email = emailController.text.trim();
     setState(() => isLoading = true);
 
     try {
@@ -111,8 +101,9 @@ class ForgetPasswordListState extends State<ForgetPasswordList> {
         message: 'A password reset link has been sent to your email.',
         primaryButtonText: 'Login',
         onPrimary: () {
-          Navigator.of(context).pop(); // Close dialog
-          Navigator.of(context).pop(); // Go back from ForgetPassword screen
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (context) => const LoginScreen()),
+          );
         },
       );
     } on FirebaseAuthException catch (e) {
@@ -124,5 +115,11 @@ class ForgetPasswordListState extends State<ForgetPasswordList> {
     } finally {
       setState(() => isLoading = false);
     }
+  }
+
+  @override
+  void dispose() {
+    emailController.dispose();
+    super.dispose();
   }
 }
