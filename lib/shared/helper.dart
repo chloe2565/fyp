@@ -572,20 +572,24 @@ void showDeleteAccountDialog({
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: <Widget>[
-                      Align(
-                        alignment: Alignment.topRight,
-                        child: IconButton(
-                          icon: const Icon(Icons.close),
-                          onPressed: () => Navigator.of(context).pop(),
-                        ),
-                      ),
-                      const Text(
-                        'Delete Account',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black,
-                        ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Spacer(flex: 1),
+                          const Text(
+                            'Delete Account',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black,
+                            ),
+                          ),
+                          const Spacer(flex: 1),
+                          IconButton(
+                            icon: const Icon(Icons.close),
+                            onPressed: () => Navigator.of(context).pop(),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 20),
                       buildEmailField(
@@ -691,6 +695,7 @@ Widget buildEmailField({
     controller: controller,
     validator: validator,
     autovalidateMode: AutovalidateMode.onUserInteraction,
+    style: Theme.of(context).textTheme.bodySmall,
     decoration: InputDecoration(
       labelText: label,
       hintText: hint,
