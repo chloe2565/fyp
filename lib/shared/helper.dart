@@ -1816,7 +1816,9 @@ class ConfirmDialog extends StatelessWidget {
                     ),
                     onPressed: () {
                       Navigator.of(context).pop();
-                      onAffirmative();
+                      if (onNegative != null) {
+                        onNegative!();
+                      }
                     },
                     child: Text(
                       negativeText,
@@ -2275,144 +2277,476 @@ class EmpInfoCard extends StatelessWidget {
   }
 }
 
+class CancelRequestDialog extends StatefulWidget {
+  final String reqID;
+  final Future<void> Function(String reqID, String reason) onConfirmCancel;
+  final VoidCallback? onSuccess;
+
+  const CancelRequestDialog({
+    required this.reqID,
+    required this.onConfirmCancel,
+    this.onSuccess,
+  });
+
+  @override
+  State<CancelRequestDialog> createState() => CancelRequestDialogState();
+}
+
+class CancelRequestDialogState extends State<CancelRequestDialog> {
+  late final TextEditingController reasonController;
+
+  @override
+  void initState() {
+    super.initState();
+    reasonController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    reasonController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: Stack(
+        children: [
+          const Center(
+            child: Text(
+              'Cancel Service Request',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.black,
+              ),
+            ),
+          ),
+          Positioned(
+            right: 0,
+            top: 0,
+            child: GestureDetector(
+              onTap: () {
+                Navigator.of(context).pop();
+              },
+              child: const Icon(Icons.close, size: 22, color: Colors.black),
+            ),
+          ),
+        ],
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Please provide a reason for cancelling this service request:',
+            style: TextStyle(fontSize: 14, color: Colors.black87),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: reasonController,
+            maxLines: 3,
+            maxLength: 200,
+            decoration: InputDecoration(
+              hintText: 'Enter cancellation reason...',
+              hintStyle: TextStyle(color: Colors.grey.shade400),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: Colors.red, width: 2),
+              ),
+              counterText: '',
+            ),
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ],
+      ),
+      actions: [
+        ValueListenableBuilder<TextEditingValue>(
+          valueListenable: reasonController,
+          builder: (context, value, child) {
+            final bool isReasonEntered = value.text.trim().isNotEmpty;
+
+            return ElevatedButton(
+              onPressed: isReasonEntered
+                  ? () async {
+                      final reason = reasonController.text.trim();
+                      if (reason.isEmpty) {
+                        if (!context.mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Please enter a cancellation reason'),
+                            backgroundColor: Colors.red,
+                            duration: Duration(seconds: 2),
+                          ),
+                        );
+                        return;
+                      }
+
+                      // Close reason dialog
+                      if (!context.mounted) return;
+                      final parentContext = Navigator.of(context).context;
+                      Navigator.of(context).pop();
+
+                      await Future.delayed(const Duration(milliseconds: 100));
+
+                      // Show confirm dialog
+                      if (!parentContext.mounted) return;
+                      showDialog(
+                        context: parentContext,
+                        barrierDismissible: false,
+                        builder: (confirmDialogContext) => AlertDialog(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(24),
+                          ),
+                          content: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 20),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  width: 80,
+                                  height: 80,
+                                  decoration: const BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: Colors.amber,
+                                  ),
+                                  child: const Icon(
+                                    Icons.warning,
+                                    size: 48,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                const SizedBox(height: 24),
+                                const Text(
+                                  'Confirm Cancellation',
+                                  style: TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.black87,
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                const Text(
+                                  'Are you sure you want to cancel this service request? This action cannot be undone.',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.black54,
+                                  ),
+                                ),
+                                const SizedBox(height: 32),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: FilledButton(
+                                        style: FilledButton.styleFrom(
+                                          backgroundColor: Colors.amber,
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              12,
+                                            ),
+                                          ),
+                                          padding: const EdgeInsets.symmetric(
+                                            vertical: 14,
+                                          ),
+                                        ),
+                                        onPressed: () async {
+                                          // Close confirm dialog first
+                                          Navigator.of(
+                                            confirmDialogContext,
+                                          ).pop();
+
+                                          // Show loading dialog
+                                          if (!parentContext.mounted) return;
+                                          showDialog(
+                                            context: parentContext,
+                                            barrierDismissible: false,
+                                            builder: (loadingContext) => WillPopScope(
+                                              onWillPop: () async => false,
+                                              child: const Center(
+                                                child: Card(
+                                                  child: Padding(
+                                                    padding: EdgeInsets.all(20),
+                                                    child: Column(
+                                                      mainAxisSize:
+                                                          MainAxisSize.min,
+                                                      children: [
+                                                        CircularProgressIndicator(),
+                                                        SizedBox(height: 16),
+                                                        Text(
+                                                          'Cancelling service request...',
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          );
+
+                                          try {
+                                            // Perform the cancellation
+                                            await widget.onConfirmCancel(
+                                              widget.reqID,
+                                              reason,
+                                            );
+
+                                            // Close loading dialog
+                                            if (parentContext.mounted) {
+                                              Navigator.of(parentContext).pop();
+                                            }
+
+                                            // Show success dialog
+                                            if (!parentContext.mounted) return;
+                                            await showDialog(
+                                              context: parentContext,
+                                              builder: (successContext) => AlertDialog(
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(24),
+                                                ),
+                                                content: Padding(
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                        vertical: 20,
+                                                      ),
+                                                  child: Column(
+                                                    mainAxisSize:
+                                                        MainAxisSize.min,
+                                                    children: [
+                                                      Container(
+                                                        width: 80,
+                                                        height: 80,
+                                                        decoration:
+                                                            const BoxDecoration(
+                                                              shape: BoxShape
+                                                                  .circle,
+                                                              color:
+                                                                  Colors.green,
+                                                            ),
+                                                        child: const Icon(
+                                                          Icons.check,
+                                                          size: 48,
+                                                          color: Colors.white,
+                                                        ),
+                                                      ),
+                                                      const SizedBox(
+                                                        height: 24,
+                                                      ),
+                                                      const Text(
+                                                        'Request Cancelled',
+                                                        style: TextStyle(
+                                                          fontSize: 20,
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                        ),
+                                                      ),
+                                                      const SizedBox(
+                                                        height: 12,
+                                                      ),
+                                                      const Text(
+                                                        'Your service request has been cancelled successfully',
+                                                        textAlign:
+                                                            TextAlign.center,
+                                                      ),
+                                                      const SizedBox(
+                                                        height: 32,
+                                                      ),
+                                                      SizedBox(
+                                                        width: double.infinity,
+                                                        child: FilledButton(
+                                                          style: FilledButton.styleFrom(
+                                                            backgroundColor:
+                                                                Colors.green,
+                                                            padding:
+                                                                const EdgeInsets.symmetric(
+                                                                  vertical: 14,
+                                                                ),
+                                                          ),
+                                                          onPressed: () {
+                                                            Navigator.of(
+                                                              successContext,
+                                                            ).pop();
+                                                            widget.onSuccess
+                                                                ?.call();
+                                                          },
+                                                          child: const Text(
+                                                            'OK',
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ),
+                                            );
+                                          } catch (e) {
+                                            // Close loading dialog
+                                            if (parentContext.mounted) {
+                                              Navigator.of(parentContext).pop();
+                                            }
+
+                                            // Show error dialog
+                                            if (!parentContext.mounted) return;
+                                            showDialog(
+                                              context: parentContext,
+                                              builder: (errorContext) => AlertDialog(
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(24),
+                                                ),
+                                                content: Padding(
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                        vertical: 20,
+                                                      ),
+                                                  child: Column(
+                                                    mainAxisSize:
+                                                        MainAxisSize.min,
+                                                    children: [
+                                                      Container(
+                                                        width: 80,
+                                                        height: 80,
+                                                        decoration:
+                                                            const BoxDecoration(
+                                                              shape: BoxShape
+                                                                  .circle,
+                                                              color: Colors.red,
+                                                            ),
+                                                        child: const Icon(
+                                                          Icons.close,
+                                                          size: 48,
+                                                          color: Colors.white,
+                                                        ),
+                                                      ),
+                                                      const SizedBox(
+                                                        height: 24,
+                                                      ),
+                                                      const Text(
+                                                        'Cancellation Failed',
+                                                        style: TextStyle(
+                                                          fontSize: 20,
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                        ),
+                                                      ),
+                                                      const SizedBox(
+                                                        height: 12,
+                                                      ),
+                                                      Text(
+                                                        'Failed to cancel request: $e',
+                                                        textAlign:
+                                                            TextAlign.center,
+                                                      ),
+                                                      const SizedBox(
+                                                        height: 32,
+                                                      ),
+                                                      SizedBox(
+                                                        width: double.infinity,
+                                                        child: FilledButton(
+                                                          style: FilledButton.styleFrom(
+                                                            backgroundColor:
+                                                                Colors.red,
+                                                            padding:
+                                                                const EdgeInsets.symmetric(
+                                                                  vertical: 14,
+                                                                ),
+                                                          ),
+                                                          onPressed: () {
+                                                            Navigator.of(
+                                                              errorContext,
+                                                            ).pop();
+                                                          },
+                                                          child: const Text(
+                                                            'OK',
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ),
+                                            );
+                                          }
+                                        },
+                                        child: const Text(
+                                          'Confirm',
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: FilledButton(
+                                        style: FilledButton.styleFrom(
+                                          backgroundColor: Colors.grey,
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              12,
+                                            ),
+                                          ),
+                                          padding: const EdgeInsets.symmetric(
+                                            vertical: 14,
+                                          ),
+                                        ),
+                                        onPressed: () {
+                                          Navigator.of(
+                                            confirmDialogContext,
+                                          ).pop();
+                                        },
+                                        child: const Text(
+                                          'Back',
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    }
+                  : null, // Button is disabled if reason is empty
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: const Text('Next'),
+            );
+          },
+        ),
+      ],
+    );
+  }
+}
+
 void showCancelRequestDialog(
   BuildContext context, {
   required String reqID,
   required Future<void> Function(String reqID, String reason) onConfirmCancel,
   VoidCallback? onSuccess,
 }) {
-  final TextEditingController reasonController = TextEditingController();
-
   showDialog(
     context: context,
     builder: (BuildContext dialogContext) {
-      return AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Stack(
-          children: [
-            const Center(
-              child: Text(
-                'Cancel Service Request',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black,
-                ),
-              ),
-            ),
-            Positioned(
-              right: 0,
-              top: 0,
-              child: GestureDetector(
-                onTap: () => Navigator.of(dialogContext).pop(),
-                child: const Icon(Icons.close, size: 22, color: Colors.black),
-              ),
-            ),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Please provide a reason for cancelling this service request:',
-              style: TextStyle(fontSize: 14, color: Colors.black87),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: reasonController,
-              maxLines: 3,
-              maxLength: 200,
-              decoration: InputDecoration(
-                hintText: 'Enter cancellation reason...',
-                hintStyle: TextStyle(color: Colors.grey.shade400),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(color: Colors.red, width: 2),
-                ),
-                counterText: '',
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          ElevatedButton(
-            onPressed: reasonController.text.trim().isEmpty
-                ? null
-                : () async {
-                    final reason = reasonController.text.trim();
-                    if (reason.isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Please enter a cancellation reason'),
-                          backgroundColor: Colors.red,
-                          duration: Duration(seconds: 2),
-                        ),
-                      );
-                      return;
-                    }
-                    Navigator.of(dialogContext).pop();
-
-                    showConfirmDialog(
-                      context,
-                      title: 'Confirm Cancellation',
-                      message:
-                          'Are you sure you want to cancel this service request? This action cannot be undone.',
-                      affirmativeText: 'Confirm Cancel',
-                      negativeText: 'Back',
-                      onAffirmative: () async {
-                        showLoadingDialog(
-                          context,
-                          'Cancelling service request...',
-                        );
-
-                        try {
-                          await onConfirmCancel(reqID, reason);
-
-                          if (context.mounted) {
-                            Navigator.of(context).pop(); // Close loading dialog
-
-                            showSuccessDialog(
-                              context,
-                              title: 'Request Cancelled',
-                              message:
-                                  'Your service request has been cancelled successfully',
-                              primaryButtonText: 'OK',
-                              onPrimary: () {
-                                Navigator.of(
-                                  context,
-                                ).pop(); // Close success dialog
-                                onSuccess?.call();
-                              },
-                            );
-                          }
-                        } catch (e) {
-                          if (context.mounted) {
-                            Navigator.of(context).pop(); // Close loading dialog
-
-                            showErrorDialog(
-                              context,
-                              title: 'Cancellation Failed',
-                              message: 'Failed to cancel request: $e',
-                              buttonText: 'OK',
-                            );
-                          }
-                        }
-                      },
-                    );
-                  },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-            child: const Text('Next'),
-          ),
-        ],
+      return CancelRequestDialog(
+        reqID: reqID,
+        onConfirmCancel: onConfirmCancel,
+        onSuccess: onSuccess,
       );
     },
   );

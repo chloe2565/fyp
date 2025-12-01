@@ -491,18 +491,19 @@ class ServiceRequestService {
   }
 
   Future<void> cancelRequest(String reqID, String cancellationReason) async {
-    final query = await db
-        .collection('ServiceRequest')
-        .where('reqID', isEqualTo: reqID)
-        .limit(1)
-        .get();
-    if (query.docs.isNotEmpty) {
-      await query.docs.first.reference.update({
+    try {
+      print(
+        'Attempting to cancel request: $reqID with reason: $cancellationReason',
+      );
+
+      await db.collection('ServiceRequest').doc(reqID).update({
         'reqStatus': 'cancelled',
         'reqCancelDateTime': Timestamp.now(),
         'reqCustomCancel': cancellationReason,
       });
-      print('Request $reqID cancelled with reason: $cancellationReason');
+    } catch (e) {
+      print('Error cancelling request $reqID: $e');
+      rethrow;
     }
   }
 
