@@ -83,6 +83,83 @@ class HandymanService {
     }
   }
 
+  Future<Map<String, String>> fetchHandymanContact(
+    List<String> handymanIds,
+  ) async {
+    final validIds = handymanIds.where((id) => id.isNotEmpty).toList();
+
+    if (validIds.isEmpty) {
+      print('No valid handyman IDs to fetch names for');
+      return {};
+    }
+
+    try {
+      final Map<String, String> contactMap = {};
+
+      for (int i = 0; i < validIds.length; i += 10) {
+        final batch = validIds.skip(i).take(10).toList();
+
+        final handymanQuery = await db
+            .collection('Handyman')
+            .where(FieldPath.documentId, whereIn: batch)
+            .get();
+
+        final empIds = handymanQuery.docs
+            .map((doc) => doc.data()['empID']?.toString())
+            .where((id) => id != null && id.isNotEmpty)
+            .toList();
+
+        if (empIds.isEmpty) continue;
+
+        // Fetch employee details
+        for (int j = 0; j < empIds.length; j += 10) {
+          final empBatch = empIds.skip(j).take(10).toList();
+
+          final empQuery = await db
+              .collection('Employee')
+              .where('empID', whereIn: empBatch)
+              .get();
+
+          for (var empDoc in empQuery.docs) {
+            final empData = empDoc.data();
+            final userID = empData['userID']?.toString();
+
+            if (userID == null || userID.isEmpty) continue;
+
+            try {
+              final userDoc = await db.collection('User').doc(userID).get();
+
+              if (userDoc.exists) {
+                final userContact =
+                    userDoc.data()?['userContact']?.toString() ?? 'Unknown';
+                final handymanDoc = handymanQuery.docs.firstWhere(
+                  (doc) => doc.data()['empID'] == empData['empID'],
+                  orElse: () => throw Exception('Handyman not found'),
+                );
+
+                contactMap[handymanDoc.id] = userContact;
+              }
+            } catch (e) {
+              print('Error fetching user name for userID $userID: $e');
+              continue;
+            }
+          }
+        }
+      }
+
+      for (final id in validIds) {
+        if (!contactMap.containsKey(id)) {
+          contactMap[id] = 'N/A';
+        }
+      }
+
+      return contactMap;
+    } catch (e) {
+      print('Error fetching handyman contact: $e');
+      return {for (var id in validIds) id: 'Not Assigned'};
+    }
+  }
+
   Stream<HandymanModel> getHandymanStream(String handymanID) {
     return db.collection('Handyman').doc(handymanID).snapshots().map((
       snapshot,
