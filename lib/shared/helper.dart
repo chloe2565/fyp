@@ -43,7 +43,7 @@ class Validator {
 
   static String? validateContact(String? value) {
     final contact = value?.trim() ?? '';
-    final contactRegex = RegExp(r'^[0-9]{10,15}$');
+    final contactRegex = RegExp(r'^[0-9]{10,11}$');
 
     if (contact.isEmpty) {
       return 'Contact number is required';
