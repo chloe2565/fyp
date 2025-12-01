@@ -13,6 +13,7 @@ class ServiceController {
   late final ServiceService serviceService;
 
   List<ServiceModel> allServicesData = [];
+  List<ServiceModel> topPopularServices = [];
   bool servicesLoaded = false;
   Map<String, String> serviceHandymanMap = {};
 
@@ -28,6 +29,8 @@ class ServiceController {
 
     try {
       allServicesData = await serviceService.getAllServices();
+      topPopularServices = await serviceService
+          .getTopServicesByCompletedRequests(3);
       servicesLoaded = true;
     } catch (e) {
       print('ServiceController Error: $e');
@@ -73,14 +76,10 @@ class ServiceController {
   }
 
   List<ServiceModel> get popularServicesForList {
-    final popular = allServicesData.length > 8
-        ? allServicesData.sublist(8)
-        : <ServiceModel>[];
-
-    return popular.take(3).toList();
+    return topPopularServices;
   }
 
-  bool get hasPopularServices => popularServicesForList.isNotEmpty;
+  bool get hasPopularServices => topPopularServices.isNotEmpty;
 
   bool get showMoreIconInGrid {
     return servicesForGrid.length >= 7;

@@ -31,6 +31,13 @@ class HandymanDataBundle {
   });
 }
 
+class ServicePopularity {
+  final ServiceModel service;
+  final int completedCount;
+
+  ServicePopularity({required this.service, required this.completedCount});
+}
+
 Map<String, String> processHandymanMaps(HandymanDataBundle bundle) {
   final Map<String, String> handymanIdToEmpIdMap = {};
   for (int i = 0; i < bundle.handymanIDs.length; i++) {
@@ -87,6 +94,59 @@ class ServiceService {
     required this.servicePictureService,
   }) {
     servicesCollection = db.collection('Service');
+  }
+
+  Future<List<ServiceModel>> getTopServicesByCompletedRequests(
+    int limit,
+  ) async {
+    try {
+      // Get all active services
+      final servicesSnap = await servicesCollection
+          .where('serviceStatus', isEqualTo: 'active')
+          .get();
+
+      if (servicesSnap.docs.isEmpty) return [];
+
+      final allServices = servicesSnap.docs.map((doc) {
+        final data = doc.data() as Map<String, dynamic>;
+        return ServiceModel.fromMap(data);
+      }).toList();
+
+      final serviceIds = allServices.map((s) => s.serviceID).toList();
+
+      // Fetch all completed requests for these services
+      final requestsSnap = await db
+          .collection('ServiceRequest')
+          .where('serviceID', whereIn: serviceIds)
+          .where('reqStatus', isEqualTo: 'completed')
+          .get();
+
+      // Count completed requests per service
+      final Map<String, int> completedCounts = {};
+      for (var reqDoc in requestsSnap.docs) {
+        final serviceID = reqDoc.data()['serviceID'] as String;
+        completedCounts[serviceID] = (completedCounts[serviceID] ?? 0) + 1;
+      }
+
+      // Combine ServiceModel with count
+      final List<ServicePopularity> rankedServices = allServices.map((service) {
+        return ServicePopularity(
+          service: service,
+          completedCount: completedCounts[service.serviceID] ?? 0,
+        );
+      }).toList();
+
+      // Sort by count (Descending)
+      rankedServices.sort(
+        (a, b) => b.completedCount.compareTo(a.completedCount),
+      );
+
+      // Return the top N models
+      return rankedServices.take(limit).map((item) => item.service).toList();
+    } catch (e) {
+      print('Firestore Error in getTopServicesByCompletedRequests: $e');
+      return [];
+    }
   }
 
   Future<List<ServiceModel>> getAllServices() async {

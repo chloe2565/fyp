@@ -445,6 +445,8 @@ class HomepageScreenState extends State<HomepageScreen> {
                   ? 'RM ${service.servicePrice!.toStringAsFixed(0)} / hour'
                   : 'Price not available',
               imageUrl: 'assets/images/profile.jpg',
+              icon: ServiceHelper.getIconForService(service.serviceName),
+              color: ServiceHelper.getColorForService(service.serviceName),
             ),
           ),
         ),
@@ -503,11 +505,15 @@ class ServiceCard extends StatelessWidget {
   final String title;
   final String price;
   final String imageUrl;
+  final IconData icon;
+  final Color color;
 
   const ServiceCard({
     required this.title,
     required this.price,
     required this.imageUrl,
+    required this.icon,
+    required this.color,
     super.key,
   });
 
@@ -534,11 +540,9 @@ class ServiceCard extends StatelessWidget {
             height: 60,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
-              image: DecorationImage(
-                image: AssetImage(imageUrl),
-                fit: BoxFit.cover,
-              ),
+              color: color,
             ),
+            child: Icon(icon, size: 36, color: Colors.black),
           ),
           const SizedBox(width: 16),
           Expanded(
