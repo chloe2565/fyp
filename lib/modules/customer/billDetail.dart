@@ -145,11 +145,6 @@ Widget buildAddressCard(BillDetailViewModel viewModel) {
                   fontSize: 14,
                 ),
               ),
-              const SizedBox(height: 4),
-              Text(
-                '${viewModel.customerName} ${viewModel.customerContact}',
-                style: TextStyle(color: Colors.grey[700], fontSize: 13),
-              ),
             ],
           ),
         ),
@@ -261,7 +256,7 @@ Widget buildServiceRequestCard(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
-                    'RM ${viewModel.serviceBasePrice?.toStringAsFixed(2) ?? 0.00} / hour',
+                    'RM ${viewModel.serviceBasePrice?.toStringAsFixed(2) ?? 0.00} / 1h',
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                   ),
                   const SizedBox(height: 4),
