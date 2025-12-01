@@ -346,7 +346,7 @@ class ServiceRequestDetailsScreenState
             context,
             title: 'Request Submitted!',
             message:
-                'Your service request has been submitted. An admin will assign a handyman to your request shortly.',
+                'Your service request has been submitted. An admin will assign a handyman to your request within 2 days.',
             primaryButtonText: 'Back to Home',
             onPrimary: () {
               Navigator.of(context).pushAndRemoveUntil(

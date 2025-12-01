@@ -240,6 +240,14 @@ class RequestHistoryDetailScreen extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           buildInfoRow(
+            Icons.phone_outlined,
+            'Handyman Contact',
+            viewModel.handymanContact.isNotEmpty
+                ? Formatter.formatPhoneNumber(viewModel.handymanContact)
+                : 'Not Assigned',
+          ),
+          const SizedBox(height: 12),
+          buildInfoRow(
             Icons.schedule,
             'Service Request Created At',
             DateFormat('MMM dd, yyyy hh:mm a').format(model.reqDateTime),

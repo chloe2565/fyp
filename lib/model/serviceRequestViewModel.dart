@@ -16,6 +16,7 @@ class RequestViewModel {
   final DateTime? paymentCreatedAt;
   final ServiceRequestModel requestModel; 
   final String handymanName;
+  final String handymanContact;
   final String customerName; 
   final String customerContact;
   final BillingModel? billing;
@@ -36,6 +37,7 @@ class RequestViewModel {
     this.paymentCreatedAt,
     required this.requestModel,
     required this.handymanName,
+    required this.handymanContact,
     required this.customerName,
     required this.customerContact,
     this.billing,

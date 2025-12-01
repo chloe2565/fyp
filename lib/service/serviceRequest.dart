@@ -287,6 +287,9 @@ class ServiceRequestService {
 
       final serviceMap = await batchFetchServices(serviceIds);
       final handymanNameMap = await handyman.fetchHandymanNames(handymanIds);
+      final handymanContactMap = await handyman.fetchHandymanContact(
+        handymanIds,
+      );
       final billingMap = await fetchBillingInfo(reqIds);
       final paymentCreatedMap = await fetchPaymentCreatedDates(billingMap);
 
@@ -298,6 +301,11 @@ class ServiceRequestService {
             req.handymanID != null && req.handymanID!.isNotEmpty
             ? (handymanNameMap[req.handymanID] ?? 'Not Assigned')
             : 'Not Assigned';
+
+        final handymanContact =
+            req.handymanID != null && req.handymanID!.isNotEmpty
+            ? (handymanContactMap[req.handymanID] ?? 'N/A')
+            : 'N/A';
 
         final billing = billingMap[req.reqID];
 
@@ -311,6 +319,7 @@ class ServiceRequestService {
             'request': req,
             'service': service,
             'handymanName': handymanName,
+            'handymanContact': handymanContact,
             'billing': billing,
             'paymentCreatedAt': paymentCreatedAt,
           });

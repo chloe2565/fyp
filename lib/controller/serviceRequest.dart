@@ -298,6 +298,7 @@ class ServiceRequestController extends ChangeNotifier {
       final paymentCreatedAt = map['paymentCreatedAt'] as DateTime?;
       final String locationData = req.reqAddress;
       final handymanName = map['handymanName'] as String;
+      final handymanContact = map['handymanContact'] as String;
       final customerName = map['customerName'] as String? ?? 'Unknown';
       final customerContact = map['customerContact'] as String? ?? 'N/A';
       final reqDateTime = Formatter.formatDateTime(req.reqDateTime);
@@ -336,6 +337,7 @@ class ServiceRequestController extends ChangeNotifier {
         paymentCreatedAt: paymentCreatedAt,
         requestModel: req,
         handymanName: handymanName,
+        handymanContact: handymanContact,
         customerName: customerName,
         customerContact: customerContact,
       );
@@ -496,15 +498,19 @@ class ServiceRequestController extends ChangeNotifier {
       final ServiceRequestModel newRequest = ServiceRequestModel(
         reqID: newReqID,
         reqDateTime: DateTime.now(),
+        reqCompleteTime: null,
         scheduledDateTime: scheduledDateTime,
         reqAddress: locationAddress,
         reqDesc: description,
         reqPicName: photoUrls,
         reqStatus: 'pending',
-        reqCustomCancel: remark,
+        reqRemark: '',
+        reqCustomCancel: null,
         custID: currentCustomerID!,
         serviceID: serviceID,
         handymanID: null,
+        cancelID: null,
+        reqCancelDateTime: null,
       );
       await serviceRequest.addServiceRequest(newRequest);
 
@@ -557,15 +563,19 @@ class ServiceRequestController extends ChangeNotifier {
       final ServiceRequestModel newRequest = ServiceRequestModel(
         reqID: newReqID,
         reqDateTime: DateTime.now(),
+        reqCompleteTime: null,
         scheduledDateTime: scheduledDateTime,
         reqAddress: locationAddress,
         reqDesc: description,
         reqPicName: photoUrls,
         reqStatus: 'pending',
-        reqCustomCancel: remark,
+        reqRemark: '',
+        reqCustomCancel: null,
         custID: currentCustomerID!,
         serviceID: serviceID,
         handymanID: null,
+        cancelID: null,
+        reqCancelDateTime: null,
       );
 
       await serviceRequest.addServiceRequest(newRequest);
