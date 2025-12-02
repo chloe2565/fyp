@@ -297,8 +297,8 @@ class ServiceRequestController extends ChangeNotifier {
       final billing = map['billing'] as BillingModel?;
       final paymentCreatedAt = map['paymentCreatedAt'] as DateTime?;
       final String locationData = req.reqAddress;
-      final handymanName = map['handymanName'] as String;
-      final handymanContact = map['handymanContact'] as String;
+      final handymanName = map['handymanName'] as String? ?? 'N/A';
+      final handymanContact = map['handymanContact'] as String? ?? 'N/A';
       final customerName = map['customerName'] as String? ?? 'Unknown';
       final customerContact = map['customerContact'] as String? ?? 'N/A';
       final reqDateTime = Formatter.formatDateTime(req.reqDateTime);
@@ -363,7 +363,7 @@ class ServiceRequestController extends ChangeNotifier {
     searchDebounce?.cancel();
     searchDebounce = Timer(const Duration(milliseconds: 300), () {
       searchQuery = query;
-      applyFiltersAndNotify();
+      applyFiltersAndNotify(isSearch: true);
     });
   }
 
@@ -377,7 +377,7 @@ class ServiceRequestController extends ChangeNotifier {
     selectedStatuses = statuses ?? {};
     this.startDate = startDate;
     this.endDate = endDate;
-    await applyFiltersAndNotify();
+    await applyFiltersAndNotify(isManualFilter: true);
   }
 
   Future<void> applyFilters({
@@ -401,10 +401,15 @@ class ServiceRequestController extends ChangeNotifier {
     await applyFiltersAndNotify();
   }
 
-  Future<void> applyFiltersAndNotify() async {
-    if (isFiltering) return;
-    isFiltering = true;
-    notifyListeners();
+  Future<void> applyFiltersAndNotify({
+    bool isSearch = false,
+    bool isManualFilter = false,
+  }) async {
+    if (isFiltering && !isSearch) return;
+    if (isManualFilter) {
+      isFiltering = true;
+      if (hasListeners) notifyListeners();
+    }
 
     try {
       final input = FilterInput(
@@ -443,7 +448,7 @@ class ServiceRequestController extends ChangeNotifier {
       filteredHistoryRequests = [];
     } finally {
       isFiltering = false;
-      notifyListeners();
+      if (hasListeners) notifyListeners();
     }
   }
 
@@ -1385,7 +1390,7 @@ class ServiceRequestController extends ChangeNotifier {
     if (requestsToAnalyze.isEmpty) return;
 
     isLoadingUrgency = true;
-    notifyListeners();
+    if (hasListeners) notifyListeners();
 
     try {
       // Batch analyze descriptions
