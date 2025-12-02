@@ -357,23 +357,15 @@ class RatingReviewCard extends StatelessWidget {
                 ],
               ),
 
-              // Review Preview (only if has text)
-              Expanded(
-                child: buildDetailItem(
-                  'Service Status',
-                  capitalizeFirst(request.reqStatus),
-                  valueColor: getStatusColor(request.reqStatus),
-                ),
-              ),
-
               if (review.ratingText.isNotEmpty) ...[
+                const SizedBox(height: 12),
                 Text(
                   "Review Text",
                   style: TextStyle(fontSize: 11, color: Colors.grey[600]),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 4),
                 Text(
                   review.ratingText,
                   style: TextStyle(

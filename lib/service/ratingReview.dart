@@ -39,6 +39,7 @@ class RatingReviewService {
       final handymanIDs = requests
           .map((r) => r.handymanID)
           .whereType<String>()
+          .where((id) => id.trim().isNotEmpty)
           .toSet()
           .toList();
       final reviewData = getReviewsForServiceRequests(reqIDs);
@@ -109,7 +110,12 @@ class RatingReviewService {
       );
 
       // Get Employees
-      final empIDs = handymanMap.values.map((h) => h.empID).toSet().toList();
+      final empIDs = handymanMap.values
+          .map((h) => h.empID)
+          .whereType<String>()
+          .where((id) => id.trim().isNotEmpty)
+          .toSet()
+          .toList();
       final employeeMap = await batchFetch<EmployeeModel>(
         ids: empIDs,
         collection: 'Employee',
@@ -117,7 +123,12 @@ class RatingReviewService {
       );
 
       // Get Users
-      final userIDs = employeeMap.values.map((e) => e.userID).toSet().toList();
+      final userIDs = employeeMap.values
+          .map((e) => e.userID)
+          .whereType<String>()
+          .where((id) => id.trim().isNotEmpty)
+          .toSet()
+          .toList();
       final userMap = await batchFetch<UserModel>(
         ids: userIDs,
         collection: 'User',
@@ -150,17 +161,17 @@ class RatingReviewService {
         print('Customer document not found for custID: $custID');
         return null;
       }
-      
+
       final customerData = customerDoc.data() as Map<String, dynamic>;
       final customer = CustomerModel.fromMap(customerData);
-      
+
       // Get User document using userID from customer
       final userDoc = await db.collection('User').doc(customer.userID).get();
       if (!userDoc.exists) {
         print('User document not found for userID: ${customer.userID}');
         return null;
       }
-      
+
       final userData = userDoc.data() as Map<String, dynamic>;
       return UserModel.fromMap(userData);
     } catch (e) {
@@ -184,7 +195,12 @@ class RatingReviewService {
       );
 
       // Get Users
-      final userIDs = customerMap.values.map((c) => c.userID).toSet().toList();
+      final userIDs = customerMap.values
+          .map((c) => c.userID)
+          .whereType<String>()
+          .where((id) => id.trim().isNotEmpty)
+          .toSet()
+          .toList();
       final userMap = await batchFetch<UserModel>(
         ids: userIDs,
         collection: 'User',
@@ -212,10 +228,10 @@ class RatingReviewService {
     required String collection,
     required T Function(Map<String, dynamic>) fromMap,
   }) async {
+    final idSet = ids.where((id) => id.trim().isNotEmpty).toSet().toList();
     if (ids.isEmpty) return {};
 
     final Map<String, T> resultMap = {};
-    final idSet = ids.toSet().toList();
 
     for (var i = 0; i < idSet.length; i += 30) {
       final sublist = idSet.sublist(
@@ -295,7 +311,11 @@ class RatingReviewService {
           .collection('Service')
           .doc(request.serviceID)
           .get();
-      final handymanUserFuture = fetchHandymanUserModels([?request.handymanID]);
+      final handymanUserFuture = fetchHandymanUserModels(
+        request.handymanID != null && request.handymanID!.trim().isNotEmpty
+            ? [request.handymanID!]
+            : [],
+      );
 
       final results2 = await Future.wait([
         serviceFuture,
@@ -363,7 +383,11 @@ class RatingReviewService {
           .collection('Service')
           .doc(request.serviceID)
           .get();
-      final handymanUserFuture = fetchHandymanUserModels([?request.handymanID]);
+      final handymanUserFuture = fetchHandymanUserModels(
+        request.handymanID != null && request.handymanID!.trim().isNotEmpty
+            ? [request.handymanID!]
+            : [],
+      );
 
       final results = await Future.wait([serviceFuture, handymanUserFuture]);
 
@@ -509,12 +533,10 @@ class RatingReviewService {
       final handymanIDs = requests
           .map((r) => r.handymanID)
           .whereType<String>()
+          .where((id) => id.trim().isNotEmpty)
           .toSet()
           .toList();
-      final custIDs = requests
-          .map((r) => r.custID)
-          .toSet()
-          .toList();
+      final custIDs = requests.map((r) => r.custID).toSet().toList();
 
       final reviewData = getAllReviewsAndFilter(reqIDs);
       final serviceData = fetchAllServicesAndFilter(serviceIDs);
