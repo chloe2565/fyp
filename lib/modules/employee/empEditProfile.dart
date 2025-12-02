@@ -125,7 +125,6 @@ Future<void> pickImage() async {
           message: "Your profile has been updated successfully.",
           onPrimary: () {
             widget.onProfileUpdated();
-            Navigator.of(context).pop(); // Close loading
             Navigator.of(context).pop(); // Close success
             Navigator.of(context).pop(); // Close edit screen
           },
@@ -205,16 +204,16 @@ Future<void> pickImage() async {
               const SizedBox(height: 40),
 
               // Employee ID
-              TextFormField(
-                enabled: false,
-                initialValue: widget.empID,
-                decoration: const InputDecoration(
-                  labelText: 'Employee ID',
-                  prefixIcon: Icon(Icons.people_outlined, color: Colors.grey),
-                ),
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-              const SizedBox(height: 24),
+              // TextFormField(
+              //   enabled: false,
+              //   initialValue: widget.empID,
+              //   decoration: const InputDecoration(
+              //     labelText: 'Employee ID',
+              //     prefixIcon: Icon(Icons.people_outlined, color: Colors.grey),
+              //   ),
+              //   style: Theme.of(context).textTheme.bodySmall,
+              // ),
+              // const SizedBox(height: 24),
 
               // Employee Type
               TextFormField(

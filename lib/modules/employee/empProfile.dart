@@ -81,8 +81,8 @@ class EmpProfileScreenState extends State<EmpProfileScreen> {
                 const SizedBox(height: 30),
 
                 // Employee ID
-                infoRow('Employee ID', emp.empID),
-                const SizedBox(height: 24),
+                // infoRow('Employee ID', emp.empID),
+                // const SizedBox(height: 24),
 
                 // Employee Type
                 infoRow(
@@ -102,8 +102,7 @@ class EmpProfileScreenState extends State<EmpProfileScreen> {
                 // Employee Contact Number
                 infoRow(
                   'Contact Number',
-                  Formatter.formatPhoneNumber(user.userContact),
-                  showFlag: true,
+                  Formatter.formatPhoneNumber(user.userContact)
                 ),
                 const SizedBox(height: 24),
 

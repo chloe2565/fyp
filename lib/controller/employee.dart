@@ -122,7 +122,7 @@ class EmployeeController extends ChangeNotifier {
   Future<void> loadProfile() async {
     isLoading = true;
     error = null;
-    notifyListeners();
+    if (hasListeners) notifyListeners();
 
     try {
       final authUser = FirebaseAuth.instance.currentUser;
@@ -145,11 +145,13 @@ class EmployeeController extends ChangeNotifier {
       }
 
       isLoading = false;
-      notifyListeners();
+      if (hasListeners) notifyListeners();
     } catch (e) {
       error = e.toString();
       isLoading = false;
-      notifyListeners();
+      if (hasListeners) {
+        notifyListeners();
+      }
     }
   }
 
