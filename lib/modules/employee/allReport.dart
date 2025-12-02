@@ -398,7 +398,7 @@ class EmpReportScreenState extends State<EmpReportScreen> {
       negativeText: 'Cancel',
       onAffirmative: () async {
         print(
-          '🔄 DEBUG: User confirmed deletion for report: ${report.reportID}',
+          'DEBUG: User confirmed deletion for report: ${report.reportID}',
         );
 
         // Show loading dialog

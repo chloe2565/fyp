@@ -497,7 +497,7 @@ class ViewReportPageState extends State<ViewReportPage> {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          widget.report.reportName,
+          'Report Details',
           style: const TextStyle(
             color: Colors.black,
             fontSize: 18,
@@ -539,7 +539,7 @@ class ViewReportPageState extends State<ViewReportPage> {
           : RefreshIndicator(
               onRefresh: loadReportData,
               child: ListView(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
                 children: [
                   buildReportInfoCard(),
                   const SizedBox(height: 16),
@@ -715,7 +715,7 @@ class ViewReportPageState extends State<ViewReportPage> {
                       ),
                     ),
                     Text(
-                      'Report ID: ${widget.report.reportID}',
+                      'Report Name: ${widget.report.reportName}',
                       style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                     ),
                   ],
@@ -871,7 +871,7 @@ class ViewReportPageState extends State<ViewReportPage> {
                 color: Colors.black87,
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 8),
             GridView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
@@ -885,7 +885,7 @@ class ViewReportPageState extends State<ViewReportPage> {
               itemBuilder: (context, index) {
                 final metric = metrics[index];
                 return Container(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: [Colors.orange[50]!, Colors.orange[100]!],
@@ -903,7 +903,7 @@ class ViewReportPageState extends State<ViewReportPage> {
                         children: [
                           Text(
                             metric['icon']!,
-                            style: const TextStyle(fontSize: 16),
+                            style: const TextStyle(fontSize: 12),
                           ),
                           const SizedBox(width: 6),
                           Expanded(
@@ -924,7 +924,7 @@ class ViewReportPageState extends State<ViewReportPage> {
                       Text(
                         metric['value']!,
                         style: TextStyle(
-                          fontSize: 18,
+                          fontSize: 15,
                           fontWeight: FontWeight.bold,
                           color: Colors.orange[800],
                         ),
@@ -989,6 +989,8 @@ class ViewReportPageState extends State<ViewReportPage> {
         ? validPerformance
         : validPerformance.take(topN).toList();
 
+    const double chartHeight = 320;
+
     return Column(
       children: [
         buildChartCard(
@@ -1000,7 +1002,7 @@ class ViewReportPageState extends State<ViewReportPage> {
               child: displayData.isEmpty
                   ? buildNoDataWidget('No ratings available for this period')
                   : SizedBox(
-                      height: 320,
+                      height: chartHeight,
                       child: Padding(
                         padding: const EdgeInsets.only(
                           right: 16,
@@ -1134,43 +1136,60 @@ class ViewReportPageState extends State<ViewReportPage> {
                   displayData.where((h) => h['completedRequests'] > 0).isEmpty
                   ? buildNoDataWidget('No completed requests in this period')
                   : SizedBox(
-                      height: 320,
+                      height: chartHeight,
                       child: Row(
                         children: [
                           // Pie Chart
                           Expanded(
                             flex: 3,
-                            child: PieChart(
-                              PieChartData(
-                                sections: displayData
-                                    .where((h) => h['completedRequests'] > 0)
-                                    .map((h) {
-                                      int index = performance.indexOf(h);
-                                      int completed = h['completedRequests'];
+                            child: LayoutBuilder(
+                              builder: (context, constraints) {
+                                final double maxDimension =
+                                    constraints.maxWidth;
+                                final double responsiveRadius =
+                                    (maxDimension / 2) * 0.70;
+                                final double centerSpace =
+                                    responsiveRadius * 0.3;
 
-                                      return PieChartSectionData(
-                                        value: completed.toDouble(),
-                                        title: '$completed',
-                                        color:
-                                            Colors.primaries[index %
-                                                Colors.primaries.length],
-                                        radius: 100,
-                                        titleStyle: const TextStyle(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.white,
-                                        ),
-                                        badgeWidget: null,
-                                      );
-                                    })
-                                    .toList(),
-                                sectionsSpace: 3,
-                                centerSpaceRadius: 50,
-                                pieTouchData: PieTouchData(
-                                  touchCallback:
-                                      (FlTouchEvent event, pieTouchResponse) {},
-                                ),
-                              ),
+                                return PieChart(
+                                  PieChartData(
+                                    sections: displayData
+                                        .where(
+                                          (h) => h['completedRequests'] > 0,
+                                        )
+                                        .map((h) {
+                                          int index = performance.indexOf(h);
+                                          int completed =
+                                              h['completedRequests'];
+
+                                          return PieChartSectionData(
+                                            value: completed.toDouble(),
+                                            title: '$completed',
+                                            color:
+                                                Colors.primaries[index %
+                                                    Colors.primaries.length],
+                                            radius: responsiveRadius,
+                                            titleStyle: const TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.white,
+                                            ),
+                                            badgeWidget: null,
+                                          );
+                                        })
+                                        .toList(),
+                                    sectionsSpace: 3,
+                                    centerSpaceRadius: centerSpace,
+                                    pieTouchData: PieTouchData(
+                                      touchCallback:
+                                          (
+                                            FlTouchEvent event,
+                                            pieTouchResponse,
+                                          ) {},
+                                    ),
+                                  ),
+                                );
+                              },
                             ),
                           ),
                           // Legend
@@ -1246,6 +1265,8 @@ class ViewReportPageState extends State<ViewReportPage> {
       return buildNoDataCard('No service request data for this period');
     }
 
+    const double chartHeight = 320;
+
     return Column(
       children: [
         buildChartCard(
@@ -1255,50 +1276,59 @@ class ViewReportPageState extends State<ViewReportPage> {
             child: Container(
               color: Colors.white,
               child: SizedBox(
-                height: 320,
+                height: chartHeight,
                 child: Row(
                   children: [
                     Expanded(
                       flex: 3,
-                      child: PieChart(
-                        PieChartData(
-                          sections: validStatuses.map((entry) {
-                            Color color;
-                            switch (entry.key) {
-                              case 'completed':
-                                color = Colors.green[600]!;
-                                break;
-                              case 'pending':
-                                color = Colors.orange[600]!;
-                                break;
-                              case 'cancelled':
-                                color = Colors.red[600]!;
-                                break;
-                              case 'confirmed':
-                                color = Colors.blue[600]!;
-                                break;
-                              case 'departed':
-                                color = Colors.purple[600]!;
-                                break;
-                              default:
-                                color = Colors.grey[600]!;
-                            }
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          final double maxDimension = constraints.maxWidth;
+                          final double responsiveRadius =
+                              (maxDimension / 2) * 0.70;
+                          final double centerSpace = responsiveRadius * 0.3;
 
-                            return PieChartSectionData(
-                              value: entry.value.toDouble(),
-                              title: '${entry.value}',
-                              color: color,
-                              radius: 100,
-                              titleStyle: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                            );
-                          }).toList(),
-                          sectionsSpace: 3,
-                          centerSpaceRadius: 50,
-                        ),
+                          return PieChart(
+                            PieChartData(
+                              sections: validStatuses.map((entry) {
+                                Color color;
+                                switch (entry.key) {
+                                  case 'completed':
+                                    color = Colors.green[600]!;
+                                    break;
+                                  case 'pending':
+                                    color = Colors.orange[600]!;
+                                    break;
+                                  case 'cancelled':
+                                    color = Colors.red[600]!;
+                                    break;
+                                  case 'confirmed':
+                                    color = Colors.blue[600]!;
+                                    break;
+                                  case 'departed':
+                                    color = Colors.purple[600]!;
+                                    break;
+                                  default:
+                                    color = Colors.grey[600]!;
+                                }
+
+                                return PieChartSectionData(
+                                  value: entry.value.toDouble(),
+                                  title: '${entry.value}',
+                                  color: color,
+                                  radius: responsiveRadius,
+                                  titleStyle: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                );
+                              }).toList(),
+                              sectionsSpace: 3,
+                              centerSpaceRadius: centerSpace,
+                            ),
+                          );
+                        },
                       ),
                     ),
                     Expanded(
@@ -1372,7 +1402,7 @@ class ViewReportPageState extends State<ViewReportPage> {
         buildChartCard(
           'Completion & Cancellation Rates',
           SizedBox(
-            height: 280,
+            height: chartHeight,
             child: Padding(
               padding: const EdgeInsets.only(right: 16, top: 16),
               child: BarChart(
@@ -1529,6 +1559,8 @@ class ViewReportPageState extends State<ViewReportPage> {
         ? 1000
         : displayServices.first.value['revenue'].toDouble();
 
+    const double chartHeight = 320;
+
     return Column(
       children: [
         buildChartCard(
@@ -1538,7 +1570,7 @@ class ViewReportPageState extends State<ViewReportPage> {
             child: Container(
               color: Colors.white,
               child: SizedBox(
-                height: 320,
+                height: chartHeight,
                 child: Padding(
                   padding: const EdgeInsets.only(
                     right: 16,
@@ -1668,38 +1700,48 @@ class ViewReportPageState extends State<ViewReportPage> {
             child: Container(
               color: Colors.white,
               child: SizedBox(
-                height: 320,
+                height: chartHeight,
                 child: Row(
                   children: [
                     // Pie Chart
                     Expanded(
                       flex: 3,
-                      child: PieChart(
-                        PieChartData(
-                          sections: displayServices.asMap().entries.map((
-                            entry,
-                          ) {
-                            double revenue = entry.value.value['revenue']
-                                .toDouble();
-                            double percentage = (revenue / totalRevenue) * 100;
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          final double maxDimension = constraints.maxWidth;
+                          final double responsiveRadius =
+                              (maxDimension / 2) * 0.70;
+                          final double centerSpace = responsiveRadius * 0.3;
 
-                            return PieChartSectionData(
-                              value: revenue,
-                              title: '${percentage.toStringAsFixed(1)}%',
-                              color:
-                                  Colors.primaries[entry.key %
-                                      Colors.primaries.length],
-                              radius: 100,
-                              titleStyle: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                            );
-                          }).toList(),
-                          sectionsSpace: 3,
-                          centerSpaceRadius: 50,
-                        ),
+                          return PieChart(
+                            PieChartData(
+                              sections: displayServices.asMap().entries.map((
+                                entry,
+                              ) {
+                                double revenue = entry.value.value['revenue']
+                                    .toDouble();
+                                double percentage =
+                                    (revenue / totalRevenue) * 100;
+
+                                return PieChartSectionData(
+                                  value: revenue,
+                                  title: '${percentage.toStringAsFixed(1)}%',
+                                  color:
+                                      Colors.primaries[entry.key %
+                                          Colors.primaries.length],
+                                  radius: responsiveRadius,
+                                  titleStyle: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                );
+                              }).toList(),
+                              sectionsSpace: 3,
+                              centerSpaceRadius: centerSpace,
+                            ),
+                          );
+                        },
                       ),
                     ),
                     // Legend

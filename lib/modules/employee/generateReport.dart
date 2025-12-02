@@ -14,14 +14,14 @@ class GenerateReportPageState extends State<GenerateReportPage> {
   final ReportController controller = ReportController();
   final formKey = GlobalKey<FormState>();
   final TextEditingController reportNameController = TextEditingController();
-  
+
   String? selectedReportType;
   DateTime? startDate;
   DateTime? endDate;
   bool isLoading = false;
-  
+
   DateRangeValidation? dateValidation;
-  
+
   String? currentProviderID;
   bool isLoadingProviderID = true;
   String? errorLoadingProviderID;
@@ -78,12 +78,12 @@ class GenerateReportPageState extends State<GenerateReportPage> {
         initialDate = now;
       }
     }
-    
+
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: initialDate,
       firstDate: DateTime(2020),
-      lastDate: now, 
+      lastDate: now,
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
@@ -112,48 +112,69 @@ class GenerateReportPageState extends State<GenerateReportPage> {
 
   String generateReportName(String type) {
     if (startDate == null || endDate == null) return '';
-    
+
     final format = DateFormat('MMM yyyy');
-    
-    if (startDate!.year == endDate!.year && startDate!.month == endDate!.month) {
-      int lastDayOfMonth = DateTime(startDate!.year, startDate!.month + 1, 0).day;
-      
+
+    if (startDate!.year == endDate!.year &&
+        startDate!.month == endDate!.month) {
+      int lastDayOfMonth = DateTime(
+        startDate!.year,
+        startDate!.month + 1,
+        0,
+      ).day;
+
       if (startDate!.day == 1 && endDate!.day == lastDayOfMonth) {
         return '${format.format(startDate!)} $type Report';
       } else {
         return '${startDate!.day}-${endDate!.day} ${format.format(startDate!)} $type Report';
       }
     }
-    
+
     int startQuarter = ((startDate!.month - 1) ~/ 3) + 1;
     int endQuarter = ((endDate!.month - 1) ~/ 3) + 1;
-    
+
     if (startDate!.year == endDate!.year && startQuarter == endQuarter) {
-      DateTime quarterStart = DateTime(startDate!.year, (startQuarter - 1) * 3 + 1, 1);
+      DateTime quarterStart = DateTime(
+        startDate!.year,
+        (startQuarter - 1) * 3 + 1,
+        1,
+      );
       DateTime quarterEnd = DateTime(startDate!.year, startQuarter * 3 + 1, 0);
-      
-      if (startDate!.day == quarterStart.day && 
+
+      if (startDate!.day == quarterStart.day &&
           startDate!.month == quarterStart.month &&
-          endDate!.day == quarterEnd.day && 
+          endDate!.day == quarterEnd.day &&
           endDate!.month == quarterEnd.month) {
-        final monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
-                           'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        final monthNames = [
+          'Jan',
+          'Feb',
+          'Mar',
+          'Apr',
+          'May',
+          'Jun',
+          'Jul',
+          'Aug',
+          'Sep',
+          'Oct',
+          'Nov',
+          'Dec',
+        ];
         String startMonth = monthNames[quarterStart.month - 1];
         String endMonth = monthNames[quarterEnd.month - 1];
         return 'Q$startQuarter ${startDate!.year} ($startMonth-$endMonth) $type Report';
       }
     }
-    
+
     if (startDate!.year == endDate!.year) {
       return '${format.format(startDate!)}-${format.format(endDate!)} $type Report';
     }
-    
+
     return '${format.format(startDate!)}-${format.format(endDate!)} $type Report';
   }
 
   Future<void> generateReport() async {
     validateDates();
-    
+
     if (!formKey.currentState!.validate()) {
       return;
     }
@@ -204,13 +225,14 @@ class GenerateReportPageState extends State<GenerateReportPage> {
         setState(() {
           isLoading = false;
         });
-        
+
         if (!mounted) return;
-        
+
         showErrorDialog(
           context,
           title: 'Duplicate Report',
-          message: 'A report with the same type and date range already exists. Please choose different dates or report type.',
+          message:
+              'A report with the same type and date range already exists. Please choose different dates or report type.',
           buttonText: 'OK',
         );
         return;
@@ -226,13 +248,22 @@ class GenerateReportPageState extends State<GenerateReportPage> {
       );
 
       if (!mounted) return;
-      Navigator.pop(context, true);
+      showSuccessDialog(
+        context,
+        title: 'Success Generate Report',
+        message:
+            'The report "${reportNameController.text.trim()}" has been successfully created and is ready to be viewed.',
+        primaryButtonText: 'Back',
+        onPrimary: () => Navigator.pop(context, true), // Pop to previous screen
+        secondaryButtonText: null,
+        onSecondary: null,
+      );
     } catch (e) {
       if (!mounted) return;
-      
+
       showErrorDialog(
         context,
-        title: 'Error',
+        title: 'Generation Failed',
         message: e.toString(),
         buttonText: 'OK',
       );
@@ -267,9 +298,7 @@ class GenerateReportPageState extends State<GenerateReportPage> {
           ),
           centerTitle: true,
         ),
-        body: const Center(
-          child: CircularProgressIndicator(),
-        ),
+        body: const Center(child: CircularProgressIndicator()),
       );
     }
 
@@ -368,7 +397,11 @@ class GenerateReportPageState extends State<GenerateReportPage> {
                       value: type,
                       child: Row(
                         children: [
-                          Icon(getReportIcon(type), size: 20, color: Colors.orange[400]),
+                          Icon(
+                            getReportIcon(type),
+                            size: 20,
+                            color: Colors.orange[400],
+                          ),
                           const SizedBox(width: 12),
                           Text(type),
                         ],
@@ -473,10 +506,10 @@ class GenerateReportPageState extends State<GenerateReportPage> {
                 buildQuickDateButton('This Month', () {
                   DateTime now = DateTime.now();
                   int lastDayOfMonth = DateTime(now.year, now.month + 1, 0).day;
-                  DateTime endDate = now.day == lastDayOfMonth 
-                      ? now  
-                      : DateTime(now.year, now.month, now.day); 
-                  
+                  DateTime endDate = now.day == lastDayOfMonth
+                      ? now
+                      : DateTime(now.year, now.month, now.day);
+
                   setState(() {
                     startDate = DateTime(now.year, now.month, 1);
                     endDate = endDate;
@@ -487,13 +520,23 @@ class GenerateReportPageState extends State<GenerateReportPage> {
                 buildQuickDateButton('Last Month', () {
                   DateTime now = DateTime.now();
                   int lastMonth = now.month - 1;
-                  int yearOfLastMonth = lastMonth == 0 ? now.year - 1 : now.year;
+                  int yearOfLastMonth = lastMonth == 0
+                      ? now.year - 1
+                      : now.year;
                   int monthNum = lastMonth == 0 ? 12 : lastMonth;
-                  int lastDayOfLastMonth = DateTime(yearOfLastMonth, monthNum + 1, 0).day;
-                  
+                  int lastDayOfLastMonth = DateTime(
+                    yearOfLastMonth,
+                    monthNum + 1,
+                    0,
+                  ).day;
+
                   setState(() {
                     startDate = DateTime(yearOfLastMonth, monthNum, 1);
-                    endDate = DateTime(yearOfLastMonth, monthNum, lastDayOfLastMonth);
+                    endDate = DateTime(
+                      yearOfLastMonth,
+                      monthNum,
+                      lastDayOfLastMonth,
+                    );
                     updateReportName();
                     validateDates();
                   });
@@ -501,13 +544,17 @@ class GenerateReportPageState extends State<GenerateReportPage> {
                 buildQuickDateButton('This Quarter', () {
                   DateTime now = DateTime.now();
                   int quarter = ((now.month - 1) ~/ 3) + 1;
-                  DateTime quarterStart = DateTime(now.year, (quarter - 1) * 3 + 1, 1);
+                  DateTime quarterStart = DateTime(
+                    now.year,
+                    (quarter - 1) * 3 + 1,
+                    1,
+                  );
                   DateTime quarterEnd = DateTime(now.year, quarter * 3 + 1, 0);
-                  
+
                   if (quarterEnd.isAfter(now)) {
                     quarterEnd = now;
                   }
-                  
+
                   setState(() {
                     startDate = quarterStart;
                     endDate = quarterEnd;
@@ -519,7 +566,7 @@ class GenerateReportPageState extends State<GenerateReportPage> {
                   DateTime now = DateTime.now();
                   setState(() {
                     startDate = DateTime(now.year, 1, 1);
-                    endDate = now; 
+                    endDate = now;
                     updateReportName();
                     validateDates();
                   });
@@ -541,7 +588,11 @@ class GenerateReportPageState extends State<GenerateReportPage> {
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.info_outline, color: Colors.blue[700], size: 20),
+                        Icon(
+                          Icons.info_outline,
+                          color: Colors.blue[700],
+                          size: 20,
+                        ),
                         const SizedBox(width: 8),
                         Text(
                           'Report Summary',
@@ -625,10 +676,10 @@ class GenerateReportPageState extends State<GenerateReportPage> {
     required bool isStartDate,
     required VoidCallback onTap,
   }) {
-    String? error = isStartDate 
-        ? dateValidation?.startDateError 
+    String? error = isStartDate
+        ? dateValidation?.startDateError
         : dateValidation?.endDateError;
-    
+
     return InkWell(
       onTap: onTap,
       child: Column(
@@ -658,19 +709,23 @@ class GenerateReportPageState extends State<GenerateReportPage> {
                 Row(
                   children: [
                     Icon(
-                      Icons.calendar_today, 
-                      size: 16, 
+                      Icons.calendar_today,
+                      size: 16,
                       color: error != null ? Colors.red : Colors.orange[400],
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      date != null ? controller.formatDate(date) : 'Select date',
+                      date != null
+                          ? controller.formatDate(date)
+                          : 'Select date',
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
-                        color: error != null 
-                            ? Colors.red 
-                            : (date != null ? Colors.black87 : Colors.grey[400]),
+                        color: error != null
+                            ? Colors.red
+                            : (date != null
+                                  ? Colors.black87
+                                  : Colors.grey[400]),
                       ),
                     ),
                   ],
@@ -684,10 +739,7 @@ class GenerateReportPageState extends State<GenerateReportPage> {
               padding: const EdgeInsets.only(left: 12),
               child: Text(
                 error,
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: Colors.red,
-                ),
+                style: const TextStyle(fontSize: 11, color: Colors.red),
               ),
             ),
           ],
@@ -701,9 +753,7 @@ class GenerateReportPageState extends State<GenerateReportPage> {
       onPressed: onPressed,
       style: OutlinedButton.styleFrom(
         side: BorderSide(color: Colors.grey[300]!),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
       child: Text(
         label,

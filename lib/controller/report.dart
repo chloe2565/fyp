@@ -98,21 +98,8 @@ class ReportController {
         providerID: providerID,
       );
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Report generated successfully'),
-          backgroundColor: Colors.green,
-        ),
-      );
-
       return reportID;
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
       rethrow;
     }
   }
