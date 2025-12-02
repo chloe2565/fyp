@@ -349,7 +349,7 @@ class EmployeeService {
 
       UserCredential userCredential;
       try {
-        userCredential = await auth.createUserWithEmailAndPassword(
+        userCredential = await tempAuth.createUserWithEmailAndPassword(
           email: data['userEmail'],
           password: generatedPassword,
         );
@@ -358,7 +358,6 @@ class EmployeeService {
       }
 
       authID = userCredential.user!.uid;
-      await tempAuth.signOut();
       await tempApp.delete();
     } catch (e) {
       if (Firebase.apps.any((app) => app.name == tempAppName)) {
