@@ -153,9 +153,7 @@ class EmpAddServiceScreenState extends State<EmpAddServiceScreen> {
         serviceID: serviceIDController.text,
         serviceName: serviceNameController.text,
         serviceDesc: descriptionController.text,
-        servicePrice: priceController.text.isEmpty
-            ? null
-            : double.tryParse(priceController.text),
+        servicePrice: double.tryParse(priceController.text),
         serviceDuration:
             '${minDurationController.text} to ${maxDurationController.text} hours',
         serviceStatus: serviceStatus,
@@ -165,7 +163,7 @@ class EmpAddServiceScreenState extends State<EmpAddServiceScreen> {
       final handymanIDs = selectedHandymen.keys.toList();
 
       await controller.addNewService(service, handymanIDs, selectedImages);
-      
+
       if (!mounted) return;
       Navigator.of(context).pop(); // close loading
 
@@ -242,8 +240,7 @@ class EmpAddServiceScreenState extends State<EmpAddServiceScreen> {
                     buildLabel('Service Name'),
                     buildTextFormField(
                       controller: serviceNameController,
-                      validator: (value) =>
-                          Validator.validateNotEmpty(value, 'Service name'),
+                      validator: Validator.validateName,
                     ),
                     const SizedBox(height: 16),
 
@@ -351,10 +348,23 @@ class EmpAddServiceScreenState extends State<EmpAddServiceScreen> {
                     buildLabel('Service Price (RM / hour)'),
                     buildTextFormField(
                       controller: priceController,
-                      hint: 'Leave empty if N/A',
+                      hint: 'Enter price',
                       keyboardType: const TextInputType.numberWithOptions(
                         decimal: true,
                       ),
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Service price is required';
+                        }
+                        final price = double.tryParse(value);
+                        if (price == null) {
+                          return 'Enter a valid number';
+                        }
+                        if (price <= 0) {
+                          return 'Price must be greater than 0';
+                        }
+                        return null;
+                      },
                     ),
                     const SizedBox(height: 16),
 
