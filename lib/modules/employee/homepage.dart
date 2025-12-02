@@ -125,7 +125,11 @@ class EmpHomepageState extends State<EmpHomepage> {
 
             return Row(
               children: [
-                CircleAvatar(radius: 26, backgroundImage: profileImage),
+                CircleAvatar(
+                  radius: 26,
+                  backgroundColor: Colors.orange[100],
+                  child: Icon(Icons.waving_hand, size: 28, color: Colors.black),
+                ),
                 const SizedBox(width: 12),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -287,19 +291,20 @@ class EmpHomepageState extends State<EmpHomepage> {
                           sections: statusCounts.entries
                               .where((entry) => entry.value > 0)
                               .map((entry) {
-                            final percentage = (entry.value / total) * 100;
-                            return PieChartSectionData(
-                              color: getStatusColor(entry.key),
-                              value: entry.value.toDouble(),
-                              title: '${percentage.toStringAsFixed(0)}%',
-                              radius: 50,
-                              titleStyle: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                            );
-                          }).toList(),
+                                final percentage = (entry.value / total) * 100;
+                                return PieChartSectionData(
+                                  color: getStatusColor(entry.key),
+                                  value: entry.value.toDouble(),
+                                  title: '${percentage.toStringAsFixed(0)}%',
+                                  radius: 50,
+                                  titleStyle: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                );
+                              })
+                              .toList(),
                         ),
                       ),
                     ),
@@ -419,7 +424,8 @@ class EmpHomepageState extends State<EmpHomepage> {
                               PieChartSectionData(
                                 color: Colors.green,
                                 value: available.toDouble(),
-                                title: '${((available / total) * 100).toStringAsFixed(0)}%',
+                                title:
+                                    '${((available / total) * 100).toStringAsFixed(0)}%',
                                 radius: 50,
                                 titleStyle: const TextStyle(
                                   fontSize: 12,
@@ -431,7 +437,8 @@ class EmpHomepageState extends State<EmpHomepage> {
                               PieChartSectionData(
                                 color: Colors.red,
                                 value: unavailable.toDouble(),
-                                title: '${((unavailable / total) * 100).toStringAsFixed(0)}%',
+                                title:
+                                    '${((unavailable / total) * 100).toStringAsFixed(0)}%',
                                 radius: 50,
                                 titleStyle: const TextStyle(
                                   fontSize: 12,
@@ -547,11 +554,7 @@ class EmpHomepageState extends State<EmpHomepage> {
         ? services.values.reduce((a, b) => a > b ? a : b).toDouble()
         : 0.0;
 
-    final barColors = [
-      Colors.blue,
-      Colors.purple,
-      Colors.teal,
-    ];
+    final barColors = [Colors.blue, Colors.purple, Colors.teal];
 
     return Card(
       elevation: 2,
@@ -588,7 +591,9 @@ class EmpHomepageState extends State<EmpHomepage> {
                       touchTooltipData: BarTouchTooltipData(
                         getTooltipColor: (group) => Colors.blueGrey.shade800,
                         getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                          final serviceName = services.keys.elementAt(groupIndex);
+                          final serviceName = services.keys.elementAt(
+                            groupIndex,
+                          );
                           return BarTooltipItem(
                             '$serviceName\n',
                             const TextStyle(
@@ -618,7 +623,9 @@ class EmpHomepageState extends State<EmpHomepage> {
                           getTitlesWidget: (value, meta) {
                             final index = value.toInt();
                             if (index >= 0 && index < services.length) {
-                              final serviceName = services.keys.elementAt(index);
+                              final serviceName = services.keys.elementAt(
+                                index,
+                              );
                               return Padding(
                                 padding: const EdgeInsets.only(top: 8),
                                 child: Text(
@@ -673,7 +680,9 @@ class EmpHomepageState extends State<EmpHomepage> {
                         );
                       },
                     ),
-                    barGroups: services.entries.toList().asMap().entries.map((entry) {
+                    barGroups: services.entries.toList().asMap().entries.map((
+                      entry,
+                    ) {
                       final index = entry.key;
                       final serviceEntry = entry.value;
                       return BarChartGroupData(

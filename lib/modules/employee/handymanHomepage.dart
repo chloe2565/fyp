@@ -727,8 +727,8 @@ class HandymanHomepageScreenState extends State<HandymanHomepageScreen> {
           children: [
             CircleAvatar(
               radius: 26,
-              backgroundImage: userPicName.getImageProvider(),
-              backgroundColor: Colors.grey[300],
+              backgroundColor: Colors.orange[100],
+              child: Icon(Icons.waving_hand, size: 28, color: Colors.black),
             ),
             const SizedBox(width: 12),
             Column(

@@ -125,7 +125,11 @@ class CustHomepageState extends State<CustHomepage> {
 
             return Row(
               children: [
-                CircleAvatar(radius: 26, backgroundImage: profileImage),
+                CircleAvatar(
+                  radius: 26,
+                  backgroundColor: Colors.orange[100],
+                  child: Icon(Icons.waving_hand, size: 28, color: Colors.black),
+                ),
                 const SizedBox(width: 12),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
