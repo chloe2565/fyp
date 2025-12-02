@@ -828,7 +828,7 @@ class EmpRequestDetailScreenState extends State<EmpRequestDetailScreen> {
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
-                    nlpAnalysis!.urgency.toUpperCase(),
+                    nlpAnalysis!.complexity.toUpperCase(),
                     style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
