@@ -632,7 +632,7 @@ class EmpRatingReviewDetailScreenState
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Service Information',
+            'Service Request Information',
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 16),
@@ -729,7 +729,7 @@ class EmpRatingReviewDetailScreenState
           Row(
             children: [
               const Text(
-                'Customer Photos',
+                'Customer Review Photos',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
               const Spacer(),
@@ -801,8 +801,6 @@ class EmpRatingReviewDetailScreenState
         children: [
           Row(
             children: [
-              Icon(Icons.format_quote, color: Colors.grey[400], size: 24),
-              const SizedBox(width: 8),
               const Text(
                 'Customer Review',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
@@ -992,7 +990,6 @@ class EmpRatingReviewDetailScreenState
         children: [
           Expanded(
             child: ElevatedButton.icon(
-              icon: const Icon(Icons.edit, size: 18),
               label: const Text('Edit Reply', style: TextStyle(fontSize: 16)),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Theme.of(context).colorScheme.primary,
@@ -1009,7 +1006,6 @@ class EmpRatingReviewDetailScreenState
           const SizedBox(width: 12),
           Expanded(
             child: ElevatedButton.icon(
-              icon: const Icon(Icons.delete_outline, size: 18),
               label: const Text('Delete Reply', style: TextStyle(fontSize: 16)),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Theme.of(context).colorScheme.error,
