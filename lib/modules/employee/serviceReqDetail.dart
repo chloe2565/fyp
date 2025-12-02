@@ -1021,7 +1021,7 @@ class EmpRequestDetailScreenState extends State<EmpRequestDetailScreen> {
               'Service Request Completed At',
               Formatter.formatDateTime(model.reqCompleteTime),
             ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 5),
           buildInfoRow(
             Icons.person_outline,
             'Handyman Assigned',
@@ -1300,8 +1300,11 @@ class EmpRequestDetailScreenState extends State<EmpRequestDetailScreen> {
     final today = DateUtils.dateOnly(now);
     final differenceInDays = scheduledDate.difference(today).inDays;
     final isHandyman = controller.currentEmployeeType == 'handyman';
+    final String? empType = controller.currentEmployeeType;
 
     List<Widget> actions = [];
+
+    // Assign handyman button
 
     // Depart button for handyman when status is confirmed
     if (isHandyman && status == 'confirmed') {
@@ -1376,8 +1379,6 @@ class EmpRequestDetailScreenState extends State<EmpRequestDetailScreen> {
           width: double.infinity,
           child: ElevatedButton.icon(
             onPressed: () async {
-              final String? empType = controller.currentEmployeeType;
-
               if (empType == 'handyman' || empType == 'admin') {
                 print(
                   "Navigating to ${isHandyman ? 'HandymanServiceReqMapScreen' : 'ProviderServiceReqMapScreen'}",
