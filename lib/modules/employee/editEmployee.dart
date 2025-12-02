@@ -301,8 +301,7 @@ class EmpEditEmployeeScreenState extends State<EmpEditEmployeeScreen> {
                     buildLabel('Employee Name'),
                     buildTextFormField(
                       controller: nameController,
-                      validator: (value) =>
-                          Validator.validateNotEmpty(value, 'Employee name'),
+                      validator: (value) => Validator.validateName(value),
                     ),
                     const SizedBox(height: 16),
 
@@ -339,8 +338,7 @@ class EmpEditEmployeeScreenState extends State<EmpEditEmployeeScreen> {
                     buildTextFormField(
                       controller: contactController,
                       keyboardType: TextInputType.phone,
-                      validator: (value) =>
-                          Validator.validateNotEmpty(value, 'Contact number'),
+                      validator: (value) => Validator.validateContact(value),
                     ),
                     const SizedBox(height: 16),
 
@@ -523,6 +521,7 @@ class EmpEditEmployeeScreenState extends State<EmpEditEmployeeScreen> {
       maxLines: maxLines,
       keyboardType: keyboardType,
       validator: validator,
+      autovalidateMode: AutovalidateMode.onUserInteraction,
       style: const TextStyle(
         color: Colors.black,
         fontSize: 15,

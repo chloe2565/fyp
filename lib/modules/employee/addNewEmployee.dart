@@ -96,10 +96,7 @@ class EmpAddEmployeeScreenState extends State<EmpAddEmployeeScreen> {
             : [],
       };
 
-      await controller.addNewEmployee(
-        newData,
-        newProfileImage,
-      );
+      await controller.addNewEmployee(newData, newProfileImage);
 
       if (!mounted) return;
       Navigator.of(context).pop(); // close loading
@@ -112,9 +109,7 @@ class EmpAddEmployeeScreenState extends State<EmpAddEmployeeScreen> {
         primaryButtonText: 'OK',
         onPrimary: () {
           widget.onEmployeeAdded();
-          Navigator.of(context)
-            ..pop() // close success
-            ..pop(); // close add screen
+          Navigator.of(context).pop(); // close success
         },
       );
     } catch (e) {
