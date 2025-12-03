@@ -43,12 +43,12 @@ class Validator {
 
   static String? validateContact(String? value) {
     final contact = value?.trim() ?? '';
-    final contactRegex = RegExp(r'^[0-9]{10,11}$');
+    final contactRegex = RegExp(r'^01[0-9]{8,9}$');
 
     if (contact.isEmpty) {
       return 'Contact number is required';
     } else if (!contactRegex.hasMatch(contact)) {
-      return 'Enter a valid contact (10–11 digits)';
+      return 'Enter a valid contact (10–11 digits start with 01)';
     }
     return null;
   }
