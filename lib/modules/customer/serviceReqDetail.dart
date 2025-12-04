@@ -9,6 +9,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../../controller/serviceRequest.dart';
 import '../../shared/helper.dart';
 import 'homepage.dart';
+import 'reqHistoryDetail.dart';
 
 class ServiceRequestDetailsScreen extends StatefulWidget {
   final String selectedLocationText;
@@ -109,17 +110,47 @@ class ServiceRequestDetailsScreenState
   }
 
   Future<void> selectTime(BuildContext context) async {
+    if (selectedDate == null) {
+      showErrorDialog(
+        context,
+        title: 'Select Date First',
+        message: 'Please select a date before selecting a time.',
+      );
+      return;
+    }
+
     DateTime now = DateTime.now();
-    DateTime minTime = DateTime(now.year, now.month, now.day, 9, 0); // 9:00 AM
-    DateTime maxTime = DateTime(now.year, now.month, now.day, 17, 0); // 5:00 PM
+    DateTime today = DateTime(now.year, now.month, now.day);
+    DateTime initialTime;
 
-    DateTime initialDt = dateTimeFromTimeOfDay(
-      selectedTime ?? const TimeOfDay(hour: 9, minute: 0),
-    );
-    if (initialDt.isBefore(minTime)) initialDt = minTime;
-    if (initialDt.isAfter(maxTime)) initialDt = maxTime;
+    if (selectedDate!.isAtSameMomentAs(today)) {
+      DateTime minAllowedTime = now.add(const Duration(minutes: 30));
+      initialTime = roundToNearestMinuteInterval(minAllowedTime, 5);
+      DateTime workStart = DateTime(now.year, now.month, now.day, 9, 0);
+      DateTime workEnd = DateTime(now.year, now.month, now.day, 17, 0);
 
-    DateTime? tempPickedTime = initialDt;
+      if (initialTime.isBefore(workStart)) {
+        initialTime = workStart;
+      } else if (initialTime.isAfter(workEnd)) {
+        showErrorDialog(
+          context,
+          title: 'Too Late',
+          message:
+              'No available time slots remaining today. Please select a future date.',
+        );
+        return;
+      }
+    } else {
+      initialTime = DateTime(
+        selectedDate!.year,
+        selectedDate!.month,
+        selectedDate!.day,
+        9,
+        0,
+      );
+    }
+
+    DateTime? tempPickedTime = initialTime;
 
     final bool? didSelect = await showCupertinoModalPopup<bool>(
       context: context,
@@ -146,14 +177,11 @@ class ServiceRequestDetailsScreenState
                   ),
                 ],
               ),
-
               Expanded(
                 child: CupertinoDatePicker(
                   mode: CupertinoDatePickerMode.time,
-                  initialDateTime: initialDt,
-                  minuteInterval: 5, // 5-minute interval
-                  minimumDate: minTime, // 9:00 AM
-                  maximumDate: maxTime, // 5:00 PM
+                  initialDateTime: initialTime,
+                  minuteInterval: 5,
                   backgroundColor: CupertinoColors.systemBackground.resolveFrom(
                     context,
                   ),
@@ -170,18 +198,60 @@ class ServiceRequestDetailsScreenState
 
     // If user tapped "Done"
     if (didSelect == true && tempPickedTime != null) {
-      setState(() {
-        selectedTime = TimeOfDay.fromDateTime(tempPickedTime!);
-        final DateTime tempDate = DateTime(
-          2000,
-          1,
-          1,
-          selectedTime!.hour,
-          selectedTime!.minute,
+      DateTime chosenTime = tempPickedTime!;
+      DateTime todayMinAllowed = now.add(const Duration(minutes: 30));
+
+      if (selectedDate!.isAtSameMomentAs(today)) {
+        if (chosenTime.isBefore(now)) {
+          showErrorDialog(
+            context,
+            title: 'Invalid Time',
+            message: 'You cannot select a time that has already passed today.',
+          );
+          return;
+        }
+
+        if (chosenTime.isBefore(todayMinAllowed)) {
+          showErrorDialog(
+            context,
+            title: 'Invalid Time',
+            message: 'Please select a time at least 30 minutes from now.',
+          );
+          return;
+        }
+      }
+
+      DateTime tempMin = DateTime(
+        chosenTime.year,
+        chosenTime.month,
+        chosenTime.day,
+        9,
+        0,
+      );
+      DateTime tempMax = DateTime(
+        chosenTime.year,
+        chosenTime.month,
+        chosenTime.day,
+        17,
+        0,
+      );
+
+      if (chosenTime.isBefore(tempMin) || chosenTime.isAfter(tempMax)) {
+        showErrorDialog(
+          context,
+          title: 'Invalid Time',
+          message: 'Please select a time between 9:00 AM and 5:00 PM.',
         );
-        timeController.text = DateFormat('hh:mm a').format(tempDate);
+        return;
+      }
+
+      // Otherwise save normally
+      setState(() {
+        selectedTime = TimeOfDay.fromDateTime(chosenTime);
+        timeController.text = DateFormat('hh:mm a').format(chosenTime);
       });
     }
+
     if (mounted) {
       formKey.currentState?.validate();
     }
@@ -308,11 +378,16 @@ class ServiceRequestDetailsScreenState
               title: 'Request Confirmed!',
               message:
                   'Your service request has been confirmed! A handyman has been assigned to your request.',
-              primaryButtonText: 'Back to Home',
+              primaryButtonText: 'View Details',
               onPrimary: () {
                 Navigator.of(context).pushAndRemoveUntil(
-                  MaterialPageRoute(builder: (context) => const CustHomepage()),
-                  (route) => false,
+                  MaterialPageRoute(
+                    builder: (context) => RequestHistoryDetailScreen(
+                      reqID: createdReqID!,
+                      controller: controller,
+                    ),
+                  ),
+                  (route) => route.isFirst,
                 );
               },
             );
@@ -331,11 +406,16 @@ class ServiceRequestDetailsScreenState
               title: 'Request Submitted!',
               message:
                   'Your service request has been submitted. We are finding the best handyman for you. You will receive a notification within 2-3 minutes.',
-              primaryButtonText: 'Back to Home',
+              primaryButtonText: 'View Details',
               onPrimary: () {
                 Navigator.of(context).pushAndRemoveUntil(
-                  MaterialPageRoute(builder: (context) => const CustHomepage()),
-                  (route) => false,
+                  MaterialPageRoute(
+                    builder: (context) => RequestHistoryDetailScreen(
+                      reqID: createdReqID!,
+                      controller: controller,
+                    ),
+                  ),
+                  (route) => route.isFirst,
                 );
               },
             );
@@ -347,11 +427,16 @@ class ServiceRequestDetailsScreenState
             title: 'Request Submitted!',
             message:
                 'Your service request has been submitted. An admin will assign a handyman to your request within 2 days.',
-            primaryButtonText: 'Back to Home',
+            primaryButtonText: 'View Details',
             onPrimary: () {
               Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute(builder: (context) => const CustHomepage()),
-                (route) => false,
+                MaterialPageRoute(
+                  builder: (context) => RequestHistoryDetailScreen(
+                    reqID: createdReqID!,
+                    controller: controller,
+                  ),
+                ),
+                (route) => route.isFirst,
               );
             },
           );

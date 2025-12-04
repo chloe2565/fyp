@@ -344,6 +344,25 @@ class Formatter {
   }
 }
 
+// Round up to the next 5 minute number
+DateTime roundToNearestMinuteInterval(DateTime dateTime, int interval) {
+  if (interval <= 0 || interval >= 60) {
+    return dateTime;
+  }
+
+  int remainder = dateTime.minute % interval;
+
+  if (remainder == 0) {
+    return dateTime.copyWith(second: 0, millisecond: 0, microsecond: 0);
+  }
+
+  int minutesToAdd = interval - remainder;
+
+  return dateTime
+      .add(Duration(minutes: minutesToAdd))
+      .copyWith(second: 0, millisecond: 0, microsecond: 0);
+}
+
 void showChangePasswordDialog({
   required BuildContext context,
   required TextEditingController currentPasswordController,
@@ -3068,5 +3087,3 @@ class RescheduleDialogState extends State<RescheduleDialog> {
     }
   }
 }
-
-
