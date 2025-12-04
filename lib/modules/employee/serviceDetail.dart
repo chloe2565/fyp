@@ -109,8 +109,8 @@ class EmpServiceDetailScreenState extends State<EmpServiceDetailScreen> {
       context,
       title: 'Are you sure?',
       message:
-          'Do you confirm to delete service? This action will set status to "inactive" and hide it from customers.',
-      affirmativeText: 'Delete',
+          'Do you confirm to deactivate service? This action will set status to "inactive" and hide it from customers.',
+      affirmativeText: 'Deactivate',
       negativeText: 'Cancel',
       onAffirmative: () async {
         try {
@@ -578,7 +578,7 @@ class EmpServiceDetailScreenState extends State<EmpServiceDetailScreen> {
         Expanded(
           child: ElevatedButton.icon(
             onPressed: handleDelete,
-            label: const Text('Delete'),
+            label: const Text('Deactivate'),
             style: ElevatedButton.styleFrom(
               backgroundColor: Theme.of(context).colorScheme.error,
               foregroundColor: Colors.white,

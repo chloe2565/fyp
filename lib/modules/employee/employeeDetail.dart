@@ -33,7 +33,6 @@ class EmpEmployeeDetailScreenState extends State<EmpEmployeeDetailScreen> {
 
   void onMenuSelection(String value) async {
     if (value == 'update_schedule') {
-      // FIXED: Get handymanID from the loaded specificHandymanModel, not from widget.employee
       if (controller.specificHandymanModel == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Handyman details not loaded yet. Please try again.')),
@@ -495,7 +494,7 @@ class EmpEmployeeDetailScreenState extends State<EmpEmployeeDetailScreen> {
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              child: const Text('Delete', style: TextStyle(fontSize: 16)),
+              child: const Text('Deactivate', style: TextStyle(fontSize: 16)),
             ),
           ),
         ],
