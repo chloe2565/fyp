@@ -2064,7 +2064,7 @@ Widget buildHeaderCard(Map<String, dynamic> headerData) {
         ],
       ),
     );
-  } catch (e, stack) {
+  } catch (e) {
     rethrow;
   }
 }

@@ -90,7 +90,6 @@ class NotificationService {
     print('Foreground message received: ${message.notification?.title}');
 
     RemoteNotification? notification = message.notification;
-    AndroidNotification? android = message.notification?.android;
 
     if (notification != null) {
       localNotifications.show(

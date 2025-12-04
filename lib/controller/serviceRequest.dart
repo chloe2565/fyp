@@ -1589,8 +1589,6 @@ class ServiceRequestController extends ChangeNotifier {
 
     // Sort by urgency first, then by distance
     requestsWithData.sort((a, b) {
-      final requestA = a['request'] as RequestViewModel;
-      final requestB = b['request'] as RequestViewModel;
       final urgencyA = a['urgency'] as String;
       final urgencyB = b['urgency'] as String;
       final distanceA = a['distance'] as double?;
