@@ -166,38 +166,6 @@ class EmployeeModel {
   }
 }
 
-class FavoriteHandymanModel {
-  final String custID;
-  final String handymanID;
-  final DateTime favoriteCreatedAt;
-
-  FavoriteHandymanModel({
-    required this.custID,
-    required this.handymanID,
-    required this.favoriteCreatedAt,
-  });
-
-  // Convert Firestore data to Dart
-  factory FavoriteHandymanModel.fromMap(Map<String, dynamic> data) {
-    return FavoriteHandymanModel(
-      custID: data['custID'] ?? '',
-      handymanID: data['handymanID'] ?? '',
-      favoriteCreatedAt: (data['favoriteCreatedAt'] is Timestamp
-          ? (data['favoriteCreatedAt'] as Timestamp).toDate()
-          : DateTime.now()),
-    );
-  }
-
-  // Convert Dart to Firestore data
-  Map<String, dynamic> toMap() {
-    return {
-      'custID': custID,
-      'handymanID': handymanID,
-      'favoriteCreatedAt': Timestamp.fromDate(favoriteCreatedAt),
-    };
-  }
-}
-
 class HandymanModel {
   final String handymanID;
   final double handymanRating;
